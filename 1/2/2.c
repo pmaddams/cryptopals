@@ -3,6 +3,9 @@
 
 #define MINIMUM(a, b) ((a)<(b)?(a):(b))
 
+char s1[] = "1c0111001f010100061a024b53535009181c";
+char s2[] = "686974207468652062756c6c277320657965";
+
 void
 xor(uint8_t *b1, uint8_t *b2, size_t len)
 {
@@ -37,17 +40,15 @@ done:
 int
 main(void)
 {
-	char s1[] = "1c0111001f010100061a024b53535009181c",
-	    s2[] = "686974207468652062756c6c277320657965";
-	size_t i, l1, l2, len;
+	size_t i, l1, l2;
 
 	xtoa(s1, &l1);
 	xtoa(s2, &l2);
 
-	len = MINIMUM(l1, l2);
-	xor(s1, s2, len);
+	l1 = MINIMUM(l1, l2);
+	xor(s1, s2, l1);
 
-	for (i = 0; i < len; i++)
+	for (i = 0; i < l1; i++)
 		printf("%hhx", s1[i]);
 	putchar('\n');
 
