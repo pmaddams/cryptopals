@@ -6,7 +6,7 @@
 #include <openssl/evp.h>
 
 int
-gethex(FILE *fp)
+gethex(void)
 {
 	int i, c;
 	static char buf[3];
@@ -34,7 +34,7 @@ main(void)
 
 	BIO_push(b64, bio);
 
-	while ((c = gethex(stdin)) != EOF)
+	while ((c = gethex()) != EOF)
 		if (BIO_write(b64, &c, 1) <= 0)
 			err(1, NULL);
 
