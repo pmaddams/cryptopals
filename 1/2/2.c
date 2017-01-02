@@ -48,7 +48,7 @@ main(void)
 	xor(s1, s2, len);
 
 	for (i = 0; i < len; i++)
-		printf("%02hhx", s1[i]);
+		printf("%hhx", s1[i]);
 	putchar('\n');
 
 	return 0;
