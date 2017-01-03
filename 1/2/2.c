@@ -26,7 +26,9 @@ xtoa(char *s, size_t *lenp)
 		j += k;
 	}
 done:
-	s[(*lenp = i)] = '\0';
+	s[i] = '\0';
+	if (lenp != NULL)
+		*lenp = i;
 	return s;
 }
 
