@@ -26,7 +26,7 @@ xtoa(char *s, size_t *lenp)
 		j += k;
 	}
 done:
-	*lenp = i;
+	s[(*lenp = i)] = '\0';
 	return s;
 }
 
@@ -51,6 +51,8 @@ main(void)
 	for (i = 0; i < l1; i++)
 		printf("%hhx", s1[i]);
 	putchar('\n');
+
+	puts(s1);
 
 	return 0;
 }
