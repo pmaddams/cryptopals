@@ -11,12 +11,10 @@ encrypt(int c)
 	if (len == 0)
 		len = strlen(KEY);
 
-	if (c == EOF || len == 0)
-		goto fail;
+	if (c != EOF)
+		c ^= KEY[i++ % len];
 
-	return c ^ KEY[i++ % len];
-fail:
-	return EOF;
+	return c;
 }
 
 int
