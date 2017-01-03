@@ -97,10 +97,10 @@ main(void)
 			memcpy(cp, buf, len);
 			xor(cp, c, len);
 			if ((scr = score(cp, len)) > best) {
+				best = scr;
 				free(found);
 				if ((found = strdup(cp)) == NULL)
 					err(1, NULL);
-				best = scr;
 			}
 		}
 		free(cp);

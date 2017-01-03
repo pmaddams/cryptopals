@@ -79,8 +79,8 @@ main(void)
 		memcpy(cp, buf, len);
 		xor(cp, c, len);
 		if ((scr = score(cp, len)) > best) {
-			found = c;
 			best = scr;
+			found = c;
 		}
 	}
 
