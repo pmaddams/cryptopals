@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,12 +52,8 @@ score(uint8_t *buf, size_t len)
 			default:
 				break;
 			}
-		else
-			goto fail;
 
 	return res;
-fail:
-	return 0.;
 }
 
 int
@@ -82,13 +79,13 @@ main(void)
 		memcpy(cp, buf, len);
 		xor(cp, c, len);
 		if ((scr = score(cp, len)) > best) {
-			best = scr;
 			found = c;
+			best = scr;
 		}
 	}
 
 	if (best == 0.)
-		errx("no match found");
+		errx(1, "no match found");
 
 	xor(buf, found, len);
 	fwrite(buf, len, 1, stdout);

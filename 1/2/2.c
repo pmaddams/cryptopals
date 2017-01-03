@@ -51,7 +51,7 @@ main(void)
 	xor(s1, s2, l1);
 
 	for (i = 0; i < l1; i++)
-		printf("%hhx", s1[i]);
+		printf("%02x", s1[i]);
 	putchar('\n');
 
 	puts(s1);
