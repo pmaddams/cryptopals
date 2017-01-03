@@ -6,13 +6,6 @@
 char s1[] = "1c0111001f010100061a024b53535009181c";
 char s2[] = "686974207468652062756c6c277320657965";
 
-void
-xor(uint8_t *b1, uint8_t *b2, size_t len)
-{
-	while (len--)
-		*b1++ ^= *b2++;
-}
-
 char *
 xtoa(char *s, size_t *lenp)
 {
@@ -35,6 +28,13 @@ xtoa(char *s, size_t *lenp)
 done:
 	*lenp = i;
 	return s;
+}
+
+void
+xor(uint8_t *b1, uint8_t *b2, size_t len)
+{
+	while (len--)
+		*b1++ ^= *b2++;
 }
 
 int
