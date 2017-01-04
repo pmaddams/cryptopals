@@ -14,7 +14,7 @@
 #define MINIMUM(a, b)	((a)<(b)?(a):(b))
 
 int
-dist(uint8_t b1, uint8_t b2, size_t len)
+dist(uint8_t *b1, uint8_t *b2, size_t len)
 {
 	uint8_t c;
 	int res;
@@ -67,33 +67,8 @@ crack_keylen(uint8_t *buf, size_t len)
 	return found;
 }
 
-float
-score(uint8_t *buf, size_t len)
+int
+main(void)
 {
-	float res;
-	uint8_t c;
-
-	for (res = 0.; len--;)
-		if (isprint(c = *buf++))
-			switch (c) {
-			case ' ':
-				res += tab[0];
-				break;
-			case 'A'...'Z':
-				c = c - 'A' + 'a';
-				/* FALLTHROUGH */
-			case 'a'...'z':
-				res += tab[1 + c - 'a'];
-				break;
-			default:
-				break;
-			}
-
-	return res;
-}
-
-char *
-crack_key(uint8_t *buf, size_t len)
-{
-	
+	return 0;
 }
