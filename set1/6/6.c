@@ -69,19 +69,19 @@ crack_keylen(uint8_t *buf, size_t len)
 }
 
 char *
-crack_key(uint8_t *buf, size_t len)
+crack_key(uint8_t *buf, size_t len, size_t keylen)
 {
-	size_t i, keylen;
-	char **bufarray, *key;
+	size_t i;
+	char *bufarray[keylen], *key;
 
-	keylen = crack_keylen(buf, len);
 	len -= (len % keylen);
 
-	if ((bufarray = calloc(keylen, len/keylen)) == NULL)
-		goto fail;
+	for (i = 0; i < keylen; i++)
+		if ((bufarray[i] = malloc(len/keylen)) == NULL)
+			goto fail;
 
 	for (i = 0; i < len; i++)
-		bufarray[i/len][i%keylen] = buf[i];
+		bufarray[i%keylen][i/keylen] = buf[i];
 
 fail:
 	return NULL;
@@ -106,8 +106,6 @@ main(void)
 	while ((nr = BIO_read(b64, tmp, BUFSIZ)) > 0)
 		fwrite(tmp, nr, 1, memstream);
 	fclose(memstream);
-
-	crack_key(buf, len);
 
 	exit(0);
 }
