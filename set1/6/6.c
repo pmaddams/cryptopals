@@ -145,7 +145,7 @@ main(void)
 	BIO *bio, *b64;
 	FILE *memstream;
 	char *buf, tmp[BUFSIZ], *key;
-	size_t len, keylen;
+	size_t i, len, keylen;
 	int nr;
 
 	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
@@ -159,9 +159,16 @@ main(void)
 		fwrite(tmp, nr, 1, memstream);
 	fclose(memstream);
 
+	BIO_free_all(b64);
+
 	keylen = crack_keylen(buf, len);
 	key = crack_key(buf, len, keylen);
-	puts(key);
+
+	printf("KEY: %s\n\n", key);
+
+	for (i = 0; i < len; i++)
+		putchar(buf[i] ^ key[i%keylen]);
+	putchar('\n');
 
 	exit(0);
 }
