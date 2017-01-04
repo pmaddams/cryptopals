@@ -1,10 +1,17 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#define MAXKEY	40
-#define NBLK	4
+#include "tab.h"
+
+#define MINKEY		2
+#define MAXKEY		40
+#define NBLK		4
+
+#define MINIMUM(a, b)	((a)<(b)?(a):(b))
 
 int
 dist(uint8_t b1, uint8_t b2, size_t len)
@@ -24,22 +31,69 @@ dist(uint8_t b1, uint8_t b2, size_t len)
 }
 
 float
-keydist(uint8_t *buf, size_t len, size_t keylen)
+keydist(uint8_t *buf, size_t len, size_t guess)
 {
-	uint8_t *tmp;
 	int i, sum;
+	uint8_t tmp[guess];
 
-	if (keylen*NBLK >= len ||
-	    (tmp = malloc(keylen)) == NULL)
+	if (guess*NBLK >= len)
 		goto fail;
 
 	for (sum = i = 0; i < NBLK; i++) {
-		memcpy(tmp, buf+i*keylen, keylen);
-		buf += i*keylen;
-		sum += dist(buf, tmp, keylen);
+		memcpy(tmp, buf+i*guess, guess);
+		buf += i*guess;
+		sum += dist(buf, tmp, guess);
 	}
 
-	return (float) sum / (keylen*NBLK);
+	return (float) sum / (guess*NBLK);
 fail:
-	return 0.
+	return 8.;
+}
+
+size_t
+crack_keylen(uint8_t *buf, size_t len)
+{
+	float scr, best;
+	size_t guess, found, max;
+
+	max = MINIMUM(len/NBLK, MAXKEY);
+
+	for (best = 8., found = guess = MINKEY; guess <= max; guess++)
+		if ((scr = keydist(buf, len, guess)) < best) {
+			best = scr;
+			found = guess;
+		}
+
+	return found;
+}
+
+float
+score(uint8_t *buf, size_t len)
+{
+	float res;
+	uint8_t c;
+
+	for (res = 0.; len--;)
+		if (isprint(c = *buf++))
+			switch (c) {
+			case ' ':
+				res += tab[0];
+				break;
+			case 'A'...'Z':
+				c = c - 'A' + 'a';
+				/* FALLTHROUGH */
+			case 'a'...'z':
+				res += tab[1 + c - 'a'];
+				break;
+			default:
+				break;
+			}
+
+	return res;
+}
+
+char *
+crack_key(uint8_t *buf, size_t len)
+{
+	
 }
