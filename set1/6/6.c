@@ -9,7 +9,7 @@
 
 #include "tab.h"
 
-#define MINKEY		2
+#define MINKEY		6
 #define MAXKEY		40
 #define NBLK		4
 
@@ -18,8 +18,8 @@
 int
 dist(uint8_t *b1, uint8_t *b2, size_t len)
 {
-	uint8_t c;
 	int res;
+	uint8_t c;
 
 	for (res = 0; len--;) {
 		c = *b1++ ^ *b2++;
@@ -38,11 +38,11 @@ keydist(uint8_t *buf, size_t len, size_t guess)
 	int i, sum;
 	uint8_t tmp[guess];
 
-	if (guess*NBLK >= len)
+	if (guess*(NBLK+1) >= len)
 		goto fail;
 
 	for (sum = i = 0; i < NBLK; i++) {
-		memcpy(tmp, buf+i*guess, guess);
+		memcpy(tmp, buf+(i+1)*guess, guess);
 		buf += i*guess;
 		sum += dist(buf, tmp, guess);
 	}
@@ -55,10 +55,10 @@ fail:
 size_t
 crack_keylen(uint8_t *buf, size_t len)
 {
-	float scr, best;
 	size_t guess, found, max;
+	float scr, best;
 
-	max = MINIMUM(len/NBLK, MAXKEY);
+	max = MINIMUM(len/(NBLK+1), MAXKEY);
 
 	for (best = 8., found = guess = MINKEY; guess <= max; guess++)
 		if ((scr = keydist(buf, len, guess)) < best) {
@@ -104,8 +104,8 @@ score(uint8_t *buf, size_t len)
 char *
 crack_key(uint8_t *buf, size_t len, size_t keylen)
 {
-	char *tmp, *cp, *key;
 	size_t i, j, tmplen;
+	char *tmp, *cp, *key;
 	float scr, best;
 	uint8_t c;
 
@@ -145,7 +145,7 @@ main(void)
 	BIO *bio, *b64;
 	FILE *memstream;
 	char *buf, tmp[BUFSIZ], *key;
-	size_t len;
+	size_t len, keylen;
 	int nr;
 
 	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
@@ -159,7 +159,8 @@ main(void)
 		fwrite(tmp, nr, 1, memstream);
 	fclose(memstream);
 
-	key = crack_key(buf, len, 29);
+	keylen = crack_keylen(buf, len);
+	key = crack_key(buf, len, keylen);
 	puts(key);
 
 	exit(0);
