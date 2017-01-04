@@ -1,4 +1,5 @@
 #include <err.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,21 +69,72 @@ crack_keylen(uint8_t *buf, size_t len)
 	return found;
 }
 
+void
+xor(uint8_t *buf, uint8_t c, size_t len)
+{
+	while (len--)
+		*buf++ ^= c;
+}
+
+float
+score(uint8_t *buf, size_t len)
+{
+	float res;
+	uint8_t c;
+
+	for (res = 0.; len--;)
+		if (isprint(c = *buf++))
+			switch (c) {
+			case ' ':
+				res += tab[0];
+				break;
+			case 'A'...'Z':
+				c = c - 'A' + 'a';
+				/* FALLTHROUGH */
+			case 'a'...'z':
+				res += tab[1 + c - 'a'];
+				break;
+			default:
+				break;
+			}
+
+	return res;
+}
+
 char *
 crack_key(uint8_t *buf, size_t len, size_t keylen)
 {
-	size_t i;
-	char *bufarray[keylen], *key;
+	char *tmp, *cp, *key;
+	size_t i, j, tmplen;
+	float scr, best;
+	uint8_t c;
 
 	len -= (len % keylen);
+	tmplen = len / keylen;
 
-	for (i = 0; i < keylen; i++)
-		if ((bufarray[i] = malloc(len/keylen)) == NULL)
-			goto fail;
+	if ((tmp = malloc(tmplen)) == NULL ||
+	    (cp = malloc(tmplen)) == NULL ||
+	    (key = malloc(keylen+1)) == NULL)
+		err(1, NULL);
 
-	for (i = 0; i < len; i++)
-		bufarray[i%keylen][i/keylen] = buf[i];
+	for (i = 0; i < keylen; i++) {
+		for (j = 0; j < tmplen; j++)
+			tmp[j] = buf[(j*keylen)+i];
 
+		for (best = 0., c = 0; c < UINT8_MAX; c++) {
+			memcpy(cp, tmp, tmplen);
+			xor(cp, c, tmplen);
+			if ((scr = score(cp, tmplen)) > best) {
+				best = scr;
+				key[i] = c;
+			}
+		}
+	}
+	key[i] = '\0';
+
+	free(tmp);
+	free(cp);
+	return key;
 fail:
 	return NULL;
 }
@@ -92,7 +144,7 @@ main(void)
 {
 	BIO *bio, *b64;
 	FILE *memstream;
-	char *buf, tmp[BUFSIZ];
+	char *buf, tmp[BUFSIZ], *key;
 	size_t len;
 	int nr;
 
@@ -106,6 +158,9 @@ main(void)
 	while ((nr = BIO_read(b64, tmp, BUFSIZ)) > 0)
 		fwrite(tmp, nr, 1, memstream);
 	fclose(memstream);
+
+	key = crack_key(buf, len, 29);
+	puts(key);
 
 	exit(0);
 }
