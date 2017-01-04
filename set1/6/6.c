@@ -115,7 +115,7 @@ crack_key(uint8_t *buf, size_t len, size_t keylen)
 	if ((tmp = malloc(tmplen)) == NULL ||
 	    (cp = malloc(tmplen)) == NULL ||
 	    (key = malloc(keylen+1)) == NULL)
-		err(1, NULL);
+		goto fail;
 
 	for (i = 0; i < keylen; i++) {
 		for (j = 0; j < tmplen; j++)
@@ -156,13 +156,15 @@ main(void)
 	BIO_push(b64, bio);
 
 	while ((nr = BIO_read(b64, tmp, BUFSIZ)) > 0)
-		fwrite(tmp, nr, 1, memstream);
+		if (fwrite(tmp, nr, 1, memstream) < 1)
+			err(1, NULL);
 	fclose(memstream);
 
 	BIO_free_all(b64);
 
 	keylen = crack_keylen(buf, len);
-	key = crack_key(buf, len, keylen);
+	if ((key = crack_key(buf, len, keylen)) == NULL)
+		err(1, NULL);
 
 	printf("KEY: %s\n\n", key);
 
