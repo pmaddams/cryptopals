@@ -1,5 +1,7 @@
 #include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define MINIMUM(a, b) ((a)<(b)?(a):(b))
 
@@ -56,5 +58,5 @@ main(void)
 
 	puts(s1);
 
-	return 0;
+	exit(0);
 }

@@ -1,6 +1,8 @@
 #include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
@@ -41,5 +43,5 @@ main(void)
 	BIO_flush(b64);
 	BIO_free_all(b64);
 
-	return 0;
+	exit(0);
 }
