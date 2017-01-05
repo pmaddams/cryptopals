@@ -89,8 +89,7 @@ main(void)
 		errx(1, "no match found");
 
 	xor(buf, found, len);
-	fwrite(buf, len, 1, stdout);
-	putchar('\n');
+	puts(buf);
 
 	exit(0);
 }
