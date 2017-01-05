@@ -109,7 +109,7 @@ crack_key(uint8_t *buf, size_t len, size_t keylen)
 	float scr, best;
 	int c;
 
-	len -= (len % keylen);
+	len -= len % keylen;
 	tmplen = len / keylen;
 
 	if ((tmp = malloc(tmplen)) == NULL ||
@@ -119,7 +119,7 @@ crack_key(uint8_t *buf, size_t len, size_t keylen)
 
 	for (i = 0; i < keylen; i++) {
 		for (j = 0; j < tmplen; j++)
-			tmp[j] = buf[(j*keylen)+i];
+			tmp[j] = buf[j*keylen+i];
 
 		for (best = 0., c = 0; c <= UINT8_MAX; c++) {
 			memcpy(cp, tmp, tmplen);
