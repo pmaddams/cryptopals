@@ -18,11 +18,9 @@ gethex(void)
 		if (isxdigit(c = getchar()))
 			buf[i++] = c;
 		else if (c == EOF)
-			goto fail;
+			return EOF;
 
 	return strtol(buf, NULL, 16);
-fail:
-	return EOF;
 }
 
 void
