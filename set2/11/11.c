@@ -83,6 +83,9 @@ main(void)
 	    (out = open_memstream(&outbuf, &outlen)) == NULL ||
 	    (encrypt(in, out, key, &realmode)) == 0)
 		err(1, NULL);
+
+	free(buf);
+	fclose(in);
 	fclose(out);
 
 	guessmode = memcmp(outbuf+BLKSIZ, outbuf+BLKSIZ*2, BLKSIZ) == 0 ? ECB : CBC;
