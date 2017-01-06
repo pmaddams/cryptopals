@@ -7,7 +7,6 @@
 #include <openssl/evp.h>
 
 #define KEY	"YELLOW SUBMARINE"
-
 #define BLKSIZ	16
 
 int
@@ -41,7 +40,7 @@ int
 cbc_crypt(uint8_t *buf, size_t *lenp, uint8_t *key, int enc)
 {
 	EVP_CIPHER_CTX ctx;
-	uint8_t *newp, rem, vec[BLKSIZ];
+	uint8_t *newp, pad, vec[BLKSIZ];
 	size_t i, newlen;
 
 	EVP_CIPHER_CTX_init(&ctx);
@@ -52,9 +51,9 @@ cbc_crypt(uint8_t *buf, size_t *lenp, uint8_t *key, int enc)
 		if ((newp = realloc(buf, newlen)) == NULL)
 			goto fail;
 		buf = newp;
-		rem = newlen-*lenp;
+		pad = newlen-*lenp;
 		while (*lenp < newlen)
-			buf[(*lenp)++] = rem;
+			buf[(*lenp)++] = pad;
 	}
 
 	memset(vec, 0, BLKSIZ);
