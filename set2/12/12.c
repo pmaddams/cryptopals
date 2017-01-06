@@ -1,5 +1,3 @@
-#include <limits.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,11 +5,21 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
+#define HASHSIZ 127
+
+struct entry {
+	uint8_t *blk;
+	char c;
+	struct entry *next;
+};
+
 const char secret[] =
     "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg"
     "aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"
     "dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"
     "YnkK";
+
+struct entry *tab[HASHSIZ];
 
 uint8_t *
 encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
@@ -69,7 +77,7 @@ done:
 	return res;
 }
 
-bool
+int
 is_ecb(size_t blksiz)
 {
 	char in[blksiz*2], *out;
@@ -77,11 +85,52 @@ is_ecb(size_t blksiz)
 	memset(in, 'A', blksiz*2);
 
 	if ((out = encrypt(in, blksiz*2, NULL)) == NULL)
-		return false;
+		goto fail;
 
 	free(out);
 
-	return memcmp(out, out+blksiz, blksiz) == 0;
+	return (memcmp(out, out+blksiz, blksiz) == 0);
+fail:
+	return 0;
+}
+
+uint8_t
+hash(uint8_t *blk, size_t blksiz)
+{
+	uint64_t h;
+
+	for (h = 0; blksiz--;)
+		h = h * 31 + *blk++;
+
+	return h % HASHSIZ;
+}
+
+char
+lookup(uint8_t *blk, size_t blksiz, char c, int creat)
+{
+	uint8_t h;
+	struct entry *p;
+
+	h = hash(blk, blksiz);
+
+	for (p = tab[h]; p != NULL; p = p->next)
+		if (memcmp(blk, p->blk, blksiz) == 0)
+			goto done;
+
+	if (creat) {
+		if ((p = malloc(sizeof(*p))) == NULL ||
+		    (p->blk = malloc(blksiz)) == NULL)
+			goto fail;
+
+		memcpy(p->blk, blk, blksiz);
+		p->c = c;
+		p->next = tab[h];
+		tab[h] = p;
+	}
+done:
+	return p->c;
+fail:
+	return -1;
 }
 
 int
