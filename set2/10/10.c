@@ -27,28 +27,56 @@ int
 cbc_crypt(uint8_t *buf, size_t *lenp, uint8_t *key, int enc)
 {
 	EVP_CIPHER_CTX ctx;
+	uint8_t *newp, rem;
+	size_t i, newlen;
 
 	EVP_CIPHER_CTX_init(&ctx);
 	EVP_CIPHER_CTX_set_padding(&ctx, 0);
 
-	cbc_crypt_blk(&ctx, buf, key, enc);
-	cbc_crypt_blk(&ctx, buf+BLKSIZ, key, enc);
+	if (*lenp % BLKSIZ) {
+		newlen = (*lenp/BLKSIZ+1)*BLKSIZ;
+		if ((newp = realloc(buf, newlen)) == NULL)
+			goto fail;
+		buf = newp;
+		rem = newlen-*lenp;
+		while (*lenp < newlen)
+			buf[(*lenp)++] = rem;
+	}
+
+	for (i = 0; i < *lenp; i += BLKSIZ)
+		cbc_crypt_blk(&ctx, buf+i, key, enc);
 
 	EVP_CIPHER_CTX_cleanup(&ctx);
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
 main(void)
 {
-	uint8_t buf[BLKSIZ*2];
-	size_t i, len;
+	BIO *bio, *b64;
+	FILE *memstream;
+	char *buf, tmp[BUFSIZ];
+	size_t len;
+	int nr;
 
-	memset(buf, 1, BLKSIZ*2);
+	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
+	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
+	    (memstream = open_memstream(&buf, &len)) == NULL)
+		err(1, NULL);
 
-	cbc_crypt(buf, &len, KEY, 1);
+	BIO_push(b64, bio);
 
-	for (i = 0; i < BLKSIZ*2; i++)
-		printf("%02hhx", buf[i]);
+	while ((nr = BIO_read(b64, tmp, BUFSIZ)) > 0)
+		if (fwrite(tmp, nr, 1, memstream) < 1)
+			err(1, NULL);
+	fclose(memstream);
+
+	cbc_crypt(buf, &len, KEY, 0);
+
+	fwrite(buf, len, 1, stdout);
 	putchar('\n');
 
 	exit(0);
