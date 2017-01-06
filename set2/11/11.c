@@ -74,7 +74,7 @@ main(void)
 	arc4random_buf(key, BLKSIZ);
 
 	len = BLKSIZ*3;
-	if ((buf = malloc(len+1)) == NULL)
+	if ((buf = malloc(len)) == NULL)
 		err(1, NULL);
 	memset(buf, 'A', len);
 
