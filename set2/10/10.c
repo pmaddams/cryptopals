@@ -11,14 +11,28 @@
 #define BLKSIZ	16
 
 int
-cbc_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint8_t *key, int enc)
+cbc_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint8_t *vec, uint8_t *key, int enc)
 {
-	uint8_t out[BLKSIZ];
-	int outlen;
+	uint8_t out[BLKSIZ], tmp[BLKSIZ];
+	int i, outlen;
+
+	if (enc)
+		for (i = 0; i < BLKSIZ; i++)
+			blk[i] ^= vec[i];
+	else
+		memcpy(tmp, blk, BLKSIZ);
 
 	EVP_CipherInit(ctxp, EVP_aes_128_ecb(), key, NULL, enc);
 	EVP_CipherUpdate(ctxp, out, &outlen, blk, BLKSIZ);
 	EVP_CipherFinal(ctxp, out, &outlen);
+
+	if (enc)
+		memcpy(vec, out, BLKSIZ);
+	else {
+		for (i = 0; i < BLKSIZ; i++)
+			out[i] ^= vec[i];
+		memcpy(vec, tmp, BLKSIZ);
+	}
 
 	memcpy(blk, out, BLKSIZ);
 }
@@ -27,7 +41,7 @@ int
 cbc_crypt(uint8_t *buf, size_t *lenp, uint8_t *key, int enc)
 {
 	EVP_CIPHER_CTX ctx;
-	uint8_t *newp, rem;
+	uint8_t *newp, rem, vec[BLKSIZ];
 	size_t i, newlen;
 
 	EVP_CIPHER_CTX_init(&ctx);
@@ -43,8 +57,10 @@ cbc_crypt(uint8_t *buf, size_t *lenp, uint8_t *key, int enc)
 			buf[(*lenp)++] = rem;
 	}
 
+	memset(vec, 0, BLKSIZ);
+
 	for (i = 0; i < *lenp; i += BLKSIZ)
-		cbc_crypt_blk(&ctx, buf+i, key, enc);
+		cbc_crypt_blk(&ctx, buf+i, vec, key, enc);
 
 	EVP_CIPHER_CTX_cleanup(&ctx);
 
@@ -76,8 +92,7 @@ main(void)
 
 	cbc_crypt(buf, &len, KEY, 0);
 
-	fwrite(buf, len, 1, stdout);
-	putchar('\n');
+	puts(buf);
 
 	exit(0);
 }
