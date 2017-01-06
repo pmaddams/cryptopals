@@ -27,11 +27,11 @@ cbc_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint8_t *vec, uint8_t *key, in
 
 	if (enc)
 		memcpy(vec, out, BLKSIZ);
-	else {
-		for (i = 0; i < BLKSIZ; i++)
+	else
+		for (i = 0; i < BLKSIZ; i++) {
 			out[i] ^= vec[i];
-		memcpy(vec, tmp, BLKSIZ);
-	}
+			vec[i] = tmp[i];
+		}
 
 	memcpy(blk, out, BLKSIZ);
 }
