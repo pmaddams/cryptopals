@@ -46,7 +46,7 @@ cbc_crypt(uint8_t *buf, size_t *lenp, uint8_t *key, int enc)
 	EVP_CIPHER_CTX_init(&ctx);
 	EVP_CIPHER_CTX_set_padding(&ctx, 0);
 
-	if (*lenp % BLKSIZ) {
+	if (enc) {
 		newlen = (*lenp/BLKSIZ+1)*BLKSIZ;
 		if ((newp = realloc(buf, newlen)) == NULL)
 			goto fail;
