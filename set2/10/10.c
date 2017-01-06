@@ -89,6 +89,8 @@ main(void)
 			err(1, NULL);
 	fclose(memstream);
 
+	BIO_free_all(bio);
+
 	cbc_crypt(buf, &len, KEY, 0);
 
 	puts(buf);
