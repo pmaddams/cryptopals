@@ -59,12 +59,12 @@ int
 main(void)
 {
 	FILE *memstream;
-	uint8_t *buf, *cp;
+	char *buf, *cp;
 	size_t len;
 	int c, found;
 	float scr, best;
 
-	if ((memstream = open_memstream((char **) &buf, &len)) == NULL)
+	if ((memstream = open_memstream(&buf, &len)) == NULL)
 		err(1, NULL);
 
 	while ((c = gethex()) != EOF)
