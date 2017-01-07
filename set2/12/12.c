@@ -146,6 +146,8 @@ fill_tab(size_t blksiz)
 		if ((out = encrypt(in, blksiz, NULL)) == NULL ||
 		    lookup(out, blksiz, c, 1) == -1)
 			goto fail;
+
+		free(out);
 	}
 
 	return 1;
