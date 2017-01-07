@@ -98,7 +98,7 @@ fail:
 unsigned int
 hash(uint8_t *blk, size_t blksiz)
 {
-	uint64_t h;
+	unsigned int h;
 
 	for (h = 0; blksiz--;)
 		h = h * 31 + *blk++;
