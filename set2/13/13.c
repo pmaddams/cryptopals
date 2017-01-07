@@ -7,13 +7,13 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
+#define USER	1
+#define ADMIN	2
+
 struct profile {
 	char *email;
 	int uid;
-	enum {
-		USER,
-		ADMIN
-	} role;
+	int role;
 };
 
 int
@@ -47,7 +47,7 @@ is_valid(char *email)
 			ctr++;
 			break;
 		default:
-			if (at)
+			if (at || isspace(c) || !isprint(c))
 				goto fail;
 			ctr++;
 			break;
@@ -73,4 +73,59 @@ profile_for(char *email)
 	return res;
 fail:
 	return NULL;
+}
+
+struct profile *
+parse(char *s)
+{
+	char *cp, *field, *email;
+	int uid, role;
+	const char *errstr;
+	struct profile *profile;
+
+	if ((cp = strdup(s)) == NULL)
+		goto fail;
+
+	email = NULL;
+	uid = role = 0;
+
+	while (field = strsep(&cp, "&"))
+		if (strncmp(field, "email=", 6) == 0) {
+			if ((email = strdup(field+6)) == NULL)
+				goto fail;
+		} else if (strncmp(field, "uid=", 4) == 0) {
+			uid = strtonum(field+4, 1, 1000, &errstr);
+			if (errstr)
+				goto fail;
+		} else if (strncmp(field, "role=", 5) == 0) {
+			field += 5;
+			if (strcmp(field, "admin"))
+				role = ADMIN;
+			else if (strcmp(field, "user"))
+				role = USER;
+			else
+				goto fail;
+		} else
+			goto fail;
+
+	if (email == NULL || uid == 0 || role == 0 ||
+	    (profile = malloc(sizeof(*profile))) == NULL)
+		goto fail;
+
+	profile->email = email;
+	profile->uid = uid;
+	profile->role = role;
+
+	free(cp);
+	return NULL;
+fail:
+	free(cp);
+	free(email);
+	return NULL;
+}
+
+int
+main(void)
+{
+	return 0;
 }
