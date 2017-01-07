@@ -12,13 +12,15 @@
 "dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"	\
 "YnkK"
 
+#define HASHSIZE 1000
+
 struct entry {
 	uint8_t *blk;
 	char c;
 	struct entry *next;
 };
 
-struct entry *tab[CHAR_MAX];
+struct entry *tab[HASHSIZE];
 
 uint8_t *
 encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
@@ -93,7 +95,7 @@ fail:
 	return 0;
 }
 
-uint8_t
+unsigned int
 hash(uint8_t *blk, size_t blksiz)
 {
 	uint64_t h;
@@ -101,13 +103,13 @@ hash(uint8_t *blk, size_t blksiz)
 	for (h = 0; blksiz--;)
 		h = h * 31 + *blk++;
 
-	return h % CHAR_MAX;
+	return h % HASHSIZE;
 }
 
 char
 lookup(uint8_t *blk, size_t blksiz, char c, int create)
 {
-	uint8_t h;
+	unsigned int h;
 	struct entry *p;
 
 	h = hash(blk, blksiz);
