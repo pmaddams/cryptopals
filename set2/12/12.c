@@ -157,13 +157,12 @@ char *
 crack_secret(size_t blksiz)
 {
 	FILE *memstream;
-	char *in, tmp[BUFSIZ], *out, *blk, c;
+	char *in, tmp[BUFSIZ], *out, *enc, c;
 	size_t i, inlen, outlen;
 	BIO *b64_mem, *b64;
 	ssize_t nr;
 
-	if (fill_tab(blksiz) == 0 ||
-	    (memstream = open_memstream(&in, &inlen)) == NULL)
+	if ((memstream = open_memstream(&in, &inlen)) == NULL)
 		goto fail;
 
 	for (i = 0; i < blksiz-1; i++)
@@ -187,14 +186,14 @@ crack_secret(size_t blksiz)
 		goto fail;
 
 	while (inlen >= blksiz) {
-		if ((blk = encrypt(in, blksiz, NULL)) == NULL ||
-		    (c = lookup(blk, blksiz, 0, 0)) == -1)
+		if ((enc = encrypt(in, blksiz, NULL)) == NULL ||
+		    (c = lookup(enc, blksiz, 0, 0)) == -1)
 			goto fail;
 
 		putc(c, memstream);
 		memmove(in+blksiz-1, in+blksiz, inlen-blksiz);
 
-		free(blk);
+		free(enc);
 		inlen--;
 	}
 	fclose(memstream);
@@ -208,16 +207,18 @@ int
 main(void)
 {
 	size_t blksiz;
-	char *buf;
+	char *s;
 
 	blksiz = crack_blksiz();
-	if (!is_ecb(blksiz))
+
+	if (is_ecb(blksiz) == 0)
 		errx(1, "ECB required");
 
-	if ((buf = crack_secret(blksiz)) == NULL)
+	if (fill_tab(blksiz) == 0 ||
+	    (s = crack_secret(blksiz)) == NULL)
 		err(1, NULL);
 
-	puts(buf);
+	puts(s);
 
 	exit(0);
 }
