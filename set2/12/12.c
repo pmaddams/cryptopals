@@ -6,17 +6,17 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
+#define SECRET							\
+"Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg"	\
+"aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"	\
+"dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"	\
+"YnkK"
+
 struct entry {
 	uint8_t *blk;
 	char c;
 	struct entry *next;
 };
-
-const char secret[] =
-    "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg"
-    "aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"
-    "dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"
-    "YnkK";
 
 struct entry *tab[CHAR_MAX];
 
@@ -168,7 +168,7 @@ crack_secret(size_t blksiz)
 	for (i = 0; i < blksiz-1; i++)
 		putc('A', memstream);
 
-	if ((b64_mem = BIO_new_mem_buf((char *) secret, strlen(secret))) == NULL ||
+	if ((b64_mem = BIO_new_mem_buf(SECRET, strlen(SECRET))) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL)
 		goto fail;
 
