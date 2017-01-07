@@ -91,10 +91,12 @@ parse(char *s)
 
 	while (field = strsep(&cp, "&"))
 		if (strncmp(field, "email=", 6) == 0) {
-			if ((email = strdup(field+6)) == NULL)
+			field += 6;
+			if ((email = strdup(field)) == NULL)
 				goto fail;
 		} else if (strncmp(field, "uid=", 4) == 0) {
-			uid = strtonum(field+4, 1, 1000, &errstr);
+			field += 4;
+			uid = strtonum(field, 1, 1000, &errstr);
 			if (errstr)
 				goto fail;
 		} else if (strncmp(field, "role=", 5) == 0) {
