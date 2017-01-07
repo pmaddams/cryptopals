@@ -20,9 +20,9 @@ int
 is_valid(char *email)
 {
 	char c;
-	int ctr, nchar, at, dot;
+	int ctr, nchar, at, dom;
 
-	for (ctr = nchar = at = dot = 0; c = *email++; nchar++)
+	for (ctr = nchar = at = dom = 0; c = *email++; nchar++)
 		switch (c) {
 		case '@':
 			if (!ctr || at)
@@ -34,7 +34,7 @@ is_valid(char *email)
 			if (!ctr)
 				goto fail;
 			if (at)
-				dot = 1;
+				dom = 1;
 			ctr = 0;
 			break;
 		case '=':
@@ -53,7 +53,7 @@ is_valid(char *email)
 			break;
 		}
 
-	if (!at || !dot || nchar > 254)
+	if (!at || !dom || nchar > 254)
 		goto fail;
 
 	return 1;
