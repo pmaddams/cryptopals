@@ -92,7 +92,8 @@ parse(char *s)
 	while (field = strsep(&cp, "&"))
 		if (strncmp(field, "email=", 6) == 0) {
 			field += 6;
-			if ((email = strdup(field)) == NULL)
+			if (!is_valid(field) ||
+			    (email = strdup(field)) == NULL)
 				goto fail;
 		} else if (strncmp(field, "uid=", 4) == 0) {
 			field += 4;
