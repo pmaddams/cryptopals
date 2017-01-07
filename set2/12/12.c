@@ -211,7 +211,8 @@ main(void)
 	size_t blksiz;
 	char *s;
 
-	blksiz = crack_blksiz();
+	if ((blksiz = crack_blksiz()) == 0)
+		errx(1, "invalid block size");
 
 	if (is_ecb(blksiz) == 0)
 		errx(1, "ECB required");
