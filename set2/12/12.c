@@ -27,33 +27,28 @@ uint8_t *
 encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 {
 	static char key[16];
-	FILE *out;
-	char *buf;
-	size_t len;
-	BIO *cip, *bio_out;
+	EVP_CIPHER_CTX ctx;
+	char *outbuf;
+	int outlen, tmplen;
 
 	while (*key == '\0')
 		arc4random_buf(key, 16);
 
-	if ((out = open_memstream(&buf, &len)) == NULL ||
-	    (cip = BIO_new(BIO_f_cipher())) == NULL ||
-	    (bio_out = BIO_new_fp(out, BIO_NOCLOSE)) == NULL)
+	EVP_CIPHER_CTX_init(&ctx);
+
+	if ((outbuf = malloc(inlen+16)) == NULL ||
+	    EVP_EncryptInit_ex(&ctx, EVP_aes_128_ecb(), NULL, key, NULL) == 0 ||
+	    EVP_EncryptUpdate(&ctx, outbuf, &outlen, in, inlen) == 0 ||
+	    EVP_EncryptFinal_ex(&ctx, outbuf+outlen, &tmplen) == 0)
 		goto fail;
 
-	BIO_set_cipher(cip, EVP_aes_128_ecb(), key, NULL, 1);
-	BIO_push(cip, bio_out);
+	EVP_CIPHER_CTX_cleanup(&ctx);
 
-	if (BIO_write(cip, in, inlen) < inlen)
-		goto fail;
-
-	BIO_flush(cip);
-	BIO_free_all(cip);
-	fclose(out);
-
+	outlen += tmplen;
 	if (outlenp != NULL)
-		*outlenp = len;
+		*outlenp = outlen;
 
-	return buf;
+	return outbuf;
 fail:
 	return NULL;
 }
