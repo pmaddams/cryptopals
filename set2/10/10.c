@@ -48,16 +48,16 @@ cbc_crypt(uint8_t *buf, size_t *lenp, uint8_t *key, int enc)
 
 	if (enc) {
 		newlen = (*lenp/BLKSIZ+1)*BLKSIZ;
-		if ((newp = realloc(buf, newlen)) == NULL)
+		if ((newp = realloc(buf, newlen+1)) == NULL)
 			goto fail;
 		buf = newp;
 		pad = newlen-*lenp;
 		while (*lenp < newlen)
 			buf[(*lenp)++] = pad;
+		buf[newlen] = '\0';
 	}
 
 	memset(vec, 0, BLKSIZ);
-
 	for (i = 0; i < *lenp; i += BLKSIZ)
 		cbc_crypt_blk(&ctx, buf+i, vec, key, enc);
 
