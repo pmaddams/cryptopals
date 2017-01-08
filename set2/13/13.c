@@ -21,8 +21,8 @@ bool
 is_valid(char *email)
 {
 	bool res;
-	char c;
 	int ctr, nchr, at, dom;
+	char c;
 
 	for (res = false, ctr = nchr = at = dom = 0; c = *email++; nchr++)
 		switch (c) {
@@ -122,7 +122,7 @@ parse(char *s)
 	profile->role = role;
 
 	free(cp);
-	return NULL;
+	return profile;
 fail:
 	free(cp);
 	free(email);
