@@ -20,27 +20,28 @@ struct profile {
 bool
 is_valid(char *email)
 {
+	bool res;
 	char c;
 	int ctr, nchr, at, dom;
 
-	for (ctr = nchr = at = dom = 0; c = *email++; nchr++)
+	for (res = false, ctr = nchr = at = dom = 0; c = *email++; nchr++)
 		switch (c) {
 		case '@':
 			if (!ctr || at)
-				goto fail;
+				goto done;
 			at = 1;
 			ctr = 0;
 			break;
 		case '.':
 			if (!ctr)
-				goto fail;
+				goto done;
 			if (at)
 				dom = 1;
 			ctr = 0;
 			break;
 		case '=':
 		case '&':
-			goto fail;
+			goto done;
 		case 'A'...'Z':
 		case 'a'...'z':
 		case '0'...'9':
@@ -49,17 +50,17 @@ is_valid(char *email)
 			break;
 		default:
 			if (at || isspace(c) || !isprint(c))
-				goto fail;
+				goto done;
 			ctr++;
 			break;
 		}
 
 	if (!at || !dom || nchr > 254)
-		goto fail;
+		goto done;
 
-	return true;
-fail:
-	return false;
+	res = true;
+done:
+	return res;
 }
 
 char *
