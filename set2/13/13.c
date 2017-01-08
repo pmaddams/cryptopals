@@ -104,10 +104,10 @@ parse(char *s)
 				goto fail;
 		} else if (strncmp(field, "role=", 5) == 0) {
 			field += 5;
-			if (strcmp(field, "admin"))
-				role = ADMIN;
-			else if (strcmp(field, "user"))
+			if (strcmp(field, "user"))
 				role = USER;
+			else if (strcmp(field, "admin"))
+				role = ADMIN;
 			else
 				goto fail;
 		} else
