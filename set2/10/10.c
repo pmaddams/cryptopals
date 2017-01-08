@@ -21,9 +21,9 @@ cbc_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint8_t *vec, uint8_t *key, in
 	else
 		memcpy(tmp, blk, BLKSIZ);
 
-	EVP_CipherInit(ctxp, EVP_aes_128_ecb(), key, NULL, enc);
+	EVP_CipherInit_ex(ctxp, EVP_aes_128_ecb(), NULL, key, NULL, enc);
 	EVP_CipherUpdate(ctxp, out, &outlen, blk, BLKSIZ);
-	EVP_CipherFinal(ctxp, out, &outlen);
+	EVP_CipherFinal_ex(ctxp, out, &outlen);
 
 	if (enc)
 		memcpy(vec, out, BLKSIZ);
