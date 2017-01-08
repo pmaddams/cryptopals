@@ -83,20 +83,19 @@ score(uint8_t *buf, size_t len)
 	uint8_t c;
 
 	for (res = 0.; len--;)
-		if (isprint(c = *buf++))
-			switch (c) {
-			case ' ':
-				res += tab[0];
-				break;
-			case 'A'...'Z':
-				c = c - 'A' + 'a';
-				/* FALLTHROUGH */
-			case 'a'...'z':
-				res += tab[1 + c - 'a'];
-				break;
-			default:
-				break;
-			}
+		switch (c = *buf++) {
+		case ' ':
+			res += tab[0];
+			break;
+		case 'A'...'Z':
+			c = c - 'A' + 'a';
+			/* FALLTHROUGH */
+		case 'a'...'z':
+			res += tab[1 + c - 'a'];
+			break;
+		default:
+			break;
+		}
 
 	return res;
 }
