@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <err.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,7 +17,7 @@ struct profile {
 	int role;
 };
 
-int
+bool
 is_valid(char *email)
 {
 	char c;
@@ -56,9 +57,9 @@ is_valid(char *email)
 	if (!at || !dom || nchar > 254)
 		goto fail;
 
-	return 1;
+	return true;
 fail:
-	return 0;
+	return false;
 }
 
 char *

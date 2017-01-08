@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,21 +79,24 @@ done:
 	return res;
 }
 
-int
+bool
 is_ecb(size_t blksiz)
 {
+	bool res;
 	char in[blksiz*2], *out;
 
-	memset(in, 'A', blksiz*2);
+	res = false;
 
+	memset(in, 'A', blksiz*2);
 	if ((out = encrypt(in, blksiz*2, NULL)) == NULL)
-		goto fail;
+		goto done;
+
+	if (memcmp(out, out+blksiz, blksiz) == 0)
+		res = true;
 
 	free(out);
-
-	return (memcmp(out, out+blksiz, blksiz) == 0);
-fail:
-	return 0;
+done:
+	return res;
 }
 
 unsigned int
@@ -216,7 +220,7 @@ main(void)
 	if ((blksiz = crack_blksiz()) == 0)
 		errx(1, "invalid block size");
 
-	if (is_ecb(blksiz) == 0)
+	if (!is_ecb(blksiz))
 		errx(1, "ECB required");
 
 	if (fill_tab(blksiz) == 0 ||
