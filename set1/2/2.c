@@ -11,7 +11,7 @@ char s2[] = "686974207468652062756c6c277320657965";
 char *
 xtoa(char *s, size_t *lenp)
 {
-	int i, j, k;
+	size_t i, j, k;
 	char c;
 	static char buf[3];
 
