@@ -75,7 +75,7 @@ main(void)
 	FILE *memstream;
 	char *buf, tmp[BUFSIZ];
 	size_t len;
-	int nr;
+	ssize_t nr;
 
 	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||

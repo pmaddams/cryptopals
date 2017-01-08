@@ -40,7 +40,7 @@ encrypt(FILE *in, FILE *out, uint8_t *key, int *modep)
 	BIO *bio, *cip;
 	const EVP_CIPHER *cipher;
 	char buf[BUFSIZ];
-	int nr;
+	ssize_t nr;
 
 	if ((bio = BIO_new_fp(in, BIO_NOCLOSE)) == NULL ||
 	    (cip = BIO_new(BIO_f_cipher())) == NULL)
