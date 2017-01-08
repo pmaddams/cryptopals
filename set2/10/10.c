@@ -9,7 +9,7 @@
 #define KEY	"YELLOW SUBMARINE"
 #define BLKSIZ	16
 
-int
+void
 cbc_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint8_t *vec, uint8_t *key, int enc)
 {
 	uint8_t out[BLKSIZ], tmp[BLKSIZ];
@@ -91,7 +91,8 @@ main(void)
 
 	BIO_free_all(bio);
 
-	cbc_crypt(buf, &len, KEY, 0);
+	if (cbc_crypt(buf, &len, KEY, 0) == 0)
+		err(1, NULL);
 
 	puts(buf);
 
