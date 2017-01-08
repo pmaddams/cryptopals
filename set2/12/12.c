@@ -28,7 +28,7 @@ encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 {
 	static char key[16];
 	EVP_CIPHER_CTX ctx;
-	char *outbuf;
+	char *out;
 	int outlen, tmplen;
 
 	while (*key == '\0')
@@ -36,10 +36,10 @@ encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 
 	EVP_CIPHER_CTX_init(&ctx);
 
-	if ((outbuf = malloc(inlen+16)) == NULL ||
+	if ((out = malloc(inlen+16)) == NULL ||
 	    EVP_EncryptInit_ex(&ctx, EVP_aes_128_ecb(), NULL, key, NULL) == 0 ||
-	    EVP_EncryptUpdate(&ctx, outbuf, &outlen, in, inlen) == 0 ||
-	    EVP_EncryptFinal_ex(&ctx, outbuf+outlen, &tmplen) == 0)
+	    EVP_EncryptUpdate(&ctx, out, &outlen, in, inlen) == 0 ||
+	    EVP_EncryptFinal_ex(&ctx, out+outlen, &tmplen) == 0)
 		goto fail;
 
 	EVP_CIPHER_CTX_cleanup(&ctx);
@@ -48,7 +48,7 @@ encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 	if (outlenp != NULL)
 		*outlenp = outlen;
 
-	return outbuf;
+	return out;
 fail:
 	return NULL;
 }
