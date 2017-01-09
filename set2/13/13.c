@@ -156,7 +156,7 @@ ecb_crypt(uint8_t *in, size_t inlen, size_t *outlenp, int enc)
 
 	EVP_CIPHER_CTX_cleanup(&ctx);
 
-	outlen += tmplen;
+	out[outlen] = '\0';
 	if (outlenp != NULL)
 		*outlenp = outlen;
 
@@ -165,48 +165,7 @@ fail:
 	return NULL;
 }
 
-char
-munge(char *attack, char **resp)
-{
-	char *munged, c, c1;
-	size_t i, len;
-
-	if (resp == NULL ||
-	    (len = strlen(attack)) != BLKSIZ ||
-	    (munged = malloc(len+1)) == NULL)
-		goto fail;
-
-	for (c = 0; c < CHAR_MAX; c++) {
-		memcpy(munged, attack, len);
-		for (i = 0; i < len; i++) {
-			c1 = (munged[i] ^= c);
-			if (c1 == '&' || c1 == '=' ||
-			    isspace(c1) || !isprint(c1))
-				break;
-		}
-		if (i == len)
-			goto done;
-	}
-	goto fail;
-done:
-	munged[len] = '\0';
-
-	*resp = munged;
-	return c;
-fail:
-	free(munged);
-	return -1;
-}
-
 int
 main(void)
 {
-	char c, *munged;
-
-	if ((c = munge("role=admin&uid=1", &munged)) == -1)
-		errx(1, "can't munge attack");
-
-	puts(munged);
-
-	exit(0);
 }
