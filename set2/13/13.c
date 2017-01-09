@@ -197,7 +197,6 @@ main(void)
 	if ((attack = padded("admin")) == NULL)
 		err(1, NULL);
 
-	buf[0] = '\0';
 	strlcpy(buf, "XXXXXXXXXX", BUFSIZ);
 	strlcat(buf, attack, BUFSIZ);
 	strlcat(buf, "@gmail.com", BUFSIZ);
