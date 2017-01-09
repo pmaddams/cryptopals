@@ -194,6 +194,7 @@ done:
 	*resp = munged;
 	return c;
 fail:
+	free(munged);
 	return -1;
 }
 
