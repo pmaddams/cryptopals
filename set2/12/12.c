@@ -26,9 +26,9 @@ struct entry *tab[HASHSIZE];
 uint8_t *
 encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 {
-	static char key[16];
+	static uint8_t key[16];
 	EVP_CIPHER_CTX ctx;
-	char *out;
+	uint8_t *out;
 	int outlen, tmplen;
 
 	while (*key == '\0')
@@ -57,7 +57,7 @@ size_t
 crack_blksiz(void)
 {
 	size_t res, inlen, outlen;
-	char in[BUFSIZ], *out, save[3];
+	uint8_t in[BUFSIZ], *out, save[3];
 
 	for (res = 0, inlen = 1; inlen < BUFSIZ; inlen++) {
 		in[inlen-1] = 'A';
@@ -78,7 +78,7 @@ bool
 is_ecb(size_t blksiz)
 {
 	bool res;
-	char in[blksiz*2], *out;
+	uint8_t in[blksiz*2], *out;
 
 	res = false;
 
