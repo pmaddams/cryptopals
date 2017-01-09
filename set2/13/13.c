@@ -166,56 +166,53 @@ fail:
 	return NULL;
 }
 
-size_t
-pad(char **bufp)
+char *
+padded(char *s)
 {
 	size_t len, newlen;
-	uint8_t *newp, pad;
+	char *buf, pad;
 
-	len = strlen(*bufp);
-
+	len = strlen(s);
 	newlen = (len/BLKSIZ+1)*BLKSIZ;
 	pad = newlen-len;
 
-	if ((newp = realloc(*bufp, newlen+1)) == NULL)
-		goto fail;
+	if ((buf = malloc(newlen+1)) == NULL)
+		goto done;
 
+	memcpy(buf, s, len);
 	while (len <= newlen)
-		newp[len++] = pad;
-	newp[newlen] = '\0';
-
-	*bufp = newp;
-	return len;
-fail:
-	return 0;
+		buf[len++] = pad;
+	buf[len] = '\0';
+done:
+	return buf;
 }
 
 int
 main(void)
 {
-	char *legit, *enc1, *bad, tmp[BUFSIZ], *attack, *enc2, *dec;
+	char *attack, buf[BUFSIZ], *legit, *enc1, *enc2, *dec;
 	size_t declen;
 	struct profile *profile;
 
-	if ((bad = strdup("admin")) == NULL || pad(&bad) == 0)
+	if ((attack = padded("admin")) == NULL)
 		err(1, NULL);
 
-	tmp[0] = '\0';
-	strlcpy(tmp, "XXXXXXXXXX", BUFSIZ);
-	strlcat(tmp, bad, BUFSIZ);
-	strlcat(tmp, "@gmail.com", BUFSIZ);
-	free(bad);
+	buf[0] = '\0';
+	strlcpy(buf, "XXXXXXXXXX", BUFSIZ);
+	strlcat(buf, attack, BUFSIZ);
+	strlcat(buf, "@gmail.com", BUFSIZ);
+	free(attack);
 
 	if ((legit = profile_for("cheap_viagra_online@gmail.com")) == NULL ||
 	    (enc1 = ecb_crypt(legit, strlen(legit), NULL, ENCRYPT)) == NULL ||
-	    (attack = profile_for(tmp)) == NULL ||
+	    (attack = profile_for(buf)) == NULL ||
 	    (enc2 = ecb_crypt(attack, strlen(attack), NULL, ENCRYPT)) == NULL)
 		err(1, NULL);
 
-	memcpy(tmp, enc1, BLKSIZ*3);
-	memcpy(tmp+BLKSIZ*3, enc2+BLKSIZ, BLKSIZ);
+	memcpy(buf, enc1, BLKSIZ*3);
+	memcpy(buf+BLKSIZ*3, enc2+BLKSIZ, BLKSIZ);
 
-	if ((dec = ecb_crypt(tmp, BLKSIZ*4, &declen, DECRYPT)) == NULL)
+	if ((dec = ecb_crypt(buf, BLKSIZ*4, &declen, DECRYPT)) == NULL)
 		err(1, NULL);
 	dec[declen] = '\0';
 
