@@ -55,7 +55,8 @@ is_valid(char *email)
 			ctr++;
 			break;
 		default:
-			if (at || isspace(c) || !isprint(c))
+			if (at) /* || isspace(c) || !isprint(c)) */
+			/* Inadequate input validation required */
 				goto done;
 			ctr++;
 			break;
@@ -110,9 +111,9 @@ parse(char *s)
 				goto fail;
 		} else if (strncmp(field, "role=", 5) == 0) {
 			field += 5;
-			if (strcmp(field, "user"))
+			if (strcmp(field, "user") == 0)
 				role = USER;
-			else if (strcmp(field, "admin"))
+			else if (strcmp(field, "admin") == 0)
 				role = ADMIN;
 			else
 				goto fail;
@@ -165,8 +166,65 @@ fail:
 	return NULL;
 }
 
+size_t
+pad(char **bufp)
+{
+	size_t len, newlen;
+	uint8_t *newp, pad;
+
+	len = strlen(*bufp);
+
+	newlen = (len/BLKSIZ+1)*BLKSIZ;
+	pad = newlen-len;
+
+	if ((newp = realloc(*bufp, newlen+1)) == NULL)
+		goto fail;
+
+	while (len <= newlen)
+		newp[len++] = pad;
+	newp[newlen] = '\0';
+
+	*bufp = newp;
+	return len;
+fail:
+	return 0;
+}
+
 int
 main(void)
 {
+	char *legit, *enc1, *bad, tmp[BUFSIZ], *attack, *enc2, *dec;
+	size_t declen;
+	struct profile *profile;
+
+	if ((bad = strdup("admin")) == NULL || pad(&bad) == 0)
+		err(1, NULL);
+
+	tmp[0] = '\0';
+	strlcpy(tmp, "XXXXXXXXXX", BUFSIZ);
+	strlcat(tmp, bad, BUFSIZ);
+	strlcat(tmp, "@gmail.com", BUFSIZ);
+	free(bad);
+
+	if ((legit = profile_for("cheap_viagra_online@gmail.com")) == NULL ||
+	    (enc1 = ecb_crypt(legit, strlen(legit), NULL, ENCRYPT)) == NULL ||
+	    (attack = profile_for(tmp)) == NULL ||
+	    (enc2 = ecb_crypt(attack, strlen(attack), NULL, ENCRYPT)) == NULL)
+		err(1, NULL);
+
+	memcpy(tmp, enc1, BLKSIZ*3);
+	memcpy(tmp+BLKSIZ*3, enc2+BLKSIZ, BLKSIZ);
+
+	if ((dec = ecb_crypt(tmp, BLKSIZ*4, &declen, DECRYPT)) == NULL)
+		err(1, NULL);
+	dec[declen] = '\0';
+
+	if ((profile = parse(dec)) == NULL)
+		err(1, NULL);
+
+	printf("email: %s\n", profile->email);
+	printf("uid: %d\n", profile->uid);
+	printf("role: %s\n", profile->role == ADMIN ? "admin" : "user");
+
 	exit(0);
 }
