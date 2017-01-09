@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -26,11 +27,12 @@ struct profile {
 bool
 is_valid(char *email)
 {
-	bool quoted, atdone, dotdone;
+	bool res, quoted, atdone, dotdone;
 	int ctr, nchr;
 	char c;
 
-	quoted = atdone = dotdone = ctr = nchr = 0;
+	res = quoted = atdone = dotdone = false;
+	ctr = nchr = 0;
 
 	for (; c = *email++; nchr++)
 		if (quoted) {
@@ -40,20 +42,20 @@ is_valid(char *email)
 			switch (c) {
 			case '@':
 				if (atdone || ctr == 0)
-					goto fail;
+					goto done;
 				atdone = true;
 				ctr = 0;
 				break;
 			case '.':
 				if (ctr == 0)
-					goto fail;
+					goto done;
 				if (atdone)
 					dotdone = true;
 				ctr = 0;
 				break;
 			case '=':
 			case '&':
-				goto fail;
+				goto done;
 			case 'A'...'Z':
 			case 'a'...'z':
 			case '0'...'9':
@@ -62,7 +64,7 @@ is_valid(char *email)
 				break;
 			default:
 				if (atdone || isspace(c) || !isprint(c))
-					goto fail;
+					goto done;
 				else if (c == '"')
 					quoted = true;
 				ctr++;
@@ -70,11 +72,11 @@ is_valid(char *email)
 			}
 
 	if (!atdone || !dotdone || nchr > 254)
-		goto fail;
+		goto done;
 
-	return true;
-fail:
-	return false;
+	res = true;
+done:
+	return res;
 }
 
 char *
@@ -82,8 +84,12 @@ profile_for(char *email)
 {
 	char *buf;
 
-	if (!is_valid(email) ||
-	    asprintf(&buf, "email=%s&uid=10&role=user", email) == -1)
+	if (!is_valid(email)) {
+		errno = EINVAL;
+		goto fail;
+	}
+
+	if (asprintf(&buf, "email=%s&uid=10&role=user", email) == -1)
 		goto fail;
 
 	return buf;
@@ -122,13 +128,17 @@ parse(char *s)
 				role = USER;
 			else if (strcmp(field, "admin") == 0)
 				role = ADMIN;
-			else
-				goto fail;
-		} else
+		} else {
+			errno = EINVAL;
 			goto fail;
+		}
 
-	if (email == NULL || uid == 0 || role == 0 ||
-	    (profile = malloc(sizeof(*profile))) == NULL)
+	if (email == NULL || uid == 0 || role == 0) {
+		errno = EINVAL;
+		goto fail;
+	}
+
+	if ((profile = malloc(sizeof(*profile))) == NULL)
 		goto fail;
 
 	profile->email = email;
