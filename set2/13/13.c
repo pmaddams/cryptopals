@@ -73,13 +73,13 @@ done:
 char *
 profile_for(char *email)
 {
-	char *res;
+	char *buf;
 
 	if (!is_valid(email) ||
-	    asprintf(&res, "email=%s&uid=10&role=user", email) == -1)
+	    asprintf(&buf, "email=%s&uid=10&role=user", email) == -1)
 		goto fail;
 
-	return res;
+	return buf;
 fail:
 	return NULL;
 }
