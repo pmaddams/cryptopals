@@ -88,7 +88,6 @@ profile_for(char *email)
 		errno = EINVAL;
 		goto fail;
 	}
-
 	if (asprintf(&buf, "email=%s&uid=10&role=user", email) == -1)
 		goto fail;
 
@@ -114,8 +113,11 @@ parse(char *s)
 	while (field = strsep(&cp, "&"))
 		if (strncmp(field, "email=", 6) == 0) {
 			field += 6;
-			if (!is_valid(field) ||
-			    (email = strdup(field)) == NULL)
+			if (!is_valid(field)) {
+				errno = EINVAL;
+				goto fail;
+			}
+			if ((email = strdup(field)) == NULL)
 				goto fail;
 		} else if (strncmp(field, "uid=", 4) == 0) {
 			field += 4;
@@ -137,7 +139,6 @@ parse(char *s)
 		errno = EINVAL;
 		goto fail;
 	}
-
 	if ((profile = malloc(sizeof(*profile))) == NULL)
 		goto fail;
 
