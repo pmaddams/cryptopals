@@ -156,7 +156,7 @@ ecb_crypt(uint8_t *in, size_t inlen, size_t *outlenp, int enc)
 
 	EVP_CIPHER_CTX_cleanup(&ctx);
 
-	out[outlen] = '\0';
+	outlen += tmplen;
 	if (outlenp != NULL)
 		*outlenp = outlen;
 
@@ -168,4 +168,5 @@ fail:
 int
 main(void)
 {
+	exit(0);
 }
