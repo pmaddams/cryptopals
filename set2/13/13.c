@@ -26,48 +26,55 @@ struct profile {
 bool
 is_valid(char *email)
 {
-	bool res;
-	int ctr, nchr, at, dom;
+	bool quoted, atdone, dotdone;
+	int ctr, nchr;
 	char c;
 
-	for (res = false, ctr = nchr = at = dom = 0; c = *email++; nchr++)
-		switch (c) {
-		case '@':
-			if (!ctr || at)
-				goto done;
-			at = 1;
-			ctr = 0;
-			break;
-		case '.':
-			if (!ctr)
-				goto done;
-			if (at)
-				dom = 1;
-			ctr = 0;
-			break;
-		case '=':
-		case '&':
-			goto done;
-		case 'A'...'Z':
-		case 'a'...'z':
-		case '0'...'9':
-		case '-':
-			ctr++;
-			break;
-		default:
-			if (at) /* || isspace(c) || !isprint(c)) */
-			/* Inadequate input validation required */
-				goto done;
-			ctr++;
-			break;
-		}
+	quoted = atdone = dotdone = ctr = nchr = 0;
 
-	if (!at || !dom || nchr > 254)
-		goto done;
+	for (; c = *email++; nchr++)
+		if (quoted) {
+			if (c == '"')
+				quoted = false;
+		} else
+			switch (c) {
+			case '@':
+				if (atdone || ctr == 0)
+					goto fail;
+				atdone = true;
+				ctr = 0;
+				break;
+			case '.':
+				if (ctr == 0)
+					goto fail;
+				if (atdone)
+					dotdone = true;
+				ctr = 0;
+				break;
+			case '=':
+			case '&':
+				goto fail;
+			case 'A'...'Z':
+			case 'a'...'z':
+			case '0'...'9':
+			case '-':
+				ctr++;
+				break;
+			default:
+				if (atdone || isspace(c) || !isprint(c))
+					goto fail;
+				else if (c == '"')
+					quoted = true;
+				ctr++;
+				break;
+			}
 
-	res = true;
-done:
-	return res;
+	if (!atdone || !dotdone || nchr > 254)
+		goto fail;
+
+	return true;
+fail:
+	return false;
 }
 
 char *
@@ -197,9 +204,9 @@ main(void)
 	if ((attack = padded("admin")) == NULL)
 		err(1, NULL);
 
-	strlcpy(buf, "XXXXXXXXXX", BUFSIZ);
+	strlcpy(buf, "XXXXXXXXX\"", BUFSIZ);
 	strlcat(buf, attack, BUFSIZ);
-	strlcat(buf, "@gmail.com", BUFSIZ);
+	strlcat(buf, "\"@gmail.com", BUFSIZ);
 	free(attack);
 
 	if ((legit = profile_for("cheap_viagra_online@gmail.com")) == NULL ||
