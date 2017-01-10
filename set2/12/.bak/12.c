@@ -7,44 +7,51 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#define SECRET							\
-"Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg"	\
-"aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"	\
-"dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"	\
-"YnkK"
-
-#define HASHSIZE 1000
-
-struct entry {
-	uint8_t *blk;
-	char c;
-	struct entry *next;
-};
-
-struct entry *tab[HASHSIZE];
-
 uint8_t *
 encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 {
+	const char secret[] =
+		"Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg"
+		"aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"
+		"dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"
+		"YnkK";
+
 	static uint8_t key[16];
-	EVP_CIPHER_CTX ctx;
-	uint8_t *out;
-	int outlen, tmplen;
+	BIO *b64_mem, *b64, *cip, *bio_out;
+	FILE *memstream;
+	char *out, buf[BUFSIZ];
+	size_t outlen;
+	ssize_t nr;
 
 	while (*key == '\0')
 		arc4random_buf(key, 16);
 
-	EVP_CIPHER_CTX_init(&ctx);
-
-	if ((out = malloc(inlen+16)) == NULL ||
-	    EVP_EncryptInit_ex(&ctx, EVP_aes_128_ecb(), NULL, key, NULL) == 0 ||
-	    EVP_EncryptUpdate(&ctx, out, &outlen, in, inlen) == 0 ||
-	    EVP_EncryptFinal_ex(&ctx, out+outlen, &tmplen) == 0)
+	if ((b64_mem = BIO_new_mem_buf((char *) secret, strlen(secret))) == NULL ||
+	    (b64 = BIO_new(BIO_f_base64())) == NULL)
 		goto fail;
 
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+	BIO_push(b64, b64_mem);
 
-	outlen += tmplen;
+	if ((memstream = open_memstream(&out, &outlen)) == NULL ||
+	    (bio_out = BIO_new_fp(memstream, BIO_NOCLOSE)) == NULL ||
+	    (cip = BIO_new(BIO_f_cipher())) == NULL)
+		goto fail;
+
+	BIO_set_cipher(cip, EVP_aes_128_ecb(), key, NULL, 1);
+	BIO_push(cip, bio_out);
+
+	if (BIO_write(cip, in, inlen) < inlen)
+		goto fail;
+
+	while ((nr = BIO_read(b64, buf, BUFSIZ)) > 0)
+		if (BIO_write(cip, buf, nr) < nr)
+			goto fail;
+	fclose(memstream);
+
+	BIO_free_all(b64);
+	BIO_free_all(cip);
+
 	if (outlenp != NULL)
 		*outlenp = outlen;
 
@@ -94,116 +101,46 @@ done:
 	return res;
 }
 
-unsigned int
-hash(uint8_t *blk, size_t blksiz)
-{
-	unsigned int h;
-
-	for (h = 0; blksiz--;)
-		h = h * 31 + *blk++;
-
-	return h % HASHSIZE;
-}
-
-char
-lookup(uint8_t *blk, size_t blksiz, char c, int create)
-{
-	unsigned int h;
-	struct entry *p;
-
-	h = hash(blk, blksiz);
-
-	for (p = tab[h]; p != NULL; p = p->next)
-		if (memcmp(blk, p->blk, blksiz) == 0)
-			goto done;
-
-	if (create) {
-		if ((p = malloc(sizeof(*p))) == NULL ||
-		    (p->blk = malloc(blksiz)) == NULL)
-			goto fail;
-
-		memcpy(p->blk, blk, blksiz);
-		p->c = c;
-		p->next = tab[h];
-		tab[h] = p;
-	} else
-		goto fail;
-done:
-	return p->c;
-fail:
-	return -1;
-}
-
-int
-fill_tab(size_t blksiz)
-{
-	uint8_t in[blksiz], *out;
-	char c;
-
-	memset(in, 'A', blksiz-1);
-
-	for (c = 0; c < CHAR_MAX; c++) {
-		in[blksiz-1] = c;
-		if ((out = encrypt(in, blksiz, NULL)) == NULL ||
-		    lookup(out, blksiz, c, 1) == -1)
-			goto fail;
-
-		free(out);
-	}
-
-	return 1;
-fail:
-	return 0;
-}
-
-char *
+uint8_t *
 crack_secret(size_t blksiz)
 {
+	size_t i, j, inlen, enclen, outlen;
 	FILE *memstream;
-	char *in, tmp[BUFSIZ], *out, *enc, c;
-	size_t i, inlen, outlen;
-	BIO *b64_mem, *b64;
-	ssize_t nr;
+	uint8_t *in, *enc, *out, c;
 
-	if ((memstream = open_memstream(&in, &inlen)) == NULL)
+	inlen = blksiz*2-1;
+
+	if ((in = malloc(inlen+1)) == NULL ||
+	    (enc = encrypt("", 0, &enclen)) == NULL)
 		goto fail;
 
-	for (i = 0; i < blksiz-1; i++)
-		putc('A', memstream);
-
-	if ((b64_mem = BIO_new_mem_buf(SECRET, strlen(SECRET))) == NULL ||
-	    (b64 = BIO_new(BIO_f_base64())) == NULL)
+	outlen = enclen;
+	if ((out = malloc(outlen+1)) == NULL)
 		goto fail;
 
-	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-	BIO_push(b64, b64_mem);
+	free(enc);
+	memset(in, 'A', inlen);
 
-	while ((nr = BIO_read(b64, tmp, BUFSIZ)) > 0)
-		if (fwrite(tmp, nr, 1, memstream) < 1)
-			goto fail;
-	fclose(memstream);
-
-	BIO_free_all(b64);
-
-	if ((memstream = open_memstream(&out, &outlen)) == NULL)
-		goto fail;
-
-	while (inlen >= blksiz) {
-		if ((enc = encrypt(in, blksiz, NULL)) == NULL ||
-		    (c = lookup(enc, blksiz, 0, 0)) == -1)
-			goto fail;
-
-		putc(c, memstream);
-		memmove(in+blksiz-1, in+blksiz, inlen-blksiz);
-
-		free(enc);
-		inlen--;
+	for (i = 0; i < blksiz; i++) {
+		for (c = 0; c < CHAR_MAX; c++) {
+			in[blksiz-1] = c;
+			if ((enc = encrypt(in, inlen-i, &enclen)) == NULL)
+				goto fail;
+			if (memcmp(enc, enc+blksiz, blksiz) == 0) {
+				out[i] = c;
+				memmove(in, in+1, blksiz-1);
+				free(enc);
+				break;
+			}
+		}
+		if (c == CHAR_MAX) {
+			errx(1, "invalid character");
+		}
 	}
-	fclose(memstream);
-
-	return out;
+	out[blksiz] = '\0';
+	puts(out);
 fail:
-	return NULL;
+	errx(1, "debug");
 }
 
 int
@@ -218,11 +155,8 @@ main(void)
 	if (!is_ecb(blksiz))
 		errx(1, "ECB required");
 
-	if (fill_tab(blksiz) == 0 ||
-	    (s = crack_secret(blksiz)) == NULL)
+	if ((s = crack_secret(blksiz)) == NULL)
 		err(1, NULL);
-
-	puts(s);
 
 	exit(0);
 }
