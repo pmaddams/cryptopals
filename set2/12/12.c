@@ -7,16 +7,6 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#define HASHSIZE 1000
-
-struct entry {
-	uint8_t *blk;
-	char c;
-	struct entry *next;
-};
-
-struct entry *tab[HASHSIZE];
-
 uint8_t *
 encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 {
@@ -111,93 +101,16 @@ done:
 	return res;
 }
 
-unsigned int
-hash(uint8_t *blk, size_t blksiz)
-{
-	unsigned int h;
-
-	for (h = 0; blksiz--;)
-		h = h * 31 + *blk++;
-
-	return h % HASHSIZE;
-}
-
-char
-lookup(uint8_t *blk, size_t blksiz, char c, int create)
-{
-	unsigned int h;
-	struct entry *p;
-
-	h = hash(blk, blksiz);
-
-	for (p = tab[h]; p != NULL; p = p->next)
-		if (memcmp(blk, p->blk, blksiz) == 0)
-			goto done;
-
-	if (create) {
-		if ((p = malloc(sizeof(*p))) == NULL ||
-		    (p->blk = malloc(blksiz)) == NULL)
-			goto fail;
-
-		memcpy(p->blk, blk, blksiz);
-		p->c = c;
-		p->next = tab[h];
-		tab[h] = p;
-	} else
-		goto fail;
-done:
-	return p->c;
-fail:
-	return -1;
-}
-
-int
-fill_tab(size_t blksiz)
-{
-	uint8_t in[blksiz], *out;
-	char c;
-
-	memset(in, 'A', blksiz-1);
-
-	for (c = 0; c < CHAR_MAX; c++) {
-		in[blksiz-1] = c;
-		if ((out = encrypt(in, blksiz, NULL)) == NULL ||
-		    lookup(out, blksiz, c, 1) == -1)
-			goto fail;
-
-		free(out);
-	}
-
-	return 1;
-fail:
-	return 0;
-}
-
-char *
-crack_secret(size_t blksiz)
-{
-	return NULL;
-}
-
 int
 main(void)
 {
 	size_t blksiz;
-	char *s;
 
 	if ((blksiz = crack_blksiz()) == 0)
 		errx(1, "invalid block size");
 
 	if (!is_ecb(blksiz))
 		errx(1, "ECB required");
-
-	errx(1, "debug");
-
-	if (fill_tab(blksiz) == 0 ||
-	    (s = crack_secret(blksiz)) == NULL)
-		err(1, NULL);
-
-	puts(s);
 
 	exit(0);
 }
