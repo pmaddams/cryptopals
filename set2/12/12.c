@@ -104,27 +104,21 @@ done:
 uint8_t *
 crack_secret(size_t blksiz)
 {
-	size_t i, j, inlen, enclen, outlen;
-	FILE *memstream;
-	uint8_t *in, *enc, *out, c;
+	uint8_t *enc, *in, *out, c;
+	size_t i, blkno, len, enclen;
 
-	inlen = blksiz*2-1;
-
-	if ((in = malloc(inlen+1)) == NULL ||
-	    (enc = encrypt("", 0, &enclen)) == NULL)
-		goto fail;
-
-	outlen = enclen;
-	if ((out = malloc(outlen+1)) == NULL)
+	if ((enc = encrypt("", 0, &len)) == NULL ||
+	    (in = malloc(len+blksiz)) == NULL ||
+	    (out = malloc(len+1)) == NULL)
 		goto fail;
 
 	free(enc);
-	memset(in, 'A', inlen);
+	memset(in, 'A', blksiz*2);
 
 	for (i = 0; i < blksiz; i++) {
 		for (c = 0; c < CHAR_MAX; c++) {
 			in[blksiz-1] = c;
-			if ((enc = encrypt(in, inlen-i, &enclen)) == NULL)
+			if ((enc = encrypt(in, blksiz*2-1-i, &enclen)) == NULL)
 				goto fail;
 			if (memcmp(enc, enc+blksiz, blksiz) == 0) {
 				out[i] = c;
