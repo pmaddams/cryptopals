@@ -41,11 +41,11 @@ encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 	BIO_set_cipher(cip, EVP_aes_128_ecb(), key, NULL, 1);
 	BIO_push(cip, bio_out);
 
-	if (BIO_write(cip, in, inlen) <= 0)
+	if (BIO_write(cip, in, inlen) < inlen)
 		goto fail;
 
 	while ((nr = BIO_read(b64, buf, BUFSIZ)) > 0)
-		if (BIO_write(cip, buf, nr) <= 0)
+		if (BIO_write(cip, buf, nr) < nr)
 			goto fail;
 	fclose(memstream);
 
@@ -101,16 +101,26 @@ done:
 	return res;
 }
 
+uint8_t *
+crack_secret(size_t blksiz)
+{
+	return NULL;
+}
+
 int
 main(void)
 {
 	size_t blksiz;
+	char *s;
 
 	if ((blksiz = crack_blksiz()) == 0)
 		errx(1, "invalid block size");
 
 	if (!is_ecb(blksiz))
 		errx(1, "ECB required");
+
+	if ((s = crack_secret(blksiz)) == NULL)
+		err(1, NULL);
 
 	exit(0);
 }
