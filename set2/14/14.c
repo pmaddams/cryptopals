@@ -15,7 +15,8 @@ encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 		"aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"
 		"dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"
 		"YnkK";
-	static uint8_t key[16];
+	static uint8_t key[16], *prefix;
+	static size_t pfxlen;
 	BIO *b64_mem, *b64, *cip, *bio_out;
 	FILE *memstream;
 	char *out, buf[BUFSIZ];
@@ -24,6 +25,13 @@ encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 
 	while (*key == '\0')
 		arc4random_buf(key, 16);
+
+	if (prefix == NULL) {
+		pfxlen = arc4random_uniform(16)+1;
+		if ((prefix = malloc(pfxlen)) == NULL)
+			goto fail;
+		arc4random_buf(prefix, pfxlen);
+	}
 
 	if ((b64_mem = BIO_new_mem_buf((char *) secret, strlen(secret))) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL)
@@ -40,7 +48,8 @@ encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 	BIO_set_cipher(cip, EVP_aes_128_ecb(), key, NULL, 1);
 	BIO_push(cip, bio_out);
 
-	if (BIO_write(cip, in, inlen) < inlen)
+	if (BIO_write(cip, prefix, pfxlen) < pfxlen ||
+	    BIO_write(cip, in, inlen) < inlen)
 		goto fail;
 
 	while ((nr = BIO_read(b64, buf, BUFSIZ)) > 0)
@@ -145,9 +154,10 @@ fail:
 int
 main(void)
 {
-	size_t blksiz;
+	size_t offset, blksiz;
 	char *s;
 
+	/*
 	if ((blksiz = crack_blksiz()) == 0)
 		errx(1, "invalid block size");
 
@@ -158,6 +168,7 @@ main(void)
 		err(1, NULL);
 
 	puts(s);
+	*/
 
 	exit(0);
 }
