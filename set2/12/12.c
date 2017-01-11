@@ -63,15 +63,15 @@ fail:
 size_t
 crack_blksiz(void)
 {
-	size_t res, inlen, outlen;
+	size_t i, res, outlen;
 	uint8_t in[BUFSIZ], *out, save[3];
 
-	for (res = 0, inlen = 1; inlen < BUFSIZ; inlen++) {
-		in[inlen-1] = 'A';
-		if ((out = encrypt(in, inlen, &outlen)) == NULL || outlen < 3)
+	for (res = i = 0; i < BUFSIZ; i++) {
+		in[i] = 'A';
+		if ((out = encrypt(in, i+1, &outlen)) == NULL || outlen < 3)
 			goto done;
 		if (memcmp(save, out, 3) == 0) {
-			res = inlen-1;
+			res = i;
 			break;
 		}
 		memcpy(save, out, 3);
@@ -127,10 +127,11 @@ crack_secret(size_t blksiz)
 			if (memcmp(enc, enc+datalen, blksiz) == 0) {
 				free(enc);
 				out[i] = c;
-				memmove(in, in+1, inlen);
+				memmove(in, in+1, blksiz-1);
 				inlen--;
 				break;
 			}
+			free(enc);
 		}
 		if (c == CHAR_MAX)
 			break;
