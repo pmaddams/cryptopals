@@ -15,7 +15,6 @@ encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 		"aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq"
 		"dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg"
 		"YnkK";
-
 	static uint8_t key[16];
 	BIO *b64_mem, *b64, *cip, *bio_out;
 	FILE *memstream;
@@ -47,6 +46,7 @@ encrypt(uint8_t *in, size_t inlen, size_t *outlenp)
 	while ((nr = BIO_read(b64, buf, BUFSIZ)) > 0)
 		if (BIO_write(cip, buf, nr) < nr)
 			goto fail;
+	BIO_flush(cip);
 	fclose(memstream);
 
 	BIO_free_all(b64);
@@ -104,14 +104,40 @@ done:
 uint8_t *
 crack_secret(size_t blksiz)
 {
-	uint8_t *enc, *in, *blk, *out, c;
-	size_t i, len;
+	uint8_t *enc, *in, *out, c;
+	size_t i, datalen, inlen;
 
-	if ((enc = encrypt("", 0, &len)) == NULL ||
-	    (in = malloc(len+blksiz)) == NULL ||
-	    (out = malloc(len+1)) == NULL)
+	if ((enc = encrypt("", 0, &datalen)) == NULL)
 		goto fail;
 
+	inlen = datalen+blksiz-1;
+
+	if ((in = malloc(inlen)) == NULL ||
+	    (out = malloc(datalen+1)) == NULL)
+		goto fail;
+
+	memset(in, 'A', blksiz-1);
+	memset(in+datalen, 'A', blksiz-1);
+
+	for (i = 0; i < datalen; i++) {
+		for (c = 0; c < CHAR_MAX; c++) {
+			in[blksiz-1] = c;
+			if ((enc = encrypt(in, inlen, NULL)) == NULL)
+				goto fail;
+			if (memcmp(enc, enc+datalen, blksiz) == 0) {
+				free(enc);
+				out[i] = c;
+				memmove(in, in+1, inlen);
+				inlen--;
+				break;
+			}
+		}
+		if (c == CHAR_MAX)
+			break;
+	}
+	out[i] = '\0';
+	return out;
+fail:
 	return NULL;
 }
 
@@ -129,6 +155,8 @@ main(void)
 
 	if ((s = crack_secret(blksiz)) == NULL)
 		err(1, NULL);
+
+	puts(s);
 
 	exit(0);
 }
