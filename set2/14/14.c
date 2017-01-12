@@ -123,20 +123,26 @@ fail:
 }
 
 bool
-is_ecb(size_t blksiz)
+is_ecb(size_t blksiz, size_t offset)
 {
 	bool res;
-	uint8_t in[blksiz*2], *out;
+	size_t gap;
+	uint8_t *in, *out;
 
 	res = false;
+	gap = blksiz-(offset%blksiz);
 
-	memset(in, 'A', blksiz*2);
-	if ((out = encrypt(in, blksiz*2, NULL)) == NULL)
+	if ((in = malloc(gap+blksiz*2)) == NULL)
+		goto done;
+	memset(in, 'A', gap+blksiz*2);
+
+	if ((out = encrypt(in, gap+blksiz*2, NULL)) == NULL)
 		goto done;
 
-	if (memcmp(out, out+blksiz, blksiz) == 0)
+	if (memcmp(out+offset+gap, out+offset+gap+blksiz, blksiz) == 0)
 		res = true;
 
+	free(in);
 	free(out);
 done:
 	return res;
@@ -190,6 +196,9 @@ main(void)
 
 	if (crack_params(&blksiz, &offset) == 0)
 		err(1, NULL);
+
+	if (!is_ecb(blksiz, offset))
+		errx(1, "ECB required");
 
 	exit(0);
 }
