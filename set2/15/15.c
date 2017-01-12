@@ -23,6 +23,7 @@ proc(uint8_t *buf, size_t *lenp)
 						tmp[1] = buf[i++];
 					buf[j++] = strtol(tmp, NULL, 16);
 				}
+				break;
 			} else if (buf[i+1] == '0') {
 				i += 2;
 				if (i < *lenp && isdigit(buf[i])) {
@@ -33,8 +34,9 @@ proc(uint8_t *buf, size_t *lenp)
 					buf[j++] = strtol(tmp, NULL, 8);
 					tmp[0] = '\0';
 				}
+				break;
 			}
-			break;
+			/* FALLTHROUGH */
 		default:
 			buf[j++] = buf[i++];
 			break;
