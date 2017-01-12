@@ -1,3 +1,5 @@
+#include <err.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -69,25 +71,55 @@ fail:
 	return NULL;
 }
 
-size_t
-crack_blksiz(void)
+int
+crack_params(size_t *blksizp, size_t *offsetp)
 {
-	size_t i, res, outlen;
-	uint8_t in[BUFSIZ], *out, save[3];
+	uint8_t buf[BUFSIZ], *enc1, *enc2, *sav;
+	size_t i, j, len1, len2, blksiz, offset;
 
-	for (res = i = 0; i < BUFSIZ; i++) {
-		in[i] = 'A';
-		if ((out = encrypt(in, i+1, &outlen)) == NULL || outlen < 3)
-			goto done;
-		if (memcmp(save, out, 3) == 0) {
-			res = i;
+	if ((enc1 = encrypt("", 0, &len1)) == NULL)
+		goto fail;
+
+	for (i = 0; i < BUFSIZ; i++) {
+		buf[i] = 'A';
+		if ((enc2 = encrypt(buf, i+1, &len2)) == NULL)
+			goto fail;
+		if (len2 > len1)
 			break;
-		}
-		memcpy(save, out, 3);
-		free(out);
+		free(enc2);
 	}
-done:
-	return res;
+
+	blksiz = len2 - len1;
+
+	for (i = 0; i < len1; i += blksiz)
+		if (memcmp(enc1+i, enc2+i, blksiz) != 0)
+			break;
+
+	free(enc2);
+
+	if ((sav = calloc(1, blksiz)) == NULL)
+		goto fail;
+
+	for (j = 0; j < BUFSIZ; j++) {
+		buf[j] = 'A';
+		if ((enc2 = encrypt(buf, j+1, &len2)) == NULL)
+			goto fail;
+		if (memcmp(sav, enc2+i, blksiz) == 0)
+			break;
+		memcpy(sav, enc2+i, blksiz);
+		free(enc2);
+	}
+
+	offset = i + blksiz - j;
+
+	free(enc2);
+	free(sav);
+
+	*blksizp = blksiz;
+	*offsetp = offset;
+	return 1;
+fail:
+	return 0;
 }
 
 bool
@@ -154,21 +186,10 @@ fail:
 int
 main(void)
 {
-	size_t offset, blksiz;
-	char *s;
+	size_t blksiz, offset;
 
-	/*
-	if ((blksiz = crack_blksiz()) == 0)
-		errx(1, "invalid block size");
-
-	if (!is_ecb(blksiz))
-		errx(1, "ECB required");
-
-	if ((s = crack_secret(blksiz)) == NULL)
+	if (crack_params(&blksiz, &offset) == 0)
 		err(1, NULL);
-
-	puts(s);
-	*/
 
 	exit(0);
 }
