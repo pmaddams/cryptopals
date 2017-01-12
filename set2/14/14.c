@@ -149,32 +149,34 @@ done:
 }
 
 uint8_t *
-crack_secret(size_t blksiz)
+crack_secret(size_t blksiz, size_t offset)
 {
 	uint8_t *enc, *in, *out, c;
-	size_t i, datalen, inlen;
+	size_t i, gap, datalen, inlen;
 
 	if ((enc = encrypt("", 0, &datalen)) == NULL)
 		goto fail;
 
-	inlen = datalen+blksiz-1;
+	gap = blksiz - (offset % blksiz);
+	datalen = datalen - offset - gap;
+	inlen = gap + datalen + blksiz - 1;
 
 	if ((in = malloc(inlen)) == NULL ||
 	    (out = malloc(datalen+1)) == NULL)
 		goto fail;
 
-	memset(in, 'A', blksiz-1);
-	memset(in+datalen, 'A', blksiz-1);
+	memset(in+gap, 'A', blksiz-1);
+	memset(in+gap+datalen, 'A', blksiz-1);
 
 	for (i = 0; i < datalen; i++) {
 		for (c = 0; c < CHAR_MAX; c++) {
-			in[blksiz-1] = c;
+			in[gap+blksiz-1] = c;
 			if ((enc = encrypt(in, inlen, NULL)) == NULL)
 				goto fail;
-			if (memcmp(enc, enc+datalen, blksiz) == 0) {
+			if (memcmp(enc+offset+gap, enc+offset+gap+datalen, blksiz) == 0) {
 				free(enc);
 				out[i] = c;
-				memmove(in, in+1, blksiz-1);
+				memmove(in+gap, in+gap+1, blksiz-1);
 				inlen--;
 				break;
 			}
@@ -193,12 +195,18 @@ int
 main(void)
 {
 	size_t blksiz, offset;
+	char *s;
 
 	if (crack_params(&blksiz, &offset) == 0)
 		err(1, NULL);
 
 	if (!is_ecb(blksiz, offset))
 		errx(1, "ECB required");
+
+	if ((s = crack_secret(blksiz, offset)) == NULL)
+		err(1, NULL);
+
+	puts(s);
 
 	exit(0);
 }
