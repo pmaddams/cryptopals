@@ -35,7 +35,7 @@ main(void)
 	BIO_push(b64, bio);
 
 	while ((c = gethex()) != EOF)
-		if (BIO_write(b64, &c, 1) <= 0)
+		if (BIO_write(b64, &c, 1) < 1)
 			err(1, NULL);
 
 	BIO_flush(b64);
