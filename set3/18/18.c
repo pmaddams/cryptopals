@@ -34,33 +34,32 @@ fail:
 	return 0;
 }
 
-int
-ctr_crypt(uint8_t *buf, size_t len, uint64_t nonce, uint8_t *key)
+uint8_t *
+ctr_crypt(uint8_t *in, size_t inlen, uint64_t nonce, uint8_t *key)
 {
 	EVP_CIPHER_CTX ctx;
-	size_t i, enclen;
-	uint8_t *enc;
+	size_t i, outlen;
+	uint8_t *out;
 	uint64_t ctr;
 
 	EVP_CIPHER_CTX_init(&ctx);
 	EVP_CIPHER_CTX_set_padding(&ctx, 0);
 
-	enclen = (len/BLKSIZ+1)*BLKSIZ;
-	if ((enc = calloc(1, enclen)) == NULL)
+	outlen = (inlen/BLKSIZ+1)*BLKSIZ;
+	if ((out = calloc(1, outlen)) == NULL)
 		goto fail;
-	memcpy(enc, buf, len);
+	memcpy(out, in, inlen);
 
-	for (ctr = i = 0; i < enclen; ctr++, i += BLKSIZ)
-		if (ctr_crypt_blk(&ctx, enc+i, nonce, ctr, key) == 0)
+	for (ctr = i = 0; i < outlen; ctr++, i += BLKSIZ)
+		if (ctr_crypt_blk(&ctx, out+i, nonce, ctr, key) == 0)
 			goto fail;
 
 	EVP_CIPHER_CTX_cleanup(&ctx);
 
-	memcpy(buf, enc, len);
-	free(enc);
-	return 1;
+	out[inlen] = '\0';
+	return out;
 fail:
-	return 0;
+	return NULL;
 }
 
 int
@@ -70,13 +69,13 @@ main(void)
 	    "L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==";
 	BIO *b64_mem, *b64, *bio_out;
 	FILE *memstream;
-	char *buf, tmp[BUFSIZ];
+	char *in, tmp[BUFSIZ], *out;
 	size_t len;
 	ssize_t nr;
 
 	if ((b64_mem = BIO_new_mem_buf((char *) secret, strlen(secret))) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
-	    (memstream = open_memstream(&buf, &len)) == NULL)
+	    (memstream = open_memstream(&in, &len)) == NULL)
 		err(1, NULL);
 
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
@@ -89,10 +88,10 @@ main(void)
 
 	BIO_free_all(b64);
 
-	if ((ctr_crypt(buf, len, 0, KEY)) == 0)
+	if ((out = ctr_crypt(in, len, 0, KEY)) == NULL)
 		err(1, NULL);
 
-	puts(buf);
+	puts(out);
 
 	exit(0);
 }
