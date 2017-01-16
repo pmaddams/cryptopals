@@ -105,8 +105,8 @@ oracle(uint8_t *buf, size_t len)
 	return true;
 }
 
-int
-crack_blk(uint8_t *dst, uint8_t *src, size_t blkno)
+void
+crack_blk(char *dst, char *src, int blkno)
 {
 	uint8_t tmp[BLKSIZ*2], c, c1;
 	size_t i, j;
@@ -115,26 +115,22 @@ crack_blk(uint8_t *dst, uint8_t *src, size_t blkno)
 	for (i = 0; i < BLKSIZ; i++) {
 		memcpy(tmp, src+blkno*BLKSIZ, BLKSIZ);
 		for (j = 0; j < i; j++) {
-			tmp[BLKSIZ-1-j] ^= i+1;
+			tmp[BLKSIZ-1-j] ^= i + 1;
 			tmp[BLKSIZ-1-j] ^= dst[(blkno+1)*BLKSIZ-1-j];
 		}
-		tmp[BLKSIZ-1-j] ^= i+1;
+		tmp[BLKSIZ-1-j] ^= i + 1;
 
-		c = tmp[BLKSIZ-1-j];
+		c = tmp[BLKSIZ-1-i];
 		for (c1 = 0; c1 < CHAR_MAX; c1++) {
 			tmp[BLKSIZ-1-i] = c ^ c1;
-			if (oracle(tmp, BLKSIZ))
+			if (oracle(tmp, BLKSIZ*2))
 				break;
 		}
 		if (c1 == CHAR_MAX)
-			goto fail;
+			c1 = '\0';
 
 		dst[(blkno+1)*BLKSIZ-1-i] = c1;
 	}
-
-	return 1;
-fail:
-	return 0;
 }
 
 char *
@@ -143,15 +139,13 @@ crack_secret(uint8_t *buf, size_t len)
 	uint8_t *res;
 	size_t blkno;
 
-	len -= BLKSIZ;
 	if ((res = malloc(len+1)) == NULL)
 		goto fail;
+	memset(res, 0, len+1);
 
 	for (blkno = 0; blkno < len/BLKSIZ; blkno++)
-		if (crack_blk(res, buf, blkno) == 0)
-			goto fail;
+		crack_blk(res, buf, blkno);
 
-	res[len] = '\0';
 	return res;
 fail:
 	return NULL;
@@ -166,6 +160,8 @@ main(void)
 	if ((enc = make_secret(&len)) == NULL ||
 	    (dec = crack_secret(enc, len)) == NULL)
 		err(1, NULL);
+
+	puts(dec);
 
 	exit(0);
 }
