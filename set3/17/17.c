@@ -108,13 +108,53 @@ oracle(uint8_t *buf, size_t len)
 int
 crack_blk(uint8_t *dst, uint8_t *src, size_t blkno)
 {
+	uint8_t tmp[BLKSIZ*2], c, c1;
+	size_t i, j;
 
+	memcpy(tmp+BLKSIZ, src+(blkno+1)*BLKSIZ, BLKSIZ);
+	for (i = 0; i < BLKSIZ; i++) {
+		memcpy(tmp, src+blkno*BLKSIZ, BLKSIZ);
+		for (j = 0; j < i; j++) {
+			tmp[BLKSIZ-1-j] ^= i+1;
+			tmp[BLKSIZ-1-j] ^= dst[(blkno+1)*BLKSIZ-1-j];
+		}
+		tmp[BLKSIZ-1-j] ^= i+1;
+
+		c = tmp[BLKSIZ-1-j];
+		for (c1 = 0; c1 < CHAR_MAX; c1++) {
+			tmp[BLKSIZ-1-i] = c ^ c1;
+			if (oracle(tmp, BLKSIZ))
+				break;
+		}
+		if (c1 == CHAR_MAX)
+			goto fail;
+
+		dst[(blkno+1)*BLKSIZ-1-i] = c1;
+	}
+
+	return 1;
+fail:
+	return 0;
 }
 
 char *
 crack_secret(uint8_t *buf, size_t len)
 {
+	uint8_t *res;
+	size_t blkno;
 
+	len -= BLKSIZ;
+	if ((res = malloc(len+1)) == NULL)
+		goto fail;
+
+	for (blkno = 0; blkno < len/BLKSIZ; blkno++)
+		if (crack_blk(res, buf, blkno) == 0)
+			goto fail;
+
+	res[len] = '\0';
+	return res;
+fail:
+	return NULL;
 }
 
 int
@@ -125,8 +165,6 @@ main(void)
 
 	if ((buf = make_secret(&len)) == NULL)
 		err(1, NULL);
-
-	puts(oracle(buf, len) ? "valid" : "invalid");
 
 	exit(0);
 }
