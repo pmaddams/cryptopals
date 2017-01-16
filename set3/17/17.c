@@ -1,5 +1,6 @@
 #include <err.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,15 +90,28 @@ fail:
 	return NULL;
 }
 
+bool
+oracle(uint8_t *buf, size_t len)
+{
+	uint8_t *enc;
+
+	if ((enc = cbc_crypt(buf, len, NULL, 0)) == NULL)
+		return false;
+
+	free(enc);
+	return true;
+}
+
 int
 main(void)
 {
-	char *s;
+	uint8_t *buf;
+	size_t len;
 
-	if ((s = make_secret(NULL)) == NULL)
+	if ((buf = make_secret(&len)) == NULL)
 		err(1, NULL);
 
-	puts(s);
+	puts(oracle(buf, len) ? "valid" : "invalid");
 
 	exit(0);
 }

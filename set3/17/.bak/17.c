@@ -54,17 +54,17 @@ make_secret(size_t *lenp)
 		"MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g=",
 		"MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93"
 	};
-	char *buf, tmp[BUFSIZ];
+	char *in, tmp[BUFSIZ], *out;
 	BIO *b64_mem, *b64;
 	FILE *memstream;
-	size_t len;
+	size_t inlen, outlen;
 	ssize_t nr;
 
 	s = choices[arc4random_uniform(10)];
 
 	if ((b64_mem = BIO_new_mem_buf((char *) s, strlen(s))) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
-	    (memstream = open_memstream(&buf, &len)) == NULL)
+	    (memstream = open_memstream(&in, &inlen)) == NULL)
 		goto fail;
 
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
@@ -77,10 +77,14 @@ make_secret(size_t *lenp)
 
 	BIO_free_all(b64);
 
-	if (lenp != NULL)
-		*lenp = len;
+	if ((out = cbc_crypt(in, inlen, &outlen, 1)) == NULL)
+		goto fail;
 
-	return buf;
+	if (lenp != NULL)
+		*lenp = outlen;
+
+	free(in);
+	return out;
 fail:
 	return NULL;
 }
