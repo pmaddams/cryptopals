@@ -7,7 +7,10 @@
 
 #include <openssl/evp.h>
 
-#define BLKSIZ 16
+#define BLKSIZ	16
+
+#define DECRYPT	0
+#define ENCRYPT	1
 
 uint8_t *
 cbc_crypt(uint8_t *in, size_t inlen, size_t *outlenp, int enc)
@@ -78,7 +81,7 @@ make_secret(size_t *lenp)
 
 	BIO_free_all(b64);
 
-	if ((out = cbc_crypt(in, inlen, &outlen, 1)) == NULL)
+	if ((out = cbc_crypt(in, inlen, &outlen, ENCRYPT)) == NULL)
 		goto fail;
 
 	if (lenp != NULL)
@@ -95,11 +98,23 @@ oracle(uint8_t *buf, size_t len)
 {
 	uint8_t *enc;
 
-	if ((enc = cbc_crypt(buf, len, NULL, 0)) == NULL)
+	if ((enc = cbc_crypt(buf, len, NULL, DECRYPT)) == NULL)
 		return false;
 
 	free(enc);
 	return true;
+}
+
+int
+crack_blk(uint8_t *dst, uint8_t *src, size_t blkno)
+{
+
+}
+
+char *
+crack_secret(uint8_t *buf, size_t len)
+{
+
 }
 
 int
