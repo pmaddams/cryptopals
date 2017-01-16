@@ -53,7 +53,7 @@ fail:
 }
 
 size_t
-crack_keylen(uint8_t *buf, size_t len)
+break_keylen(uint8_t *buf, size_t len)
 {
 	size_t guess, found, max;
 	float scr, best;
@@ -101,7 +101,7 @@ score(uint8_t *buf, size_t len)
 }
 
 char *
-crack_key(uint8_t *buf, size_t len, size_t keylen)
+break_key(uint8_t *buf, size_t len, size_t keylen)
 {
 	size_t i, j, tmplen;
 	char *tmp, *cp, *key;
@@ -161,8 +161,8 @@ main(void)
 
 	BIO_free_all(b64);
 
-	keylen = crack_keylen(buf, len);
-	if ((key = crack_key(buf, len, keylen)) == NULL)
+	keylen = break_keylen(buf, len);
+	if ((key = break_key(buf, len, keylen)) == NULL)
 		err(1, NULL);
 
 	printf("KEY: %s\n\n", key);
