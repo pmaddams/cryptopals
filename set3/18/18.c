@@ -11,7 +11,7 @@
 #define BLKSIZ	16
 
 int
-ctr_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint64_t nonce, uint64_t ctr, uint8_t *key, int enc)
+ctr_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint64_t nonce, uint64_t ctr, uint8_t *key)
 {
 	uint8_t tmp[BLKSIZ], out[BLKSIZ];
 	int i, len;
@@ -22,8 +22,8 @@ ctr_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint64_t nonce, uint64_t ctr, 
 	memcpy(tmp, &nonce, BLKSIZ/2);
 	memcpy(tmp+BLKSIZ/2, &ctr, BLKSIZ/2);
 
-	if (EVP_CipherInit_ex(ctxp, EVP_aes_128_ecb(), NULL, key, NULL, enc) == 0 ||
-	    EVP_CipherUpdate(ctxp, out, &len, tmp, BLKSIZ) == 0)
+	if (EVP_EncryptInit_ex(ctxp, EVP_aes_128_ecb(), NULL, key, NULL) == 0 ||
+	    EVP_EncryptUpdate(ctxp, out, &len, tmp, BLKSIZ) == 0)
 		goto fail;
 
 	for (i = 0; i < BLKSIZ; i++)
@@ -35,31 +35,29 @@ fail:
 }
 
 int
-ctr_crypt(uint8_t *buf, size_t *lenp, uint64_t nonce, uint8_t *key, int enc)
+ctr_crypt(uint8_t *buf, size_t len, uint64_t nonce, uint8_t *key)
 {
 	EVP_CIPHER_CTX ctx;
-	uint8_t *newp;
+	size_t i, enclen;
+	uint8_t *enc;
 	uint64_t ctr;
-	size_t i, newlen;
 
 	EVP_CIPHER_CTX_init(&ctx);
 	EVP_CIPHER_CTX_set_padding(&ctx, 0);
 
-	if (enc) {
-		newlen = (*lenp/BLKSIZ+1)*BLKSIZ;
-		if ((newp = realloc(buf, newlen+1)) == NULL)
-			goto fail;
-		buf = newp;
-		while (*lenp <= newlen)
-			buf[(*lenp)++] = '\0';
-	}
+	enclen = (len/BLKSIZ+1)*BLKSIZ;
+	if ((enc = calloc(1, enclen)) == NULL)
+		goto fail;
+	memcpy(enc, buf, len);
 
-	for (ctr = i = 0; i < *lenp; ctr++, i += BLKSIZ)
-		if (ctr_crypt_blk(&ctx, buf+i, nonce, ctr, key, enc) == 0)
+	for (ctr = i = 0; i < enclen; ctr++, i += BLKSIZ)
+		if (ctr_crypt_blk(&ctx, enc+i, nonce, ctr, key) == 0)
 			goto fail;
 
 	EVP_CIPHER_CTX_cleanup(&ctx);
 
+	memcpy(buf, enc, len);
+	free(enc);
 	return 1;
 fail:
 	return 0;
@@ -91,7 +89,7 @@ main(void)
 
 	BIO_free_all(b64);
 
-	if ((ctr_crypt(buf, &len, 0, KEY, 0)) == 0)
+	if ((ctr_crypt(buf, len, 0, KEY)) == 0)
 		err(1, NULL);
 
 	puts(buf);
