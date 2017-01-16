@@ -39,37 +39,38 @@ fail:
 	return 0;
 }
 
-int
-cbc_crypt(uint8_t *buf, size_t *lenp, uint8_t *key, int enc)
+char *
+cbc_crypt(uint8_t *in, size_t inlen, size_t *outlenp, uint8_t *key, int enc)
 {
 	EVP_CIPHER_CTX ctx;
-	uint8_t *newp, pad, vec[BLKSIZ];
-	size_t i, newlen;
+	uint8_t *out, pad, vec[BLKSIZ];
+	size_t i, outlen;
 
 	EVP_CIPHER_CTX_init(&ctx);
 	EVP_CIPHER_CTX_set_padding(&ctx, 0);
 
-	if (enc) {
-		newlen = (*lenp/BLKSIZ+1)*BLKSIZ;
-		if ((newp = realloc(buf, newlen+1)) == NULL)
-			goto fail;
-		buf = newp;
-		pad = newlen-*lenp;
-		while (*lenp < newlen)
-			buf[(*lenp)++] = pad;
-		buf[newlen] = '\0';
-	}
+	outlen = enc ? (inlen/BLKSIZ+1)*BLKSIZ : inlen;
+	if ((out = calloc(1, outlen+1)) == NULL)
+		goto fail;
+	memcpy(out, in, inlen);
+
+	pad = outlen-inlen;
+	for (i = inlen; i < outlen; i++)
+		out[i++] = pad;
 
 	memset(vec, 0, BLKSIZ);
-	for (i = 0; i < *lenp; i += BLKSIZ)
-		if (cbc_crypt_blk(&ctx, buf+i, vec, key, enc) == 0)
+	for (i = 0; i < outlen; i += BLKSIZ)
+		if (cbc_crypt_blk(&ctx, out+i, vec, key, enc) == 0)
 			goto fail;
 
 	EVP_CIPHER_CTX_cleanup(&ctx);
 
-	return 1;
+	if (outlenp != NULL)
+		*outlenp = outlen;
+
+	return out;
 fail:
-	return 0;
+	return NULL;
 }
 
 int
@@ -77,13 +78,13 @@ main(void)
 {
 	BIO *bio, *b64;
 	FILE *memstream;
-	char *buf, tmp[BUFSIZ];
+	char *in, tmp[BUFSIZ], *out;
 	size_t len;
 	ssize_t nr;
 
 	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
-	    (memstream = open_memstream(&buf, &len)) == NULL)
+	    (memstream = open_memstream(&in, &len)) == NULL)
 		err(1, NULL);
 
 	BIO_push(b64, bio);
@@ -95,10 +96,10 @@ main(void)
 
 	BIO_free_all(bio);
 
-	if (cbc_crypt(buf, &len, KEY, 0) == 0)
+	if ((out = cbc_crypt(in, len, NULL, KEY, 0)) == 0)
 		err(1, NULL);
 
-	puts(buf);
+	puts(out);
 
 	exit(0);
 }
