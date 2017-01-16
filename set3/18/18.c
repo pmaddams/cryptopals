@@ -63,7 +63,8 @@ fail:
 int
 main(void)
 {
-	const char *secret = "L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==";
+	const char *secret =
+	    "L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==";
 	BIO *b64_mem, *b64, *bio_out;
 	FILE *memstream;
 	char *buf, tmp[BUFSIZ];
