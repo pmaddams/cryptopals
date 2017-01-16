@@ -39,7 +39,7 @@ fail:
 	return 0;
 }
 
-char *
+uint8_t *
 cbc_crypt(uint8_t *in, size_t inlen, size_t *outlenp, uint8_t *key, int enc)
 {
 	EVP_CIPHER_CTX ctx;
