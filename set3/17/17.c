@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <openssl/bio.h>
 #include <openssl/evp.h>
 
 #define BLKSIZ	16
