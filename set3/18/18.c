@@ -26,10 +26,8 @@ ctr_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint64_t nonce, uint64_t ctr, 
 	    EVP_CipherUpdate(ctxp, out, &len, tmp, BLKSIZ) == 0)
 		goto fail;
 
-	for (i = 0; i < BLKSIZ; i++) {
-		warnx("%c ^ %c => %c", blk[i], out[i], blk[i] ^ out[i]);
+	for (i = 0; i < BLKSIZ; i++)
 		blk[i] ^= out[i];
-	}
 
 	return 1;
 fail:
