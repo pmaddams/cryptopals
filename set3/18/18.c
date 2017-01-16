@@ -50,7 +50,7 @@ ctr_crypt(uint8_t *in, size_t inlen, uint64_t nonce, uint8_t *key)
 		goto fail;
 	memcpy(out, in, inlen);
 
-	for (ctr = i = 0; i < outlen; ctr++, i += BLKSIZ)
+	for (ctr = i = 0; i < outlen; i += BLKSIZ, ctr++)
 		if (ctr_crypt_blk(&ctx, out+i, nonce, ctr, key) == 0)
 			goto fail;
 
