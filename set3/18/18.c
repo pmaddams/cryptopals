@@ -19,15 +19,17 @@ ctr_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint64_t nonce, uint64_t ctr, 
 	nonce = htole64(nonce);
 	ctr = htole64(ctr);
 
-	memcpy(tmp, &nonce, 8);
-	memcpy(tmp, &ctr, 8);
+	memcpy(tmp, &nonce, BLKSIZ/2);
+	memcpy(tmp+BLKSIZ/2, &ctr, BLKSIZ/2);
 
 	if (EVP_CipherInit_ex(ctxp, EVP_aes_128_ecb(), NULL, key, NULL, enc) == 0 ||
 	    EVP_CipherUpdate(ctxp, out, &len, tmp, BLKSIZ) == 0)
 		goto fail;
 
-	for (i = 0; i < BLKSIZ; i++)
+	for (i = 0; i < BLKSIZ; i++) {
+		warnx("%c ^ %c => %c", blk[i], out[i], blk[i] ^ out[i]);
 		blk[i] ^= out[i];
+	}
 
 	return 1;
 fail:
