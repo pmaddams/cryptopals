@@ -160,10 +160,11 @@ fail:
 int
 main(void)
 {
-	uint8_t *buf;
+	uint8_t *enc, *dec;
 	size_t len;
 
-	if ((buf = make_secret(&len)) == NULL)
+	if ((enc = make_secret(&len)) == NULL ||
+	    (dec = crack_secret(enc, len)) == NULL)
 		err(1, NULL);
 
 	exit(0);
