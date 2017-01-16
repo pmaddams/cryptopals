@@ -9,11 +9,11 @@
 #define KEY	"YELLOW SUBMARINE"
 #define BLKSIZ	16
 
-void
+int
 cbc_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint8_t *vec, uint8_t *key, int enc)
 {
-	uint8_t out[BLKSIZ], tmp[BLKSIZ];
-	int i, outlen;
+	uint8_t tmp[BLKSIZ], out[BLKSIZ];
+	int i, len;
 
 	if (enc)
 		for (i = 0; i < BLKSIZ; i++)
@@ -21,9 +21,9 @@ cbc_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint8_t *vec, uint8_t *key, in
 	else
 		memcpy(tmp, blk, BLKSIZ);
 
-	EVP_CipherInit_ex(ctxp, EVP_aes_128_ecb(), NULL, key, NULL, enc);
-	EVP_CipherUpdate(ctxp, out, &outlen, blk, BLKSIZ);
-	EVP_CipherFinal_ex(ctxp, out, &outlen);
+	if (EVP_CipherInit_ex(ctxp, EVP_aes_128_ecb(), NULL, key, NULL, enc) == 0 ||
+	    EVP_CipherUpdate(ctxp, out, &len, blk, BLKSIZ) == 0)
+		goto fail;
 
 	if (enc)
 		memcpy(vec, out, BLKSIZ);
@@ -34,6 +34,9 @@ cbc_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint8_t *vec, uint8_t *key, in
 		}
 
 	memcpy(blk, out, BLKSIZ);
+	return 1;
+fail:
+	return 0;
 }
 
 int
@@ -59,7 +62,8 @@ cbc_crypt(uint8_t *buf, size_t *lenp, uint8_t *key, int enc)
 
 	memset(vec, 0, BLKSIZ);
 	for (i = 0; i < *lenp; i += BLKSIZ)
-		cbc_crypt_blk(&ctx, buf+i, vec, key, enc);
+		if (cbc_crypt_blk(&ctx, buf+i, vec, key, enc) == 0)
+			goto fail;
 
 	EVP_CIPHER_CTX_cleanup(&ctx);
 
