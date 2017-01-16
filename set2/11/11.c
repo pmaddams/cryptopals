@@ -66,25 +66,25 @@ fail:
 int
 main(void)
 {
-	char key[BLKSIZ], *buf, *outbuf;
-	size_t len, outlen;
+	char key[BLKSIZ], *inbuf, *outbuf;
+	size_t inlen, outlen;
 	FILE *in, *out;
 	int realmode, guessmode;
 
 	arc4random_buf(key, BLKSIZ);
 
-	len = BLKSIZ*3;
-	if ((buf = malloc(len)) == NULL)
+	inlen = BLKSIZ*3;
+	if ((inbuf = malloc(inlen)) == NULL)
 		err(1, NULL);
-	memset(buf, 'A', len);
+	memset(inbuf, 'A', inlen);
 
-	if ((buf = extend(buf, &len)) == NULL ||
-	    (in = fmemopen(buf, len, "r")) == NULL ||
+	if ((inbuf = extend(inbuf, &inlen)) == NULL ||
+	    (in = fmemopen(inbuf, inlen, "r")) == NULL ||
 	    (out = open_memstream(&outbuf, &outlen)) == NULL ||
 	    (encrypt(in, out, key, &realmode)) == 0)
 		err(1, NULL);
 
-	free(buf);
+	free(inbuf);
 	fclose(in);
 	fclose(out);
 
