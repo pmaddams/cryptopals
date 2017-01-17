@@ -9,9 +9,11 @@
 
 #include "tab.h"
 
-#define BLKSIZ 16
+#define NDATA	60
 
-const char *data[60] = {
+#define BLKSIZ	16
+
+const char *data[NDATA] = {
 	"SSdtIHJhdGVkICJSIi4uLnRoaXMgaXMgYSB3YXJuaW5nLCB5YSBiZXR0ZXIgdm9pZCAvIFBvZXRzIGFyZSBwYXJhbm9pZCwgREoncyBELXN0cm95ZWQ=",
 	"Q3V6IEkgY2FtZSBiYWNrIHRvIGF0dGFjayBvdGhlcnMgaW4gc3BpdGUtIC8gU3RyaWtlIGxpa2UgbGlnaHRuaW4nLCBJdCdzIHF1aXRlIGZyaWdodGVuaW4nIQ==",
 	"QnV0IGRvbid0IGJlIGFmcmFpZCBpbiB0aGUgZGFyaywgaW4gYSBwYXJrIC8gTm90IGEgc2NyZWFtIG9yIGEgY3J5LCBvciBhIGJhcmssIG1vcmUgbGlrZSBhIHNwYXJrOw==",
@@ -77,7 +79,7 @@ const char *data[60] = {
 struct {
 	uint8_t *buf;
 	size_t len;
-} enc[60];
+} enc[NDATA];
 
 uint8_t *
 encrypt(char *s, size_t *lenp, uint64_t nonce)
@@ -148,7 +150,7 @@ make_enc(void)
 	size_t i, len;
 	uint8_t *buf;
 
-	for (i = 0; i < 60; i++) {
+	for (i = 0; i < NDATA; i++) {
 		if ((buf = encrypt((char *) data[i], &len, 0)) == NULL)
 			goto fail;
 		enc[i].buf = buf;
@@ -195,16 +197,16 @@ uint8_t
 crack_byte(size_t i)
 {
 	size_t j;
-	uint8_t buf[60], cp[60], c, found;
+	uint8_t buf[NDATA], cp[NDATA], c, found;
 	float scr, best;
 
-	for (j = 0; j < 60; j++)
+	for (j = 0; j < NDATA; j++)
 		buf[j] = enc[j].buf[i];
 
 	for (best = 0., found = c = 0;; c++) {
-		memcpy(cp, buf, 60);
-		xor(cp, c, 60);
-		if ((scr = score(cp, 60)) > best) {
+		memcpy(cp, buf, NDATA);
+		xor(cp, c, NDATA);
+		if ((scr = score(cp, NDATA)) > best) {
 			best = scr;
 			found = c;
 		}
@@ -225,7 +227,7 @@ main(void)
 		err(1, NULL);
 
 	least = enc[0].len;
-	for (i = 1; i < 60; i++)
+	for (i = 1; i < NDATA; i++)
 		if (enc[i].len < least)
 			least = enc[i].len;
 
@@ -235,7 +237,7 @@ main(void)
 	for (i = 0; i < least; i++)
 		keystream[i] = crack_byte(i);
 
-	for (i = 0; i < 60; i++) {
+	for (i = 0; i < NDATA; i++) {
 		for (j = 0; j < least; j++)
 			enc[i].buf[j] ^= keystream[j];
 		enc[i].buf[j] = '\0';
