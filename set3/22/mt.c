@@ -1,13 +1,6 @@
 #include <stdio.h>
 
-#define SEED	5489
-
-#define NSTATE	624
-
-struct mt {
-	uint32_t state[NSTATE];
-	size_t i;
-};
+#include "mt.h"
 
 void
 mt_init(struct mt *mt, uint32_t seed)
@@ -20,7 +13,7 @@ mt_init(struct mt *mt, uint32_t seed)
 	mt->i = i;
 }
 
-void
+static void
 mt_twist(struct mt *mt)
 {
 	size_t i;
@@ -52,18 +45,4 @@ mt_rand(struct mt *mt)
 	x ^= (x >> 18);
 
 	return x;
-}
-
-int
-main(void)
-{
-	struct mt mt;
-	size_t len;
-
-	mt_init(&mt, SEED);
-
-	while (fgetln(stdin, &len))
-		printf("%u\n", mt_rand(&mt));
-
-	return 0;
 }
