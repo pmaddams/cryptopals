@@ -1,5 +1,5 @@
 #include <err.h>
-#include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,7 +92,7 @@ encrypt(char *s, size_t *lenp, uint64_t nonce)
 
 	inlen = ((buflen-1)/BLKSIZ+1)*BLKSIZ;
 	if ((in = malloc(inlen)) == NULL ||
-	    (out = malloc(inlen)) == NULL)
+	    (out = malloc(inlen+1)) == NULL)
 		goto fail;
 
 	for (ctr = i = 0; i < inlen; i += BLKSIZ, ctr++) {
@@ -131,7 +131,6 @@ make_enc(void)
 	for (i = 0; i < 40; i++) {
 		if ((buf = encrypt((char *) data[i], &len, 0)) == NULL)
 			goto fail;
-
 		enc[i].buf = buf;
 		enc[i].len = len;
 	}
@@ -173,22 +172,24 @@ score(uint8_t *buf, size_t len)
 }
 
 uint8_t
-crack_byte(size_t n)
+crack_byte(size_t i)
 {
-	size_t i;
+	size_t j;
 	uint8_t buf[40], cp[40], c, found;
 	float scr, best;
 
-	for (i = 0; i < 40; i++)
-		buf[i] = enc[i].buf[n];
+	for (j = 0; j < 40; j++)
+		buf[j] = enc[j].buf[i];
 
-	for (best = 0., found = c = 0; c < CHAR_MAX; c++) {
+	for (best = 0., found = c = 0;; c++) {
 		memcpy(cp, buf, 40);
 		xor(cp, c, 40);
 		if ((scr = score(cp, 40)) > best) {
 			best = scr;
 			found = c;
 		}
+		if (c == UINT8_MAX)
+			break;
 	}
 
 	return found;
@@ -197,6 +198,30 @@ crack_byte(size_t n)
 int
 main(void)
 {
+	size_t i, j, least;
+	uint8_t *keystream;
+
 	if (make_enc() == 0)
 		err(1, NULL);
+
+	least = enc[0].len;
+	for (i = 1; i < 40; i++)
+		if (enc[i].len < least)
+			least = enc[i].len;
+
+	if ((keystream = malloc(least)) == NULL)
+		err(1, NULL);
+
+	for (i = 0; i < least; i++)
+		keystream[i] = crack_byte(i);
+
+	for (i = 0; i < 40; i++) {
+		for (j = 0; j < least; j++)
+			enc[i].buf[j] ^= keystream[j];
+		enc[i].buf[j] = '\0';
+
+		puts(enc[i].buf);
+	}
+
+	exit(0);
 }
