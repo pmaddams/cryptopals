@@ -79,7 +79,7 @@ encrypt(char *s, size_t *lenp, uint64_t nonce)
 		goto fail;
 
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-	BIO_push(b64_mem, b64);
+	BIO_push(b64, b64_mem);
 
 	while ((nr = BIO_read(b64, tmp, BUFSIZ)) > 0)
 		if (fwrite(tmp, nr, 1, memstream) < 1)

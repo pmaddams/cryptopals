@@ -7,6 +7,8 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
+#include "tab.h"
+
 #define BLKSIZ 16
 
 const char *data[40] = {
@@ -137,6 +139,59 @@ make_enc(void)
 	return 1;
 fail:
 	return 0;
+}
+
+void
+xor(uint8_t *buf, uint8_t c, size_t len)
+{
+	while (len--)
+		*buf++ ^= c;
+}
+
+float
+score(uint8_t *buf, size_t len)
+{
+	float res;
+	uint8_t c;
+
+	for (res = 0.; len--;)
+		switch (c = *buf++) {
+		case ' ':
+			res += tab[0];
+			break;
+		case 'A'...'Z':
+			c = c - 'A' + 'a';
+			/* FALLTHROUGH */
+		case 'a'...'z':
+			res += tab[1 + c - 'a'];
+			break;
+		default:
+			break;
+		}
+
+	return res;
+}
+
+uint8_t
+crack_byte(size_t n)
+{
+	size_t i;
+	uint8_t buf[40], cp[40], c, found;
+	float scr, best;
+
+	for (i = 0; i < 40; i++)
+		buf[i] = enc[i].buf[n];
+
+	for (best = 0., found = c = 0; c < CHAR_MAX; c++) {
+		memcpy(cp, buf, 40);
+		xor(cp, c, 40);
+		if ((scr = score(cp, 40)) > best) {
+			best = scr;
+			found = c;
+		}
+	}
+
+	return found;
 }
 
 int
