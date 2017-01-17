@@ -7,6 +7,8 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
+#define BLKSIZ 16
+
 const char *data[40] = {
 	"SSBoYXZlIG1ldCB0aGVtIGF0IGNsb3NlIG9mIGRheQ==",
 	"Q29taW5nIHdpdGggdml2aWQgZmFjZXM=",
@@ -56,9 +58,30 @@ struct {
 } enc[40];
 
 uint8_t *
-encrypt(char *s)
+encrypt(char *s, size_t *lenp)
 {
+	static uint8_t key[BLKSIZ];
+	BIO *b64_mem, *b64, *bio_out;
+	FILE *memstream;
+	char *buf, tmp[BUFSIZ];
+	size_t len;
+	ssize_t nr;
 
+	while (*key == '\0')
+		arc4random_buf(key, BLKSIZ);
+
+	if ((b64_mem = BIO_new_mem_buf(s, strlen(s))) == NULL ||
+	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
+	    (memstream = open_memstream(&buf, &len)) == NULL)
+		goto fail;
+
+	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+	BIO_push(b64_mem, b64);
+
+	while ((nr = BIO_read(b64, tmp, BUFSIZ)) > 0)
+		if (fwrite(tmp, nr, 1, memstream) < 1)
+			goto fail;
+	fclose(memstream);
 }
 
 int
