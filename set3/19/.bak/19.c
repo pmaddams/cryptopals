@@ -58,21 +58,24 @@ struct {
 } enc[40];
 
 uint8_t *
-encrypt(char *s, size_t *lenp)
+encrypt(char *s, size_t *lenp, uint64_t nonce)
 {
 	static uint8_t key[BLKSIZ];
-	BIO *b64_mem, *b64, *bio_out;
+	BIO *b64_mem, *b64;
 	FILE *memstream;
-	char *buf, tmp[BUFSIZ];
-	size_t len;
+	char *buf, tmp[BUFSIZ], *in, *out;
+	size_t i, buflen;
 	ssize_t nr;
+	int inlen, outlen;
+	uint64_t ctr;
+	EVP_CIPHER_CTX ctx;
 
 	while (*key == '\0')
 		arc4random_buf(key, BLKSIZ);
 
 	if ((b64_mem = BIO_new_mem_buf(s, strlen(s))) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
-	    (memstream = open_memstream(&buf, &len)) == NULL)
+	    (memstream = open_memstream(&buf, &buflen)) == NULL)
 		goto fail;
 
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
@@ -82,16 +85,63 @@ encrypt(char *s, size_t *lenp)
 		if (fwrite(tmp, nr, 1, memstream) < 1)
 			goto fail;
 	fclose(memstream);
+
+	BIO_free_all(b64);
+
+	inlen = ((buflen-1)/BLKSIZ+1)*BLKSIZ;
+	if ((in = malloc(inlen)) == NULL ||
+	    (out = malloc(inlen)) == NULL)
+		goto fail;
+
+	for (ctr = i = 0; i < inlen; i += BLKSIZ, ctr++) {
+		memcpy(in+i, &nonce, BLKSIZ/2);
+		memcpy(in+i+BLKSIZ/2, &ctr, BLKSIZ/2);
+	}
+
+	EVP_CIPHER_CTX_init(&ctx);
+	EVP_CIPHER_CTX_set_padding(&ctx, 0);
+
+	if (EVP_EncryptInit_ex(&ctx, EVP_aes_128_ecb(), NULL, key, NULL) == 0 ||
+	    EVP_EncryptUpdate(&ctx, out, &outlen, in, inlen) == 0)
+		goto fail;
+
+	EVP_CIPHER_CTX_cleanup(&ctx);
+
+	for (i = 0; i < buflen; i++)
+		out[i] ^= buf[i];
+
+	if (lenp != NULL)
+		*lenp = outlen;
+
+	free(in);
+	free(buf);
+	return out;
+fail:
+	return NULL;
 }
 
 int
 make_enc(void)
 {
+	size_t i, len;
+	uint8_t *buf;
 
+	for (i = 0; i < 40; i++) {
+		if ((buf = encrypt((char *) data[i], &len, 0)) == NULL)
+			goto fail;
+
+		enc[i].buf = buf;
+		enc[i].len = len;
+	}
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
 main(void)
 {
-
+	if (make_enc() == 0)
+		err(1, NULL);
 }
