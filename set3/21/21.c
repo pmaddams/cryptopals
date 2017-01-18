@@ -1,3 +1,5 @@
+#include <sys/types.h>
+
 #include <stdio.h>
 
 #define SEED	5489

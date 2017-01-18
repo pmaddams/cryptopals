@@ -1,3 +1,5 @@
+#include <sys/types.h>
+
 #define NSTATE 624
 
 struct mt {
