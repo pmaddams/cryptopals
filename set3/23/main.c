@@ -5,7 +5,7 @@
 
 #include "mt.h"
 
-#define MASK(a, b) ((~0>>(a)) & (~0<<31-(b)))
+#define MASK(a, b) ((~0U>>(a)) & (~0U<<(31-(b))))
 
 uint32_t
 untemper(uint32_t x)
