@@ -48,7 +48,7 @@ ctr_crypt(uint8_t *in, size_t inlen, uint64_t nonce, uint8_t *key)
 	EVP_CIPHER_CTX_set_padding(&ctx, 0);
 
 	outlen = (inlen/BLKSIZ+1)*BLKSIZ;
-	if ((out = calloc(1, outlen)) == NULL)
+	if ((out = malloc(outlen)) == NULL)
 		goto fail;
 	memcpy(out, in, inlen);
 
