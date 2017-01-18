@@ -43,10 +43,10 @@ mt_rand(struct mt *mt)
 
 	x = mt->state[mt->i++];
 
-	x ^= (x >> 11);
-	x ^= (x << 7) & 0x9d2c5680;
-	x ^= (x << 15) & 0xefc60000;
-	x ^= (x >> 18);
+	x ^= (x>>11);
+	x ^= (x<<7) & 0x9d2c5680;
+	x ^= (x<<15) & 0xefc60000;
+	x ^= (x>>18);
 
 	return x;
 }
