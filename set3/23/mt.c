@@ -1,5 +1,7 @@
 #include <sys/types.h>
 
+#include <string.h>
+
 #include "mt.h"
 
 void
@@ -45,4 +47,12 @@ mt_rand(struct mt *mt)
 	x ^= (x >> 18);
 
 	return x;
+}
+
+void
+mt_clone(struct mt *mt, uint32_t *state)
+{
+	memcpy(mt->state, state, NSTATE*sizeof(*state));
+
+	mt_twist(mt);
 }

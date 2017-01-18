@@ -9,3 +9,4 @@ struct mt {
 
 void mt_init(struct mt *, uint32_t);
 uint32_t mt_rand(struct mt *);
+void mt_clone(struct mt *, uint32_t *);
