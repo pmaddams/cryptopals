@@ -1,3 +1,5 @@
+#include <sys/types.h>
+
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
@@ -5,8 +7,9 @@
 
 #define MINIMUM(a, b) ((a)<(b)?(a):(b))
 
-char s1[] = "1c0111001f010100061a024b53535009181c";
-char s2[] = "686974207468652062756c6c277320657965";
+char
+    s1[] = "1c0111001f010100061a024b53535009181c",
+    s2[] = "686974207468652062756c6c277320657965";
 
 char *
 xtoa(char *s, size_t *lenp)
