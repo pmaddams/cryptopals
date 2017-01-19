@@ -1,9 +1,10 @@
-PROG=	24
-SRCS=	main.c	\
-	mt.c
+PROG=		24
+SRCS=		main.c	\
+		mt.c
+LDFLAGS+=	-lcrypto
 
 ${PROG}: ${SRCS}
-	cc ${SRCS} -o ${PROG}
+	cc ${LDFLAGS} ${SRCS} -o ${PROG}
 
 clean:
 	rm -f ${PROG}
