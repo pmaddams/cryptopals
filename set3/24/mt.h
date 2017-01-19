@@ -10,4 +10,4 @@ struct mt {
 
 void mt_init(struct mt *, uint32_t);
 uint32_t mt_rand(struct mt *);
-uint8_t *mt_crypt(uint8_t *, size_t, uint32_t);
+uint8_t *mt_crypt(uint8_t *, size_t, uint16_t);

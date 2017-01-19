@@ -52,7 +52,7 @@ mt_rand(struct mt *mt)
 }
 
 uint8_t *
-mt_crypt(uint8_t *in, size_t inlen, uint32_t seed)
+mt_crypt(uint8_t *in, size_t inlen, uint16_t seed)
 {
 	size_t outlen, i, j;
 	uint8_t *out;
