@@ -14,7 +14,7 @@
 #define KEY 12345
 
 char *
-token(void)
+get_token(void)
 {
 	size_t inlen, outlen;
 	char *in, *enc, *out;
@@ -55,7 +55,7 @@ fail:
 }
 
 bool
-is_valid(char *tok)
+is_valid(char *token)
 {
 	bool res;
 	time_t t;
@@ -69,7 +69,7 @@ is_valid(char *tok)
 
 	res = false;
 
-	if ((b64_mem = BIO_new_mem_buf(tok, strlen(tok))) == NULL ||
+	if ((b64_mem = BIO_new_mem_buf(token, strlen(token))) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
 	    (memstream = open_memstream(&enc, &len)) == NULL)
 		goto done;
@@ -87,7 +87,7 @@ is_valid(char *tok)
 	if ((dec = mt_crypt(enc, len, t)) == NULL)
 		goto done;
 
-	if (memcmp(dec+len, "AAAA", BLKSIZ) == 0)
+	if (memcmp(dec+len-BLKSIZ, "AAAA", BLKSIZ) == 0)
 		res = true;
 
 	free(enc);
@@ -100,7 +100,7 @@ int
 main(void)
 {
 	size_t len;
-	char *buf, *enc, *dec;
+	char *buf, *enc, *dec, *token;
 	uint16_t guess;
 	bool found;
 
@@ -127,6 +127,11 @@ main(void)
 
 	if (found)
 		printf("Found key %u\n", guess);
+
+	if ((token = get_token()) == NULL)
+		err(1, NULL);
+
+	printf("Token from %s timestamp\n", is_valid(token) ? "valid" : "invalid");
 
 	exit(0);
 }
