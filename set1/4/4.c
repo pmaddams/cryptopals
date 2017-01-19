@@ -73,7 +73,7 @@ main(void)
 	float scr, best;
 	char *buf, *lbuf, *cp, *found;
 	size_t len;
-	int c;
+	uint8_t c;
 
 	best = 0.;
 	lbuf = found = NULL;
@@ -95,7 +95,7 @@ main(void)
 			err(1, NULL);
 		cp[len] = '\0';
 
-		for (c = 0; c <= UINT8_MAX; c++) {
+		for (c = 0;; c++) {
 			memcpy(cp, buf, len);
 			xor(cp, c, len);
 			if ((scr = score(cp, len)) > best) {
@@ -104,6 +104,8 @@ main(void)
 				if ((found = strdup(cp)) == NULL)
 					err(1, NULL);
 			}
+			if (c == UINT8_MAX)
+				break;
 		}
 		free(cp);
 	}
