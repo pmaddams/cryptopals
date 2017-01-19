@@ -23,7 +23,6 @@ get_token(void)
 	time_t t;
 	BIO *b64, *bio_out;
 	FILE *memstream;
-	ssize_t nr;
 
 	inlen = arc4random_uniform(14) + 14;
 	if ((in = malloc(inlen)) == NULL)
