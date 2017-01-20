@@ -67,7 +67,7 @@ fail:
 	return NULL;
 }
 
-char *
+uint8_t *
 edit(uint8_t *enc, size_t enclen, uint8_t *buf, size_t buflen, size_t offset)
 {
 	uint8_t *dec, *newp;
