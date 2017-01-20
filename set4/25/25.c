@@ -9,7 +9,7 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#define BLKSIZ	16
+#define BLKSIZ 16
 
 int
 ctr_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint64_t nonce, uint64_t ctr, uint8_t *key)
