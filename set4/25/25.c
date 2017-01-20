@@ -102,6 +102,7 @@ main(void)
 	char *buf, tmp[BUFSIZ];
 	size_t len;
 	ssize_t nr;
+	uint8_t *enc, *dec;
 
 	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
@@ -123,7 +124,11 @@ main(void)
 	BIO_free_all(b64);
 	BIO_free_all(cip);
 
-	puts(buf);
+	if ((enc = ctr_crypt(buf, len, 0)) == NULL ||
+	    (dec = edit(enc, len, enc, len, 0)) == NULL)
+		err(1, NULL);
+
+	puts(dec);
 
 	exit(0);
 }
