@@ -9,10 +9,10 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#define BLKSIZ	16
-
 #define MATCH	";admin=true;"
 #define CLOAK	29
+
+#define BLKSIZ	16
 
 #define DECRYPT	0
 #define ENCRYPT	1
