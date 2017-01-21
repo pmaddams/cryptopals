@@ -54,7 +54,7 @@ md4_forge_mac(uint8_t *mac, size_t guess, char *message, char *append)
 	ctx.count = ((bytecount/BLKSIZ + 1) * BLKSIZ) * 8;
 
 	for (i = 0; i < NSTATE; i++)
-		ctx.state[i] = htobe32(((uint32_t *) mac)[i]);
+		ctx.state[i] = htole32(((uint32_t *) mac)[i]);
 
 	md4_update(&ctx, (u_int8_t *) append, strlen(append));
 	md4_final((u_int8_t *) res, &ctx);
@@ -93,7 +93,7 @@ make_attack(size_t guess, char *message, char *append, size_t *lenp)
 		if (fputc('\x00', memstream) == EOF)
 			goto fail;
 
-	bitcount = htobe64((guess+msglen)*8);
+	bitcount = htole64((guess+msglen)*8);
 	if (fwrite(&bitcount, sizeof(bitcount), 1, memstream) < 1 ||
 	    fputs(append, memstream) == EOF)
 		goto fail;
