@@ -39,7 +39,6 @@ sha1_mac(uint8_t *key, size_t keylen, uint8_t *msg, size_t msglen)
 		goto fail;
 
 	free(buf);
-
 	return res;
 fail:
 	return NULL;
