@@ -17,7 +17,7 @@
 	} while (0)
 
 void
-md4_init(struct md4_ctx *ctx)
+md4_init(struct ctx *ctx)
 {
 	ctx->count = 0;
 
@@ -98,7 +98,7 @@ md4_transform(uint32_t *state, uint8_t *blk)
 }
 
 void
-md4_update(struct md4_ctx *ctx, uint8_t *buf, size_t len)
+md4_update(struct ctx *ctx, uint8_t *buf, size_t len)
 {
 	size_t have, need;
 
@@ -127,7 +127,7 @@ md4_update(struct md4_ctx *ctx, uint8_t *buf, size_t len)
 }
 
 static void
-md4_pad(struct md4_ctx *ctx)
+md4_pad(struct ctx *ctx)
 {
 	uint8_t count[8];
 	size_t padlen;
@@ -147,7 +147,7 @@ md4_pad(struct md4_ctx *ctx)
 }
 
 void
-md4_final(uint8_t *buf, struct md4_ctx *ctx)
+md4_final(uint8_t *buf, struct ctx *ctx)
 {
 	size_t i;
 
