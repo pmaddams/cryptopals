@@ -25,15 +25,17 @@ done:
 }
 
 uint8_t *
-sha1_mac(uint8_t *key, size_t keylen, uint8_t *msg, size_t msglen)
+sha1_mac(uint8_t *key, size_t keylen, char *message)
 {
+	size_t msglen;
 	uint8_t *buf, *res;
 
+	msglen = strlen(message);
 	if ((buf = malloc(keylen+msglen)) == NULL)
 		goto fail;
 
 	memcpy(buf, key, keylen);
-	memcpy(buf+keylen, msg, msglen);
+	memcpy(buf+keylen, message, msglen);
 
 	if ((res = sha1_hash(buf, keylen+msglen)) == NULL)
 		goto fail;
@@ -55,17 +57,14 @@ putx(uint8_t *buf, size_t len)
 int
 main(int argc, char **argv)
 {
-	uint8_t *key, *msg, *res;
+	uint8_t *res;
 
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s key message\n", argv[0]);
 		exit(1);
 	}
 
-	key = argv[1];
-	msg = argv[2];
-
-	if ((res = sha1_mac(key, strlen(key), msg, strlen(msg))) == NULL)
+	if ((res = sha1_mac(argv[1], strlen(argv[1]), argv[2])) == NULL)
 		err(1, NULL);
 
 	putx(res, SHA1_DIGEST_LENGTH);
