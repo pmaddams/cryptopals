@@ -7,9 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BLKSIZ 64
-#define PADSIZ 56
-#define NSTATE 5
+#define MESSAGE	"comment1=cooking%20MCs;userdata=foo;" \
+		"comment2=%20like%20a%20pound%20of%20bacon"
+#define APPEND	";admin=true"
+
+#define BLKSIZ	64
+#define PADSIZ	56
+#define NSTATE	5
 
 uint8_t *
 sha1_mac(uint8_t *buf, size_t len)
@@ -39,7 +43,7 @@ fail:
 }
 
 uint8_t *
-sha1_forge(uint8_t *hash, size_t guess, char *message, char *append)
+sha1_forge_mac(uint8_t *mac, size_t guess, char *message, char *append)
 {
 	uint8_t *res;
 	SHA1_CTX sha;
@@ -53,7 +57,7 @@ sha1_forge(uint8_t *hash, size_t guess, char *message, char *append)
 	sha.count = ((bytecount/BLKSIZ + 1) * BLKSIZ) * 8;
 
 	for (i = 0; i < NSTATE; i++)
-		sha.state[i] = htobe32(((uint32_t *) hash)[i]);
+		sha.state[i] = htobe32(((uint32_t *) mac)[i]);
 
 	SHA1Update(&sha, (u_int8_t *) append, strlen(append));
 	SHA1Final((u_int8_t *) res, &sha);
@@ -117,5 +121,27 @@ putx(uint8_t *buf, size_t len)
 int
 main(void)
 {
+	uint8_t *mac, *forge, *buf, *check;
+	size_t guess, len;
 
+	if ((mac = sha1_mac(MESSAGE, strlen(MESSAGE))) == NULL)
+		err(1, NULL);
+
+	for (guess = 0; guess < BLKSIZ; guess++) {
+		if ((forge = sha1_forge_mac(mac, guess, MESSAGE, APPEND)) == NULL ||
+		    (buf = make_attack(guess, MESSAGE, APPEND, &len)) == NULL ||
+		    (check = sha1_mac(buf, len)) == NULL)
+			err(1, NULL);
+		if (memcmp(forge, check, SHA1_DIGEST_LENGTH) == 0)
+			break;
+		free(forge);
+		free(check);
+	}
+	if (guess == BLKSIZ)
+		errx(1, "forgery failed");
+
+	putx(forge, SHA1_DIGEST_LENGTH);
+	putx(check, SHA1_DIGEST_LENGTH);
+
+	exit(0);
 }
