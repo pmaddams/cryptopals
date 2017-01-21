@@ -21,7 +21,7 @@ sha1_mac(uint8_t *buf, size_t len)
 	static uint8_t *key;
 	static size_t keylen;
 	uint8_t *res;
-	SHA1_CTX sha;
+	SHA1_CTX ctx;
 
 	if (key == NULL) {
 		keylen = arc4random_uniform(BLKSIZ);
@@ -32,10 +32,10 @@ sha1_mac(uint8_t *buf, size_t len)
 	if ((res = malloc(SHA1_DIGEST_LENGTH)) == NULL)
 		goto fail;
 
-	SHA1Init(&sha);
-	SHA1Update(&sha, (u_int8_t *) key, keylen);
-	SHA1Update(&sha, (u_int8_t *) buf, len);
-	SHA1Final((u_int8_t *) res, &sha);
+	SHA1Init(&ctx);
+	SHA1Update(&ctx, (u_int8_t *) key, keylen);
+	SHA1Update(&ctx, (u_int8_t *) buf, len);
+	SHA1Final((u_int8_t *) res, &ctx);
 
 	return res;
 fail:
@@ -46,7 +46,7 @@ uint8_t *
 sha1_forge_mac(uint8_t *mac, size_t guess, char *message, char *append)
 {
 	uint8_t *res;
-	SHA1_CTX sha;
+	SHA1_CTX ctx;
 	size_t i, bytecount;
 
 	if ((res = malloc(SHA1_DIGEST_LENGTH)) == NULL)
@@ -54,13 +54,13 @@ sha1_forge_mac(uint8_t *mac, size_t guess, char *message, char *append)
 
 	if ((bytecount = guess+strlen(message)) % BLKSIZ >= PADSIZ)
 		bytecount += BLKSIZ;
-	sha.count = ((bytecount/BLKSIZ + 1) * BLKSIZ) * 8;
+	ctx.count = ((bytecount/BLKSIZ + 1) * BLKSIZ) * 8;
 
 	for (i = 0; i < NSTATE; i++)
-		sha.state[i] = htobe32(((uint32_t *) mac)[i]);
+		ctx.state[i] = htobe32(((uint32_t *) mac)[i]);
 
-	SHA1Update(&sha, (u_int8_t *) append, strlen(append));
-	SHA1Final((u_int8_t *) res, &sha);
+	SHA1Update(&ctx, (u_int8_t *) append, strlen(append));
+	SHA1Final((u_int8_t *) res, &ctx);
 done:
 	return res;
 }
