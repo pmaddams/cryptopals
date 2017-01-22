@@ -1,6 +1,6 @@
-#define NDATA 40
+#define NBUF 40
 
-const char *data[NDATA] = {
+const char *data[NBUF] = {
 	"SSBoYXZlIG1ldCB0aGVtIGF0IGNsb3NlIG9mIGRheQ==",
 	"Q29taW5nIHdpdGggdml2aWQgZmFjZXM=",
 	"RnJvbSBjb3VudGVyIG9yIGRlc2sgYW1vbmcgZ3JleQ==",
