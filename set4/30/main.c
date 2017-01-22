@@ -8,10 +8,6 @@
 
 #include "md4.h"
 
-#define MESSAGE	"comment1=cooking%20MCs;userdata=foo;" \
-		"comment2=%20like%20a%20pound%20of%20bacon"
-#define APPEND	";admin=true"
-
 uint8_t *
 md4_mac(uint8_t *buf, size_t len)
 {
@@ -118,15 +114,20 @@ putx(uint8_t *buf, size_t len)
 int
 main(void)
 {
+	char *message, *append;
 	uint8_t *mac, *forge, *buf, *check;
 	size_t guess, len;
 
-	if ((mac = md4_mac(MESSAGE, strlen(MESSAGE))) == NULL)
+	message = "comment1=cooking%20MCs;userdata=foo;"
+		  "comment2=%20like%20a%20pound%20of%20bacon";
+	append = ";admin=true";
+
+	if ((mac = md4_mac(message, strlen(message))) == NULL)
 		err(1, NULL);
 
 	for (guess = 0; guess < BLKSIZ; guess++) {
-		if ((forge = md4_forge_mac(mac, guess, MESSAGE, APPEND)) == NULL ||
-		    (buf = make_attack(guess, MESSAGE, APPEND, &len)) == NULL ||
+		if ((forge = md4_forge_mac(mac, guess, message, append)) == NULL ||
+		    (buf = make_attack(guess, message, append, &len)) == NULL ||
 		    (check = md4_mac(buf, len)) == NULL)
 			err(1, NULL);
 		if (memcmp(forge, check, DIGEST) == 0)
