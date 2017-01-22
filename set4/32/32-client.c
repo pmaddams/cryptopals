@@ -11,13 +11,10 @@
 
 #define HOST		"localhost"
 #define PORT		"443"
-#define RESOURCE	"/cgi-bin/31-server"
+#define RESOURCE	"/cgi-bin/32-server"
 #define FILENAME	"TEST"
 
-const char charset[16] = {
-	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-	'a', 'b', 'c', 'd', 'e', 'f'
-};
+#define HEXCHARS	"0123456789abcdef"
 
 long
 how_long(struct timespec *start, struct timespec *end)
@@ -32,10 +29,9 @@ main(void)
 {
 	SSL_CTX *ctx;
 	BIO *conn;
-	char buf[BUFSIZ],
-	    *attack, *hmac;
-	ssize_t nr;
+	char buf[BUFSIZ], *attack, *hmac;
 	size_t i, j, len;
+	ssize_t nr;
 	struct timespec start, end;
 	long elapsed, best;
 	int match, found;
@@ -58,7 +54,7 @@ main(void)
 	setvbuf(stdout, NULL, _IONBF, 0);
 	for (i = 0; i < SHA1_DIGEST_STRING_LENGTH-2; i++) {
 		for (best = 0L, match = 0, j = 0; j < 16; j++) {
-			hmac[i] = charset[j];
+			hmac[i] = HEXCHARS[j];
 
 			BIO_reset(conn);
 			if ((BIO_do_connect(conn)) <= 0)
@@ -78,7 +74,7 @@ main(void)
 
 			if ((elapsed = how_long(&start, &end)) > best) {
 				best = elapsed;
-				match = charset[j];
+				match = HEXCHARS[j];
 			}
 		}
 		hmac[i] = match;
@@ -86,7 +82,7 @@ main(void)
 	}
 
 	for (found = 0, j = 0; j < 16; j++) {
-		hmac[SHA1_DIGEST_STRING_LENGTH-2] = charset[j];
+		hmac[SHA1_DIGEST_STRING_LENGTH-2] = HEXCHARS[j];
 
 		BIO_reset(conn);
 		if ((BIO_do_connect(conn)) <= 0)
@@ -105,12 +101,13 @@ main(void)
 
 		if (strstr(buf, "200 OK") != NULL) {
 			found = 1;
-			putchar(charset[j]);
+			putchar(HEXCHARS[j]);
 			break;
 		}
 	}
 	putchar('\n');
 
-	printf("%s\n", (found ? hmac : "not found"));
+	puts(found ? hmac : "not found");
+
 	exit(0);
 }

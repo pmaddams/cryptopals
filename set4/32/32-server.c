@@ -7,8 +7,10 @@
 #include <string.h>
 #include <time.h>
 
+#define KEY		"YELLOW SUBMARINE"
+
 #define BLKSIZ		64
-#define SLEEPTIME	50 /* ms */
+#define SLEEPMS		5
 #define FILENAME	"TEST"
 
 extern char **environ;
@@ -33,8 +35,7 @@ header(int code)
 int
 get_query(char **fnp, char **sigp)
 {
-	char *qfield, *ffield, *sfield,
-	    *q, *fn, *sig;
+	char *qfield, *ffield, *sfield, *q, *fn, *sig;
 	size_t tmplen, fnlen, siglen;
 
 	qfield = "QUERY_STRING=";
@@ -76,24 +77,24 @@ fail:
 	return 0;
 }
 
-int
-sha1_hmac(char *res, FILE *fp)
+uint8_t *
+sha1_hmac(FILE *fp)
 {
-	const char *key = "YELLOW SUBMARINE";
-	uint8_t ipad[BLKSIZ], opad[BLKSIZ],
-	    hash1[SHA1_DIGEST_LENGTH],
-	    hash2[SHA1_DIGEST_LENGTH],
-	    buf[BUFSIZ];
+	uint8_t *res, ipad[BLKSIZ], opad[BLKSIZ], buf[BUFSIZ],
+	    h1[SHA1_DIGEST_LENGTH], h2[SHA1_DIGEST_LENGTH];
 	size_t i, keylen, nr;
 	SHA1_CTX ctx;
+
+	if ((res = malloc(SHA1_DIGEST_STRING_LENGTH)) == NULL)
+		goto fail;
 
 	memset(ipad, '\x5c', BLKSIZ);
 	memset(opad, '\x36', BLKSIZ);
 
-	keylen = strlen(key);
+	keylen = strlen(KEY);
 	for (i = 0; i < keylen; i++) {
-		ipad[i] ^= key[i];
-		opad[i] ^= key[i];
+		ipad[i] ^= KEY[i];
+		opad[i] ^= KEY[i];
 	}
 
 	SHA1Init(&ctx);
@@ -102,19 +103,19 @@ sha1_hmac(char *res, FILE *fp)
 		SHA1Update(&ctx, buf, nr);
 	if (ferror(fp))
 		goto fail;
-	SHA1Final(hash1, &ctx);
+	SHA1Final(h1, &ctx);
 
 	SHA1Init(&ctx);
 	SHA1Update(&ctx, opad, BLKSIZ);
-	SHA1Update(&ctx, hash1, SHA1_DIGEST_LENGTH);
-	SHA1Final(hash2, &ctx);
+	SHA1Update(&ctx, h1, SHA1_DIGEST_LENGTH);
+	SHA1Final(h2, &ctx);
 
 	for (i = 0; i < SHA1_DIGEST_LENGTH; i++)
-		snprintf(res+i*2, 3, "%02x", hash2[i]);
+		snprintf(res+i*2, 3, "%02x", h2[i]);
 
-	return 1;
+	return res;
 fail:
-	return 0;
+	return NULL;
 }
 
 int
@@ -123,7 +124,7 @@ insecure_compare(char *sig, char *hmac)
 	static struct timespec ts;
 
 	if (ts.tv_nsec == 0)
-		ts.tv_nsec = SLEEPTIME*1000000;
+		ts.tv_nsec = SLEEPMS*1000000;
 
 	while (*sig == *hmac) {
 		nanosleep(&ts, NULL);
@@ -140,12 +141,11 @@ int
 main(void)
 {
 	FILE *fp;
-	char *fn, *sig,
-	    hmac[SHA1_DIGEST_STRING_LENGTH];
+	char *fn, *sig, *hmac;
 	int rv;
 
 	if ((fp = fopen(FILENAME, "r")) == NULL ||
-	    sha1_hmac(hmac, fp) == 0)
+	    (hmac = sha1_hmac(fp)) == NULL)
 		err(1, NULL);
 
 	rv = BAD;

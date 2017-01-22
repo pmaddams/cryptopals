@@ -1,5 +1,5 @@
-CLIENT=		31-client
-SERVER=		31-server
+CLIENT=		32-client
+SERVER=		32-server
 FILENAME=	TEST
 DESTDIR=	/var/www/cgi-bin
 
