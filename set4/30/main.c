@@ -30,9 +30,9 @@ md4_mac(uint8_t *buf, size_t len)
 		goto fail;
 
 	md4_init(&ctx);
-	md4_update(&ctx, (u_int8_t *) key, keylen);
-	md4_update(&ctx, (u_int8_t *) buf, len);
-	md4_final((u_int8_t *) res, &ctx);
+	md4_update(&ctx, key, keylen);
+	md4_update(&ctx, buf, len);
+	md4_final(res, &ctx);
 
 	return res;
 fail:
@@ -56,8 +56,8 @@ md4_forge_mac(uint8_t *mac, size_t guess, char *message, char *append)
 	for (i = 0; i < NSTATE; i++)
 		ctx.state[i] = htole32(((uint32_t *) mac)[i]);
 
-	md4_update(&ctx, (u_int8_t *) append, strlen(append));
-	md4_final((u_int8_t *) res, &ctx);
+	md4_update(&ctx, append, strlen(append));
+	md4_final(res, &ctx);
 done:
 	return res;
 }

@@ -33,9 +33,9 @@ sha1_mac(uint8_t *buf, size_t len)
 		goto fail;
 
 	SHA1Init(&ctx);
-	SHA1Update(&ctx, (u_int8_t *) key, keylen);
-	SHA1Update(&ctx, (u_int8_t *) buf, len);
-	SHA1Final((u_int8_t *) res, &ctx);
+	SHA1Update(&ctx, key, keylen);
+	SHA1Update(&ctx, buf, len);
+	SHA1Final(res, &ctx);
 
 	return res;
 fail:
@@ -59,8 +59,8 @@ sha1_forge_mac(uint8_t *mac, size_t guess, char *message, char *append)
 	for (i = 0; i < NSTATE; i++)
 		ctx.state[i] = htobe32(((uint32_t *) mac)[i]);
 
-	SHA1Update(&ctx, (u_int8_t *) append, strlen(append));
-	SHA1Final((u_int8_t *) res, &ctx);
+	SHA1Update(&ctx, append, strlen(append));
+	SHA1Final(res, &ctx);
 done:
 	return res;
 }
