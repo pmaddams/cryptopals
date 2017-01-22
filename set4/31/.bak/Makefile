@@ -1,7 +1,9 @@
-CLIENT=31-client
-SERVER=31-server
-DESTDIR=/var/www/cgi-bin
-FILENAME=TEST
+CLIENT=		31-client
+SERVER=		31-server
+FILENAME=	TEST
+DESTDIR=	/var/www/cgi-bin
+
+LDFLAGS+=	-lcrypto -lssl
 
 all:
 	make client
@@ -12,10 +14,10 @@ client: ${CLIENT}.c
 
 server: ${SERVER}.c
 	cc -static ${SERVER}.c -o ${SERVER}
-	install -o www -g www -m 500 ${SERVER} ${DESTDIR}
-	cp ${FILENAME} ${DESTDIR}
-	rcctl restart slowcgi
-	rcctl restart httpd
+	doas -u root install -o www -g www -m 500 ${SERVER} ${DESTDIR}
+	doas -u root cp ${FILENAME} ${DESTDIR}
+	doas -u root rcctl restart slowcgi
+	doas -u root rcctl restart httpd
 
 clean:
 	rm -f ${CLIENT} ${SERVER}
