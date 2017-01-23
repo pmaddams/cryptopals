@@ -1,6 +1,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <openssl/bn.h>
 
@@ -22,26 +23,63 @@ struct party {
 	BIGNUM shared;
 };
 
-struct party alice, bob;
-
 BIGNUM *p, *g;
 
 int
 generate_keys(struct party *party)
 {
+	BN_CTX *ctx;
+	uint8_t buf[BUFSIZ];
+
+	if ((ctx = BN_CTX_new()) == NULL)
+		goto fail;
+
+	arc4random_buf(buf, BUFSIZ);
+
+	if (BN_bin2bn(buf, BUFSIZ, &party->private) == NULL ||
+	    BN_mod_exp(&party->public, g, &party->private, p, ctx) == 0)
+		goto fail;
+
+	BN_CTX_free(ctx);
+
+	return 1;
+fail:
+	return 0;
 }
 
-void
+int
 exchange_keys(struct party *p1, struct party *p2)
 {
+	BN_CTX *ctx;
+
+	if ((ctx = BN_CTX_new()) == NULL ||
+	    BN_mod_exp(&p1->shared, &p2->public, &p1->private, p, ctx) == 0)
+		goto fail;
+
+	BN_CTX_free(ctx);
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
 main(void)
 {
+	struct party alice, bob;
+
+	memset(&alice, 0, sizeof(alice));
+	memset(&bob, 0, sizeof(bob));
+
 	if (p == NULL && BN_hex2bn(&p, P) == 0 ||
-	    g == NULL && BN_hex2bn(&g, G) == 0)
+	    g == NULL && BN_hex2bn(&g, G) == 0 ||
+	    generate_keys(&alice) == 0 ||
+	    generate_keys(&bob) == 0 ||
+	    exchange_keys(&alice, &bob) == 0 ||
+	    exchange_keys(&bob, &alice) == 0)
 		err(1, NULL);
+
+	puts(BN_cmp(&alice.shared, &bob.shared) == 0 ? "success" : "failure");
 
 	exit(0);
 }
