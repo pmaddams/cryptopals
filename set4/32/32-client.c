@@ -1,13 +1,13 @@
 #include <sys/time.h>
 
-#include <openssl/ssl.h>
-
 #include <err.h>
 #include <sha1.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include <openssl/ssl.h>
 
 #define HOST		"localhost"
 #define PORT		"443"
