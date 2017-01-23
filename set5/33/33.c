@@ -69,8 +69,8 @@ main(void)
 {
 	struct party alice, bob;
 
-	if (p == NULL && BN_hex2bn(&p, P) == 0 ||
-	    g == NULL && BN_hex2bn(&g, G) == 0 ||
+	if (BN_hex2bn(&p, P) == 0 ||
+	    BN_hex2bn(&g, G) == 0 ||
 	    generate_keys(&alice) == 0 ||
 	    generate_keys(&bob) == 0 ||
 	    exchange_keys(&alice, &bob) == 0 ||
