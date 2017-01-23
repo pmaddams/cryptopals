@@ -34,6 +34,7 @@ generate_keys(struct party *party)
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 
+	memset(party, 0, sizeof(*party));
 	arc4random_buf(buf, BUFSIZ);
 
 	if (BN_bin2bn(buf, BUFSIZ, &party->private) == NULL ||
@@ -67,9 +68,6 @@ int
 main(void)
 {
 	struct party alice, bob;
-
-	memset(&alice, 0, sizeof(alice));
-	memset(&bob, 0, sizeof(bob));
 
 	if (p == NULL && BN_hex2bn(&p, P) == 0 ||
 	    g == NULL && BN_hex2bn(&g, G) == 0 ||
