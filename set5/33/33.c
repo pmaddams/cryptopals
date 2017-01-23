@@ -24,44 +24,25 @@ struct party {
 };
 
 BIGNUM *p, *g;
+BN_CTX *ctx;
 
 int
-generate_keys(struct party *party)
+generate(struct party *party)
 {
-	BN_CTX *ctx;
 	uint8_t buf[BUFSIZ];
-
-	if ((ctx = BN_CTX_new()) == NULL)
-		goto fail;
 
 	memset(party, 0, sizeof(*party));
 	arc4random_buf(buf, BUFSIZ);
 
-	if (BN_bin2bn(buf, BUFSIZ, &party->private) == NULL ||
-	    BN_mod_exp(&party->public, g, &party->private, p, ctx) == 0)
-		goto fail;
-
-	BN_CTX_free(ctx);
-
-	return 1;
-fail:
-	return 0;
+	return BN_bin2bn(buf, BUFSIZ, &party->private) &&
+	    BN_mod_exp(&party->public, g, &party->private, p, ctx);
 }
 
 int
-exchange_keys(struct party *p1, struct party *p2)
+exchange(struct party *p1, struct party *p2)
 {
-	BN_CTX *ctx;
-
-	if ((ctx = BN_CTX_new()) == NULL ||
-	    BN_mod_exp(&p1->shared, &p2->public, &p1->private, p, ctx) == 0)
-		goto fail;
-
-	BN_CTX_free(ctx);
-
-	return 1;
-fail:
-	return 0;
+	return BN_mod_exp(&p1->shared, &p2->public, &p1->private, p, ctx) &&
+	    BN_mod_exp(&p2->shared, &p1->public, &p2->private, p, ctx);
 }
 
 int
@@ -69,12 +50,12 @@ main(void)
 {
 	struct party alice, bob;
 
-	if (BN_hex2bn(&p, P) == 0 ||
+	if ((ctx = BN_CTX_new()) == NULL ||
+	    BN_hex2bn(&p, P) == 0 ||
 	    BN_hex2bn(&g, G) == 0 ||
-	    generate_keys(&alice) == 0 ||
-	    generate_keys(&bob) == 0 ||
-	    exchange_keys(&alice, &bob) == 0 ||
-	    exchange_keys(&bob, &alice) == 0)
+	    generate(&alice) == 0 ||
+	    generate(&bob) == 0 ||
+	    exchange(&alice, &bob) == 0)
 		err(1, NULL);
 
 	puts(BN_cmp(&alice.shared, &bob.shared) == 0 ? "success" : "failure");
