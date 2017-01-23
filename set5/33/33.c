@@ -46,6 +46,12 @@ exchange(struct party *p1, struct party *p2)
 }
 
 int
+verify(struct party *p1, struct party *p2)
+{
+	return BN_cmp(&p1->shared, &p2->shared) == 0;
+}
+
+int
 main(void)
 {
 	struct party alice, bob;
@@ -58,7 +64,7 @@ main(void)
 	    exchange(&alice, &bob) == 0)
 		err(1, NULL);
 
-	puts(BN_cmp(&alice.shared, &bob.shared) == 0 ? "success" : "failure");
+	puts(verify(&alice, &bob) ? "success" : "failure");
 
 	exit(0);
 }
