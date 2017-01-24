@@ -18,6 +18,7 @@
 		"c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552"	\
 		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff"	\
 		"fffffffffffff"
+
 #define G	"2"
 
 #define BLKSIZ	16
@@ -30,8 +31,7 @@ struct party {
 	uint8_t key[BLKSIZ];
 	uint8_t iv[BLKSIZ];
 
-	uint8_t *message;
-	size_t msglen;
+	char *message;
 };
 
 BIGNUM *p, *g;
@@ -123,7 +123,6 @@ send_msg(struct party *send, struct party *recv, char *message)
 	BIO_free_all(dec);
 
 	recv->message = buf;
-	recv->msglen = len;
 
 	return 1;
 fail:
