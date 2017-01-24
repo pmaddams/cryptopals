@@ -31,6 +31,7 @@ struct party {
 	uint8_t iv[BLKSIZ];
 
 	uint8_t *message;
+	size_t msglen;
 };
 
 BIGNUM *p, *g;
@@ -52,11 +53,6 @@ int
 send_key(struct party *party, BIGNUM *b)
 {
 	return BN_mod_exp(&party->shared, b, &party->private, p, bnctx);
-}
-
-int
-intercept(struct party *p1, struct party *mitm, struct party *p2)
-{
 }
 
 int
@@ -87,6 +83,50 @@ fail:
 }
 
 int
+mitm(struct party *m)
+{
+	return BN_bin2bn("", 0, &m->shared) != NULL;
+}
+
+int
+send_msg(struct party *send, struct party *recv, char *message)
+{
+	BIO *mem, *enc, *dec, *bio_out;
+	FILE *memstream;
+	char *buf, tmp[BUFSIZ];
+	size_t len;
+	ssize_t nr;
+
+	if ((mem = BIO_new_mem_buf(message, strlen(message))) == NULL ||
+	    (enc = BIO_new(BIO_f_cipher())) == NULL ||
+	    (dec = BIO_new(BIO_f_cipher())) == NULL ||
+	    (memstream = open_memstream(&buf, &len)) == NULL ||
+	    (bio_out = BIO_new_fp(memstream, BIO_NOCLOSE)) == NULL)
+		goto fail;
+
+	BIO_set_cipher(enc, EVP_aes_128_cbc(), send->key, send->iv, 1);
+	BIO_set_cipher(dec, EVP_aes_128_cbc(), recv->key, send->iv, 0);
+	BIO_push(enc, mem);
+	BIO_push(dec, bio_out);
+
+	while ((nr = BIO_read(enc, tmp, BUFSIZ)) > 0)
+		if (BIO_write(dec, tmp, nr) < nr)
+			goto fail;
+
+	BIO_flush(dec);
+	fclose(memstream);
+	BIO_free_all(enc);
+	BIO_free_all(dec);
+
+	recv->message = buf;
+	recv->msglen = len;
+
+	return 1;
+fail:
+	return 0;
+}
+
+int
 main(void)
 {
 	struct party alice, bob, chuck;
@@ -95,8 +135,22 @@ main(void)
 	    BN_hex2bn(&p, P) == 0 ||
 	    BN_hex2bn(&g, G) == 0 ||
 	    generate(&alice) == 0 ||
-	    generate(&bob) == 0)
+	    generate(&bob) == 0 ||
+	    send_key(&alice, p) == 0 ||
+	    send_key(&bob, p) == 0 ||
+	    mitm(&chuck) == 0 ||
+	    params(&alice) == 0 ||
+	    params(&bob) == 0 ||
+	    params(&chuck) == 0 ||
+	    send_msg(&alice, &chuck, "hello") == 0)
 		err(1, NULL);
+
+	puts(chuck.message);
+
+	if (send_msg(&bob, &chuck, "world") == 0)
+		err(1, NULL);
+
+	puts(chuck.message);
 
 	exit(0);
 }
