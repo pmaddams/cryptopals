@@ -154,9 +154,9 @@ main(void)
 	    insecure_compare(sig, hmac) == 1)
 		rv = OK;
 
-	header(rv == OK ? OK : BAD);
+	header(rv);
 	printf("<!-- %s: %s -->\r\n",
-	    (rv == OK ? "SUCCESS" : "FAILURE"), hmac);
+	    (rv == OK ? "success" : "failure"), hmac);
 
 	exit(0);
 }
