@@ -55,6 +55,11 @@ send_key(struct party *party, BIGNUM *b)
 }
 
 int
+intercept(struct party *p1, struct party *mitm, struct party *p2)
+{
+}
+
+int
 params(struct party *party)
 {
 	size_t len;
@@ -66,7 +71,7 @@ params(struct party *party)
 	if ((buf = malloc(len)) == NULL)
 		goto fail;
 
-	len = BN_bn2bin(&party->shared, buf);
+	BN_bn2bin(&party->shared, buf);
 
 	SHA1Init(&sha1ctx);
 	SHA1Update(&sha1ctx, buf, len);
@@ -75,6 +80,7 @@ params(struct party *party)
 	memcpy(party->key, hash, BLKSIZ);
 	arc4random_buf(party->iv, BLKSIZ);
 
+	free(buf);
 	return 1;
 fail:
 	return 0;
@@ -87,13 +93,10 @@ main(void)
 
 	if ((bnctx = BN_CTX_new()) == NULL ||
 	    BN_hex2bn(&p, P) == 0 ||
-	    BN_hex2bn(&g, G) == 0)
+	    BN_hex2bn(&g, G) == 0 ||
+	    generate(&alice) == 0 ||
+	    generate(&bob) == 0)
 		err(1, NULL);
-
-	generate(&alice);
-	generate(&bob);
-	send_key(&alice, &bob.public);
-	params(&alice);
 
 	exit(0);
 }
