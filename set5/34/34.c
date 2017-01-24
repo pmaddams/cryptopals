@@ -85,6 +85,8 @@ fail:
 int
 mitm(struct party *m)
 {
+	m->message = NULL;
+
 	return BN_bin2bn("", 0, &m->shared) != NULL;
 }
 
@@ -96,6 +98,8 @@ send_msg(struct party *send, struct party *recv, char *message)
 	char *buf, tmp[BUFSIZ];
 	size_t len;
 	ssize_t nr;
+
+	free(recv->message);
 
 	if ((mem = BIO_new_mem_buf(message, strlen(message))) == NULL ||
 	    (enc = BIO_new(BIO_f_cipher())) == NULL ||
@@ -134,14 +138,19 @@ main(void)
 	if ((bnctx = BN_CTX_new()) == NULL ||
 	    BN_hex2bn(&p, P) == 0 ||
 	    BN_hex2bn(&g, G) == 0 ||
+
 	    generate(&alice) == 0 ||
 	    generate(&bob) == 0 ||
+
 	    send_key(&alice, p) == 0 ||
 	    send_key(&bob, p) == 0 ||
+
 	    mitm(&chuck) == 0 ||
+
 	    params(&alice) == 0 ||
 	    params(&bob) == 0 ||
 	    params(&chuck) == 0 ||
+
 	    send_msg(&alice, &chuck, "hello") == 0)
 		err(1, NULL);
 

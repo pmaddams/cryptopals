@@ -59,8 +59,10 @@ main(void)
 	if ((ctx = BN_CTX_new()) == NULL ||
 	    BN_hex2bn(&p, P) == 0 ||
 	    BN_hex2bn(&g, G) == 0 ||
+
 	    generate(&alice) == 0 ||
 	    generate(&bob) == 0 ||
+
 	    exchange(&alice, &bob) == 0)
 		err(1, NULL);
 
