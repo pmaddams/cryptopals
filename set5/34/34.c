@@ -37,7 +37,7 @@ BIGNUM *p, *g;
 BN_CTX *bnctx;
 
 int
-generate(struct party *party)
+dh_params(struct party *party)
 {
 	uint8_t buf[BUFSIZ];
 
@@ -55,7 +55,7 @@ send_key(struct party *party, BIGNUM *b)
 }
 
 int
-params(struct party *party)
+enc_params(struct party *party)
 {
 	size_t len;
 	uint8_t *buf, hash[SHA1_DIGEST_LENGTH];
@@ -137,17 +137,17 @@ main(void)
 	    BN_hex2bn(&p, P) == 0 ||
 	    BN_hex2bn(&g, G) == 0 ||
 
-	    generate(&alice) == 0 ||
-	    generate(&bob) == 0 ||
+	    dh_params(&alice) == 0 ||
+	    dh_params(&bob) == 0 ||
 
 	    send_key(&alice, p) == 0 ||
 	    send_key(&bob, p) == 0 ||
 
 	    mitm(&chuck) == 0 ||
 
-	    params(&alice) == 0 ||
-	    params(&bob) == 0 ||
-	    params(&chuck) == 0 ||
+	    enc_params(&alice) == 0 ||
+	    enc_params(&bob) == 0 ||
+	    enc_params(&chuck) == 0 ||
 
 	    send_msg(&alice, &chuck, "hello") == 0)
 		err(1, NULL);
