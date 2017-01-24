@@ -167,7 +167,7 @@ main(void)
 	if ((key = crack_key(buf, len, keylen)) == NULL)
 		err(1, NULL);
 
-	printf("KEY: %s\n\n", key);
+	printf("key: %s\n\n", key);
 
 	for (i = 0; i < len; i++)
 		putchar(buf[i] ^ key[i%keylen]);
