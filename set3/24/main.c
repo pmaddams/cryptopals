@@ -127,12 +127,12 @@ main(void)
 	}
 
 	if (found)
-		printf("Found key %u\n", guess);
+		printf("key: %u\n", guess);
 
 	if ((token = get_token()) == NULL)
 		err(1, NULL);
 
-	printf("Token from %s timestamp\n", is_valid(token) ? "valid" : "invalid");
+	printf("token from %s timestamp\n", is_valid(token) ? "valid" : "invalid");
 
 	exit(0);
 }

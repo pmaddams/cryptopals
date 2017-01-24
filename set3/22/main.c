@@ -16,7 +16,7 @@ main(void)
 	time(&t);
 	t += 40 + arc4random_uniform(960);
 
-	printf("The seed is %u.\n", t);
+	printf("%u\n", t);
 
 	mt_init(&mt, t);
 	x = mt_rand(&mt);
@@ -29,7 +29,7 @@ main(void)
 			break;
 	}
 
-	printf("Guess it was %u.\n", t-i);
+	printf("%u\n", t-i);
 
 	exit(0);
 }
