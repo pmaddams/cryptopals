@@ -83,7 +83,7 @@ fail:
 }
 
 int
-mitm(struct party *m, BIGNUM *g)
+mitm(struct party *m, BIGNUM *g, struct party *p1, struct party *p2)
 {
 	BN_init(&m->shared);
 
@@ -93,6 +93,18 @@ mitm(struct party *m, BIGNUM *g)
 	} else if (BN_cmp(g, p) == 0) {
 		if (BN_zero(&m->shared) == 0)
 			goto fail;
+	} else {
+		if (p1 == NULL || p2 == NULL)
+			goto fail;
+
+		if (BN_cmp(&p1->public, BN_value_one()) == 0 ||
+		    BN_cmp(&p2->public, BN_value_one()) == 0) {
+			if (BN_one(&m->shared) == 0)
+				goto fail;
+		} else
+			if (BN_copy(&m->shared, p) == 0 ||
+			    BN_sub(&m->shared, &m->shared, BN_value_one()) == 0)
+				goto fail;
 	}
 
 	return 1;
@@ -160,10 +172,9 @@ main(void)
 	if (BN_one(g) == 0 ||
 	    dh_params(&alice, g) == 0 ||
 	    dh_params(&bob, g) == 0 ||
-
 	    dh_xchg(&alice, &bob) == 0 ||
 
-	    mitm(&chuck, g) == 0 ||
+	    mitm(&chuck, g, NULL, NULL) == 0 ||
 
 	    enc_params(&alice) == 0 ||
 	    enc_params(&bob) == 0 ||
@@ -182,10 +193,9 @@ main(void)
 	if (BN_copy(g, p) == 0 ||
 	    dh_params(&alice, g) == 0 ||
 	    dh_params(&bob, g) == 0 ||
-
 	    dh_xchg(&alice, &bob) == 0 ||
 
-	    mitm(&chuck, g) == 0 ||
+	    mitm(&chuck, g, NULL, NULL) == 0 ||
 
 	    enc_params(&alice) == 0 ||
 	    enc_params(&bob) == 0 ||
@@ -197,6 +207,27 @@ main(void)
 	write_msg(&chuck);
 
 	if (send_msg(&bob, &chuck, "p") == 0)
+		err(1, NULL);
+
+	write_msg(&chuck);
+
+	if (BN_sub(g, g, BN_value_one()) == 0 ||
+	    dh_params(&alice, g) == 0 ||
+	    dh_params(&bob, g) == 0 ||
+	    dh_xchg(&alice, &bob) == 0 ||
+
+	    mitm(&chuck, g, &alice, &bob) == 0 ||
+
+	    enc_params(&alice) == 0 ||
+	    enc_params(&bob) == 0 ||
+	    enc_params(&chuck) == 0 ||
+
+	    send_msg(&alice, &chuck, "t") == 0)
+		err(1, NULL);
+
+	write_msg(&chuck);
+
+	if (send_msg(&bob, &chuck, "o") == 0)
 		err(1, NULL);
 
 	write_msg(&chuck);
