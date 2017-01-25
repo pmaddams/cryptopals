@@ -84,8 +84,6 @@ fail:
 int
 mitm(struct party *m)
 {
-	m->message = NULL;
-
 	return BN_bin2bn("", 0, &m->shared) != NULL;
 }
 
@@ -97,8 +95,6 @@ send_msg(struct party *send, struct party *recv, char *message)
 	char *buf, tmp[BUFSIZ];
 	size_t len;
 	ssize_t nr;
-
-	free(recv->message);
 
 	if ((mem = BIO_new_mem_buf(message, strlen(message))) == NULL ||
 	    (enc = BIO_new(BIO_f_cipher())) == NULL ||
@@ -128,6 +124,13 @@ fail:
 	return 0;
 }
 
+void
+write_msg(struct party *party)
+{
+	puts(party->message);
+	free(party->message);
+}
+
 int
 main(void)
 {
@@ -152,12 +155,12 @@ main(void)
 	    send_msg(&alice, &chuck, "hello") == 0)
 		err(1, NULL);
 
-	puts(chuck.message);
+	write_msg(&chuck);
 
 	if (send_msg(&bob, &chuck, "world") == 0)
 		err(1, NULL);
 
-	puts(chuck.message);
+	write_msg(&chuck);
 
 	exit(0);
 }
