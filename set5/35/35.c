@@ -155,12 +155,16 @@ main(void)
 
 	BN_init(g);
 
-	if (BN_zero(g) == 0 ||
+	if (BN_one(g) == 0 ||
 	    dh_params(&alice, g) == 0 ||
 	    dh_params(&bob, g) == 0 ||
 	    dh_xchg(&alice, &bob) == 0 ||
-	    mitm(&chuck, g) == 0)
+	    mitm(&chuck, g) == 0 ||
+	    enc_params(&alice) == 0 ||
+	    enc_params(&bob) == 0)
 		err(1, NULL);
+
+	write_msg(&chuck);
 
 	exit(0);
 }

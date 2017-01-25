@@ -49,9 +49,10 @@ dh_params(struct party *party, BIGNUM *g)
 }
 
 int
-send_key(struct party *party, BIGNUM *b)
+dh_xchg(struct party *p1, struct party *p2)
 {
-	return BN_mod_exp(&party->shared, b, &party->private, p, bnctx);
+	return BN_mod_exp(&p1->shared, &p2->public, &p1->private, p, bnctx) &&
+	    BN_mod_exp(&p2->shared, &p1->public, &p2->private, p, bnctx);
 }
 
 int
@@ -87,7 +88,14 @@ mitm(struct party *m, BIGNUM *g)
 	if (BN_is_one(g)) {
 		if (BN_one(&m->shared) == 0)
 			goto fail;
+	} else if (BN_cmp(g, p) == 0) {
+		if (BN_zero(&m->shared) == 0)
+			goto fail;
 	}
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
@@ -147,10 +155,16 @@ main(void)
 
 	BN_init(g);
 
-	if (BN_zero(g) == 0)
+	if (BN_one(g) == 0 ||
+	    dh_params(&alice, g) == 0 ||
+	    dh_params(&bob, g) == 0 ||
+	    dh_xchg(&alice, &bob) == 0 ||
+	    mitm(&chuck, g) == 0 ||
+	    enc_params(&alice) == 0 ||
+	    enc_params(&bob) == 0)
 		err(1, NULL);
-	dh_params(&alice, g);
-	dh_params(&bob, g);
+
+	write_msg(&chuck);
 
 	exit(0);
 }
