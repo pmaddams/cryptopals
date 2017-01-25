@@ -85,6 +85,8 @@ fail:
 int
 mitm(struct party *m, BIGNUM *g)
 {
+	BN_init(&m->shared);
+
 	if (BN_is_one(g)) {
 		if (BN_one(&m->shared) == 0)
 			goto fail;
@@ -158,10 +160,43 @@ main(void)
 	if (BN_one(g) == 0 ||
 	    dh_params(&alice, g) == 0 ||
 	    dh_params(&bob, g) == 0 ||
+
 	    dh_xchg(&alice, &bob) == 0 ||
+
 	    mitm(&chuck, g) == 0 ||
+
 	    enc_params(&alice) == 0 ||
-	    enc_params(&bob) == 0)
+	    enc_params(&bob) == 0 ||
+	    enc_params(&chuck) == 0 ||
+
+	    send_msg(&alice, &chuck, "c") == 0)
+		err(1, NULL);
+
+	write_msg(&chuck);
+
+	if (send_msg(&bob, &chuck, "r") == 0)
+		err(1, NULL);
+
+	write_msg(&chuck);
+
+	if (BN_copy(g, p) == 0 ||
+	    dh_params(&alice, g) == 0 ||
+	    dh_params(&bob, g) == 0 ||
+
+	    dh_xchg(&alice, &bob) == 0 ||
+
+	    mitm(&chuck, g) == 0 ||
+
+	    enc_params(&alice) == 0 ||
+	    enc_params(&bob) == 0 ||
+	    enc_params(&chuck) == 0 ||
+
+	    send_msg(&alice, &chuck, "y") == 0)
+		err(1, NULL);
+
+	write_msg(&chuck);
+
+	if (send_msg(&bob, &chuck, "p") == 0)
 		err(1, NULL);
 
 	write_msg(&chuck);
