@@ -88,7 +88,7 @@ mitm(struct party *m)
 }
 
 int
-send_msg(struct party *send, struct party *recv, char *message)
+send_msg(struct party *from, struct party *to, char *message)
 {
 	BIO *mem, *enc, *dec, *bio_out;
 	FILE *memstream;
@@ -103,8 +103,8 @@ send_msg(struct party *send, struct party *recv, char *message)
 	    (bio_out = BIO_new_fp(memstream, BIO_NOCLOSE)) == NULL)
 		goto fail;
 
-	BIO_set_cipher(enc, EVP_aes_128_cbc(), send->key, send->iv, 1);
-	BIO_set_cipher(dec, EVP_aes_128_cbc(), recv->key, send->iv, 0);
+	BIO_set_cipher(enc, EVP_aes_128_cbc(), from->key, from->iv, 1);
+	BIO_set_cipher(dec, EVP_aes_128_cbc(), to->key, from->iv, 0);
 	BIO_push(enc, mem);
 	BIO_push(dec, bio_out);
 
@@ -117,7 +117,7 @@ send_msg(struct party *send, struct party *recv, char *message)
 	BIO_free_all(enc);
 	BIO_free_all(dec);
 
-	recv->message = buf;
+	to->message = buf;
 
 	return 1;
 fail:
