@@ -19,7 +19,7 @@ main(void)
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	sin.sin_port = htons(PORT);
 
 	if ((listenfd = socket(sin.sin_family, SOCK_STREAM, 0)) == -1 ||
