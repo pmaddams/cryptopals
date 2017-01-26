@@ -9,24 +9,36 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PORT 12345
+#include "36.h"
 
 int
-main(void)
+lo_listen(in_port_t port)
 {
-	int listenfd, connfd;
 	struct sockaddr_in sin;
-	FILE *fp;
-	int c;
+	int fd;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = htons(PORT);
+	sin.sin_port = htons(port);
 
-	if ((listenfd = socket(sin.sin_family, SOCK_STREAM, 0)) == -1 ||
-	    bind(listenfd, (struct sockaddr *) &sin, sizeof(sin)) == -1 ||
-	    listen(listenfd, 1) == -1)
+	if ((fd = socket(sin.sin_family, SOCK_STREAM, 0)) == -1 ||
+	    bind(fd, (struct sockaddr *) &sin, sizeof(sin)) == -1 ||
+	    listen(fd, 1) == -1)
+		goto fail;
+
+	return fd;
+fail:
+	return -1;
+}
+
+int
+main(void)
+{
+	int listenfd, connfd, c;
+	FILE *fp;
+
+	if ((listenfd = lo_listen(PORT)) == -1)
 		err(1, NULL);
 
 	for (;;) {

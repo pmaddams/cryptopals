@@ -9,22 +9,34 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PORT 12345
+#include "36.h"
 
 int
-main(void)
+lo_connect(in_port_t port)
 {
-	int fd;
 	struct sockaddr_in sin;
-	int c;
+	int fd;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = htons(PORT);
+	sin.sin_port = htons(port);
 
 	if ((fd = socket(sin.sin_family, SOCK_STREAM, 0)) == -1 ||
 	    connect(fd, (struct sockaddr *) &sin, sizeof(sin)) == -1)
+		goto fail;
+
+	return fd;
+fail:
+	return -1;
+}
+
+int
+main(void)
+{
+	int fd, c;
+
+	if ((fd = lo_connect(PORT)) == -1)
 		err(1, NULL);
 
 	while ((c = getchar()) != EOF)
