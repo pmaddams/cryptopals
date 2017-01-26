@@ -12,14 +12,14 @@ uint8_t *
 sha1_hash(uint8_t *buf, size_t len)
 {
 	uint8_t *res;
-	SHA1_CTX sha;
+	SHA1_CTX ctx;
 
 	if ((res = malloc(SHA1_DIGEST_LENGTH)) == NULL)
 		goto done;
 
-	SHA1Init(&sha);
-	SHA1Update(&sha, (u_int8_t *) buf, len);
-	SHA1Final((u_int8_t *) res, &sha);
+	SHA1Init(&ctx);
+	SHA1Update(&ctx, buf, len);
+	SHA1Final(res, &ctx);
 done:
 	return res;
 }
