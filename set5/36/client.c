@@ -14,9 +14,8 @@
 int
 main(void)
 {
-	int listenfd, connfd;
+	int fd;
 	struct sockaddr_in sin;
-	FILE *fp;
 	int c;
 
 	memset(&sin, 0, sizeof(sin));
@@ -24,17 +23,13 @@ main(void)
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	sin.sin_port = htons(PORT);
 
-	if ((listenfd = socket(sin.sin_family, SOCK_STREAM, 0)) == -1 ||
-	    bind(listenfd, (struct sockaddr *) &sin, sizeof(sin)) == -1 ||
-	    listen(listenfd, 1) == -1)
+	if ((fd = socket(sin.sin_family, SOCK_STREAM, 0)) == -1 ||
+	    connect(fd, (struct sockaddr *) &sin, sizeof(sin)) == -1)
 		err(1, NULL);
 
-	for (;;) {
-		if ((connfd = accept(listenfd, NULL, NULL)) == -1 ||
-		    (fp = fdopen(connfd, "r")) == NULL)
+	while ((c = getchar()) != EOF)
+		if (write(fd, &c, 1) == -1)
 			err(1, NULL);
 
-		while ((c = getc(fp)) != EOF)
-			putchar(toupper(c));
-	}
+	exit(0);
 }
