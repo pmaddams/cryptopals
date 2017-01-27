@@ -3,11 +3,13 @@
 
 #include <netinet/in.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "36.h"
 
@@ -35,18 +37,23 @@ fail:
 int
 main(void)
 {
-	int listenfd, connfd, c;
-	FILE *fp;
+	int listenfd, connfd;
+	char buf[BUFSIZ];
+	ssize_t i, nr;
 
 	if ((listenfd = lo_listen(PORT)) == -1)
 		err(1, NULL);
 
 	for (;;) {
-		if ((connfd = accept(listenfd, NULL, NULL)) == -1 ||
-		    (fp = fdopen(connfd, "r")) == NULL)
+		if ((connfd = accept(listenfd, NULL, NULL)) == -1)
 			err(1, NULL);
 
-		while ((c = getc(fp)) != EOF)
-			putchar(toupper(c));
+		while ((nr = read(connfd, buf, BUFSIZ)) > 0) {
+			for (i = 0; i < nr; i++)
+				buf[i] = toupper(buf[i]);
+
+			if (write(connfd, buf, nr) < nr)
+				err(1, NULL);
+		}
 	}
 }
