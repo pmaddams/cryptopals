@@ -39,9 +39,5 @@ main(void)
 	if ((fd = lo_connect(PORT)) == -1)
 		err(1, NULL);
 
-	while ((c = getchar()) != EOF)
-		if (write(fd, &c, 1) == -1)
-			err(1, NULL);
-
 	exit(0);
 }
