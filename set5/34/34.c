@@ -125,10 +125,13 @@ fail:
 }
 
 void
-write_msg(struct party *party)
+put_msg(struct party *party)
 {
-	puts(party->message);
-	free(party->message);
+	if (party->message) {
+		puts(party->message);
+		free(party->message);
+		party->message = NULL;
+	}
 }
 
 int
@@ -155,12 +158,12 @@ main(void)
 	    send_msg(&alice, &chuck, "hello") == 0)
 		err(1, NULL);
 
-	write_msg(&chuck);
+	put_msg(&chuck);
 
 	if (send_msg(&bob, &chuck, "world") == 0)
 		err(1, NULL);
 
-	write_msg(&chuck);
+	put_msg(&chuck);
 
 	exit(0);
 }

@@ -149,10 +149,13 @@ fail:
 }
 
 void
-write_msg(struct party *party)
+put_msg(struct party *party)
 {
-	puts(party->message);
-	free(party->message);
+	if (party->message) {
+		puts(party->message);
+		free(party->message);
+		party->message = NULL;
+	}
 }
 
 int
@@ -182,12 +185,12 @@ main(void)
 	    send_msg(&alice, &chuck, "c") == 0)
 		err(1, NULL);
 
-	write_msg(&chuck);
+	put_msg(&chuck);
 
 	if (send_msg(&bob, &chuck, "r") == 0)
 		err(1, NULL);
 
-	write_msg(&chuck);
+	put_msg(&chuck);
 
 	if (BN_copy(g, p) == 0 ||
 	    dh_params(&alice, g) == 0 ||
@@ -203,12 +206,12 @@ main(void)
 	    send_msg(&alice, &chuck, "y") == 0)
 		err(1, NULL);
 
-	write_msg(&chuck);
+	put_msg(&chuck);
 
 	if (send_msg(&bob, &chuck, "p") == 0)
 		err(1, NULL);
 
-	write_msg(&chuck);
+	put_msg(&chuck);
 
 	if (BN_sub(g, g, BN_value_one()) == 0 ||
 	    dh_params(&alice, g) == 0 ||
@@ -224,12 +227,12 @@ main(void)
 	    send_msg(&alice, &chuck, "t") == 0)
 		err(1, NULL);
 
-	write_msg(&chuck);
+	put_msg(&chuck);
 
 	if (send_msg(&bob, &chuck, "o") == 0)
 		err(1, NULL);
 
-	write_msg(&chuck);
+	put_msg(&chuck);
 
 	exit(0);
 }
