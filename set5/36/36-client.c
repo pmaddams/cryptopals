@@ -41,21 +41,21 @@ fail:
 int
 main(void)
 {
-	int fd;
+	int connfd;
 	struct pollfd pfd[4];
 	char buf[BUFSIZ];
 	ssize_t nr;
 
-	if ((fd = lo_connect(PORT)) == -1)
+	if ((connfd = lo_connect(PORT)) == -1)
 		err(1, NULL);
 
 	pfd[POLL_STDIN].fd = STDIN_FILENO;
 	pfd[POLL_STDIN].events = POLLIN;
 
-	pfd[POLL_NETOUT].fd = fd;
+	pfd[POLL_NETOUT].fd = connfd;
 	pfd[POLL_NETOUT].events = 0;
 
-	pfd[POLL_NETIN].fd = fd;
+	pfd[POLL_NETIN].fd = connfd;
 	pfd[POLL_NETIN].events = POLLIN;
 
 	pfd[POLL_STDOUT].fd = STDOUT_FILENO;
@@ -67,11 +67,11 @@ main(void)
 
 		if (pfd[POLL_STDIN].revents & POLLIN) {
 			if ((nr = read(STDIN_FILENO, buf, BUFSIZ)) == -1 ||
-			    write(fd, buf, nr) < nr)
+			    write(connfd, buf, nr) < nr)
 				err(1, NULL);
 		}
 		if (pfd[POLL_NETIN].revents & POLLIN) {
-			if ((nr = read(fd, buf, BUFSIZ)) == -1 ||
+			if ((nr = read(connfd, buf, BUFSIZ)) == -1 ||
 			    write(STDOUT_FILENO, buf, nr) < nr)
 				err(1, NULL);
 		}
