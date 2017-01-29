@@ -44,16 +44,14 @@ main(void)
 	if ((listenfd = lo_listen(PORT)) == -1)
 		err(1, NULL);
 
-	for (;;) {
-		if ((connfd = accept(listenfd, NULL, NULL)) == -1)
+	if ((connfd = accept(listenfd, NULL, NULL)) == -1)
+		err(1, NULL);
+
+	while ((nr = read(connfd, buf, BUFSIZ)) > 0) {
+		for (i = 0; i < nr; i++)
+			buf[i] = toupper(buf[i]);
+
+		if (write(connfd, buf, nr) < nr)
 			err(1, NULL);
-
-		while ((nr = read(connfd, buf, BUFSIZ)) > 0) {
-			for (i = 0; i < nr; i++)
-				buf[i] = toupper(buf[i]);
-
-			if (write(connfd, buf, nr) < nr)
-				err(1, NULL);
-		}
 	}
 }
