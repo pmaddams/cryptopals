@@ -13,22 +13,13 @@
 char *
 input(void)
 {
-	char *buf, *lbuf;
-	size_t len;
+	char buf[TMPSIZ];
 
-	if ((buf = fgetln(stdin, &len)) == NULL)
+	if (fgets(buf, TMPSIZ, stdin) == NULL)
 		goto fail;
-	if (buf[len-1] == '\n')
-		len--;
-	if (len == 0)
-		goto fail;
+	buf[strcspn(buf, "\n")] = '\0';
 
-	if ((lbuf = malloc(len+1)) == NULL)
-		goto fail;
-	memcpy(lbuf, buf, len);
-	lbuf[len] = '\0';
-
-	return lbuf;
+	return strdup(buf);
 fail:
 	return NULL;
 }
