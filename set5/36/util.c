@@ -7,6 +7,8 @@
 
 #include "36.h"
 
+#define TMPSIZ 8192
+
 int
 ssend(int fd, char *s)
 {
@@ -19,15 +21,15 @@ ssend(int fd, char *s)
 int
 ssendf(int fd, char *fmt, ...)
 {
-	char *s;
 	va_list ap;
+	char buf[TMPSIZ];
 
 	va_start(ap, fmt);
-	if (vasprintf(&s, fmt, ap) == -1)
+	if (vsnprintf(buf, TMPSIZ, fmt, ap) == -1)
 		goto fail;
 	va_end(ap);
 
-	return ssend(fd, s);
+	return ssend(fd, buf);
 fail:
 	return 0;
 }
@@ -35,10 +37,10 @@ fail:
 char *
 srecv(int fd)
 {
-	char buf[8192];
+	char buf[TMPSIZ];
 	ssize_t nr;
 
-	if ((nr = recv(fd, buf, sizeof(buf), 0)) == -1)
+	if ((nr = recv(fd, buf, TMPSIZ, 0)) == -1)
 		goto fail;
 	buf[nr] = '\0';
 
