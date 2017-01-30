@@ -60,13 +60,20 @@ main(void)
 	int connfd;
 	char *buf, *email;
 
-	if ((connfd = lo_connect(PORT)) == -1)
+	if ((connfd = lo_connect(PORT)) == -1 ||
+	    (buf = srecv(connfd)) == 0)
 		err(1, NULL);
 
-	if ((buf = srecv(connfd)) == 0)
+	printf("%s", buf);
+	free(buf);
+
+	if ((email = input()) == NULL ||
+	    ssend(connfd, email) == 0 ||
+	    (buf = srecv(connfd)) == 0)
 		err(1, NULL);
 
-	puts(buf);
+	printf("%s", buf);
+	free(buf);
 
 	exit(0);
 }

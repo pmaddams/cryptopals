@@ -39,10 +39,11 @@ main(void)
 	char *email;
 
 	if ((listenfd = lo_listen(PORT)) == -1 ||
-	    (connfd = accept(listenfd, NULL, NULL)) == -1)
-		err(1, NULL);
+	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
 
-	if (ssend(connfd, "email: ") == 0);
+	    ssend(connfd, "email: ") == 0 ||
+	    (email = srecv(connfd)) == NULL ||
+	    ssendf(connfd, "email is %s\n", email) == 0)
 		err(1, NULL);
 
 	exit(0);

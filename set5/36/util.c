@@ -1,6 +1,8 @@
 #include <sys/types.h>
 
 #include <sha2.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "36.h"
@@ -12,6 +14,22 @@ ssend(int fd, char *s)
 
 	len = strlen(s);
 	return send(fd, s, len, 0) == len;
+}
+
+int
+ssendf(int fd, char *fmt, ...)
+{
+	char *s;
+	va_list ap;
+
+	va_start(ap, fmt);
+	if (vasprintf(&s, fmt, ap) == -1)
+		goto fail;
+	va_end(ap);
+
+	return ssend(fd, s);
+fail:
+	return 0;
 }
 
 char *
