@@ -11,6 +11,8 @@
 #define G	"2"
 #define K	"3"
 
+char *input(void);
+void print(char *);
 char *srecv(int);
 int ssend(int, char *);
 int ssendf(int, char *, ...);

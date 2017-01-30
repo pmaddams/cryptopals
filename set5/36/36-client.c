@@ -31,29 +31,6 @@ fail:
 	return -1;
 }
 
-char *
-input(void)
-{
-	char *buf, *lbuf;
-	size_t len;
-
-	if ((buf = fgetln(stdin, &len)) == NULL)
-		goto fail;
-	if (buf[len-1] == '\n')
-		len--;
-	if (len == 0)
-		goto fail;
-
-	if ((lbuf = malloc(len+1)) == NULL)
-		goto fail;
-	memcpy(lbuf, buf, len);
-	lbuf[len] = '\0';
-
-	return lbuf;
-fail:
-	return NULL;
-}
-
 int
 main(void)
 {
@@ -64,7 +41,7 @@ main(void)
 	    (buf = srecv(connfd)) == 0)
 		err(1, NULL);
 
-	printf("%s", buf);
+	print(buf);
 	free(buf);
 
 	if ((email = input()) == NULL ||
@@ -72,7 +49,7 @@ main(void)
 	    (buf = srecv(connfd)) == 0)
 		err(1, NULL);
 
-	printf("%s", buf);
+	print(buf);
 	free(buf);
 
 	if ((password = input()) == NULL ||
@@ -80,7 +57,7 @@ main(void)
 	    (buf = srecv(connfd)) == 0)
 		err(1, NULL);
 
-	printf("%s", buf);
+	print(buf);
 	free(buf);
 
 	exit(0);

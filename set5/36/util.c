@@ -3,11 +3,41 @@
 #include <sha2.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "36.h"
 
 #define TMPSIZ 8192
+
+char *
+input(void)
+{
+	char *buf, *lbuf;
+	size_t len;
+
+	if ((buf = fgetln(stdin, &len)) == NULL)
+		goto fail;
+	if (buf[len-1] == '\n')
+		len--;
+	if (len == 0)
+		goto fail;
+
+	if ((lbuf = malloc(len+1)) == NULL)
+		goto fail;
+	memcpy(lbuf, buf, len);
+	lbuf[len] = '\0';
+
+	return lbuf;
+fail:
+	return NULL;
+}
+
+void
+print(char *s)
+{
+	fputs(s, stdout);
+}
 
 int
 ssend(int fd, char *s)
