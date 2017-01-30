@@ -6,10 +6,8 @@
 #include <ctype.h>
 #include <err.h>
 #include <netdb.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "36.h"
 
@@ -38,20 +36,14 @@ int
 main(void)
 {
 	int listenfd, connfd;
-	char buf[BUFSIZ];
-	ssize_t i, nr;
+	char *email;
 
-	if ((listenfd = lo_listen(PORT)) == -1)
+	if ((listenfd = lo_listen(PORT)) == -1 ||
+	    (connfd = accept(listenfd, NULL, NULL)) == -1)
 		err(1, NULL);
 
-	if ((connfd = accept(listenfd, NULL, NULL)) == -1)
+	if (ssend(connfd, "email: ") == 0);
 		err(1, NULL);
 
-	while ((nr = read(connfd, buf, BUFSIZ)) > 0) {
-		for (i = 0; i < nr; i++)
-			buf[i] = toupper(buf[i]);
-
-		if (write(connfd, buf, nr) < nr)
-			err(1, NULL);
-	}
+	exit(0);
 }

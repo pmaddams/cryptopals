@@ -10,3 +10,6 @@
 		"fffffffffffff"
 #define G	"2"
 #define K	"3"
+
+int ssend(int, char *);
+char *srecv(int);

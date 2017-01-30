@@ -5,18 +5,11 @@
 
 #include <err.h>
 #include <netdb.h>
-#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "36.h"
-
-#define POLL_STDIN	0
-#define POLL_NETOUT	1
-#define POLL_NETIN	2
-#define POLL_STDOUT	3
 
 int
 lo_connect(in_port_t port)
@@ -38,42 +31,42 @@ fail:
 	return -1;
 }
 
+char *
+input(void)
+{
+	char *buf, *lbuf;
+	size_t len;
+
+	if ((buf = fgetln(stdin, &len)) == NULL)
+		goto fail;
+	if (buf[len-1] == '\n')
+		len--;
+	if (len == 0)
+		goto fail;
+
+	if ((lbuf = malloc(len+1)) == NULL)
+		goto fail;
+	memcpy(lbuf, buf, len);
+	lbuf[len] = '\0';
+
+	return lbuf;
+fail:
+	return NULL;
+}
+
 int
 main(void)
 {
 	int connfd;
-	struct pollfd pfd[4];
-	char buf[BUFSIZ];
-	ssize_t nr;
+	char *buf, *email;
 
 	if ((connfd = lo_connect(PORT)) == -1)
 		err(1, NULL);
 
-	pfd[POLL_STDIN].fd = STDIN_FILENO;
-	pfd[POLL_STDIN].events = POLLIN;
+	if ((buf = srecv(connfd)) == 0)
+		err(1, NULL);
 
-	pfd[POLL_NETOUT].fd = connfd;
-	pfd[POLL_NETOUT].events = 0;
+	puts(buf);
 
-	pfd[POLL_NETIN].fd = connfd;
-	pfd[POLL_NETIN].events = POLLIN;
-
-	pfd[POLL_STDOUT].fd = STDOUT_FILENO;
-	pfd[POLL_STDOUT].events = 0;
-
-	for (;;) {
-		if (poll(pfd, 4, INFTIM) == -1)
-			err(1, NULL);
-
-		if (pfd[POLL_STDIN].revents & POLLIN) {
-			if ((nr = read(STDIN_FILENO, buf, BUFSIZ)) == -1 ||
-			    write(connfd, buf, nr) < nr)
-				err(1, NULL);
-		}
-		if (pfd[POLL_NETIN].revents & POLLIN) {
-			if ((nr = read(connfd, buf, BUFSIZ)) == -1 ||
-			    write(STDOUT_FILENO, buf, nr) < nr)
-				err(1, NULL);
-		}
-	}
+	exit(0);
 }
