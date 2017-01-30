@@ -36,16 +36,14 @@ int
 main(void)
 {
 	int listenfd, connfd;
-	char *email, *password;
+	char *email;
 
 	if ((listenfd = lo_listen(PORT)) == -1 ||
 	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
 
 	    ssend(connfd, "email: ") == 0 ||
 	    (email = srecv(connfd)) == NULL ||
-	    ssend(connfd, "password: ") == 0 ||
-	    (password = srecv(connfd)) == NULL ||
-	    ssendf(connfd, "email: %s\npassword: %s\n", email, password) == 0)
+	    ssendf(connfd, "email is %s\n", email) == 0)
 		err(1, NULL);
 
 	exit(0);

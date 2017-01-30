@@ -58,7 +58,7 @@ int
 main(void)
 {
 	int connfd;
-	char *buf, *email, *password;
+	char *buf, *email;
 
 	if ((connfd = lo_connect(PORT)) == -1 ||
 	    (buf = srecv(connfd)) == 0)
@@ -69,14 +69,6 @@ main(void)
 
 	if ((email = input()) == NULL ||
 	    ssend(connfd, email) == 0 ||
-	    (buf = srecv(connfd)) == 0)
-		err(1, NULL);
-
-	printf("%s", buf);
-	free(buf);
-
-	if ((password = input()) == NULL ||
-	    ssend(connfd, password) == 0 ||
 	    (buf = srecv(connfd)) == 0)
 		err(1, NULL);
 
