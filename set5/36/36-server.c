@@ -14,6 +14,7 @@
 
 #include "36.h"
 
+BIGNUM *n, *g, *k, *b;
 char *email, *password;
 uint32_t salt;
 
@@ -46,7 +47,10 @@ main(void)
 	char sha[SHA256_DIGEST_LENGTH];
 	BIGNUM *x;
 
-	if ((listenfd = lo_listen(PORT)) == -1 ||
+	if (params(&n, &g, &k) == 0 ||
+	    privkey(&b) == 0 ||
+
+	    (listenfd = lo_listen(PORT)) == -1 ||
 	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
 
 	    ssend(connfd, "email: ") == 0 ||

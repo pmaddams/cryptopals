@@ -9,14 +9,22 @@
 
 #include "36.h"
 
-BIGNUM *
-make_key(void)
+int
+params(BIGNUM **np, BIGNUM **gp, BIGNUM **kp)
+{
+	return BN_hex2bn(np, N) &&
+	    BN_hex2bn(gp, G) &&
+	    BN_hex2bn(kp, K);
+}
+
+int
+privkey(BIGNUM **keyp)
 {
 	char buf[BUFSIZ];
 
 	arc4random_buf(buf, BUFSIZ);
 
-	return BN_bin2bn(buf, BUFSIZ, NULL);
+	return (*keyp = BN_bin2bn(buf, BUFSIZ, NULL)) != NULL;
 }
 
 char *
