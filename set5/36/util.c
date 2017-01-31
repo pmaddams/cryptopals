@@ -1,5 +1,6 @@
 #include <sys/types.h>
 
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -85,4 +86,40 @@ srecv(int fd)
 	return strdup(buf);
 fail:
 	return NULL;
+}
+
+void
+xtoa(uint8_t *dst, size_t *dstlenp, char *src)
+{
+	size_t i, j, k;
+	char c;
+	static char buf[3];
+
+	for (i = j = 0;; i++) {
+		for (k = 0; k < 2;)
+			if (isxdigit(c = src[j+k]))
+				buf[k++] = c;
+			else if (c != '\0')
+				j++;
+			else
+				goto done;
+
+		dst[i] = strtol(buf, NULL, 16);
+		j += k;
+	}
+done:
+	dst[i] = '\0';
+	if (dstlenp != NULL)
+		*dstlenp = i;
+}
+
+void
+atox(char *dst, uint8_t *src, size_t srclen)
+{
+	while (srclen--) {
+		snprintf(dst, 3, "%02x", *src);
+
+		src++;
+		dst += 2;
+	}
 }
