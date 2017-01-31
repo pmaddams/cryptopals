@@ -46,7 +46,12 @@ main(void)
 	    (private = make_private_key()) == NULL ||
 
 	    (connfd = lo_connect(PORT)) == -1 ||
-	    (buf = srecv(connfd)) == 0)
+
+	    (salt = srecv(connfd)) == 0 ||
+	    ssend(connfd, ACK) == 0)
+		err(1, NULL);
+
+	if ((buf = srecv(connfd)) == 0)
 		err(1, NULL);
 
 	print(buf);
@@ -54,6 +59,7 @@ main(void)
 
 	if ((email = input()) == NULL ||
 	    ssend(connfd, email) == 0 ||
+
 	    (buf = srecv(connfd)) == 0)
 		err(1, NULL);
 

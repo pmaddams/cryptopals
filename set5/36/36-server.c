@@ -44,7 +44,7 @@ make_salt(void)
 
 	num = arc4random();
 
-	return atox((uint8_t *) &num, 4);
+	return atox((uint8_t *) &num, sizeof(num));
 }
 
 int

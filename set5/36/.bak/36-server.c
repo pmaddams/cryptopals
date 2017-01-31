@@ -52,7 +52,7 @@ main(void)
 {
 	int listenfd, connfd;
 	SHA2_CTX ctx;
-	char sha[SHA256_DIGEST_LENGTH];
+	char *buf, sha[SHA256_DIGEST_LENGTH];
 	BIGNUM *x;
 
 	if (init_params(&n, &g, &k) == 0 ||
@@ -62,8 +62,15 @@ main(void)
 	    (listenfd = lo_listen(PORT)) == -1 ||
 	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
 
-	    ssend(connfd, "email: ") == 0 ||
+	    ssend(connfd, salt) == 0 ||
+	    (buf = srecv(connfd)) == 0)
+		err(1, NULL);
+
+	free(buf);
+
+	if (ssend(connfd, "email: ") == 0 ||
 	    (email = srecv(connfd)) == NULL ||
+
 	    ssend(connfd, "password: ") == 0 ||
 	    (password = srecv(connfd)) == NULL)
 		err(1, NULL);
