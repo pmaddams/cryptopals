@@ -11,8 +11,6 @@
 
 #include "36.h"
 
-char *email, *password;
-
 int
 lo_connect(in_port_t port)
 {
@@ -37,7 +35,7 @@ int
 main(void)
 {
 	int connfd;
-	char *buf;
+	char *buf, *email, *password;
 
 	if ((connfd = lo_connect(PORT)) == -1 ||
 	    (buf = srecv(connfd)) == 0)
