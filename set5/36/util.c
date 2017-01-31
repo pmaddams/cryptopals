@@ -11,21 +11,21 @@
 #include "36.h"
 
 int
-params(BIGNUM **np, BIGNUM **gp, BIGNUM **kp)
+init_params(BIGNUM **np, BIGNUM **gp, BIGNUM **kp)
 {
 	return BN_hex2bn(np, N) &&
 	    BN_hex2bn(gp, G) &&
 	    BN_hex2bn(kp, K);
 }
 
-int
-privkey(BIGNUM **keyp)
+BIGNUM *
+make_private_key(void)
 {
 	char buf[BUFSIZ];
 
 	arc4random_buf(buf, BUFSIZ);
 
-	return (*keyp = BN_bin2bn(buf, BUFSIZ, NULL)) != NULL;
+	return BN_bin2bn(buf, BUFSIZ, NULL);
 }
 
 char *
@@ -88,38 +88,44 @@ fail:
 	return NULL;
 }
 
-void
-xtoa(uint8_t *dst, size_t *dstlenp, char *src)
+uint8_t *
+xtoa(char *src, size_t *dstlenp)
 {
-	size_t i, j, k;
-	char c;
-	static char buf[3];
+	size_t i, j, k, srclen;
+	uint8_t *dst, buf[3];
 
-	for (i = j = 0;; i++) {
-		for (k = 0; k < 2;)
-			if (isxdigit(c = src[j+k]))
-				buf[k++] = c;
-			else if (c != '\0')
-				j++;
-			else
-				goto done;
+	srclen = strlen(src);
+	if ((dst = malloc(srclen/2)) == NULL)
+		goto fail;
 
-		dst[i] = strtol(buf, NULL, 16);
-		j += k;
+	buf[2] = '\0';
+	for (i = j = 0; i < srclen; i += 2) {
+		for (k = 0; k < 2; k++)
+			if (!isxdigit(buf[k] = src[i+k]))
+				goto fail;
+
+		dst[j++] = strtol(buf, NULL, 16);
 	}
-done:
-	dst[i] = '\0';
+
 	if (dstlenp != NULL)
-		*dstlenp = i;
+		*dstlenp = j;
+
+	return dst;
+fail:
+	return NULL;
 }
 
-void
-atox(char *dst, uint8_t *src, size_t srclen)
+char *
+atox(uint8_t *src, size_t srclen)
 {
-	while (srclen--) {
-		snprintf(dst, 3, "%02x", *src);
+	size_t i, j;
+	char *dst;
 
-		src++;
-		dst += 2;
-	}
+	if ((dst = malloc(srclen*2+1)) == NULL)
+		goto done;
+
+	for (i = j = 0; i < srclen; i++, j += 2)
+		snprintf(dst+j, 3, "%02x", src[i]);
+done:
+	return dst;
 }

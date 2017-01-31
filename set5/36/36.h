@@ -15,12 +15,12 @@
 #define G	"2"
 #define K	"3"
 
-void atox(char *, uint8_t *, size_t);
+char *atox(uint8_t *, size_t);
 char *input(void);
-int params(BIGNUM **, BIGNUM **, BIGNUM **);
+int init_params(BIGNUM **, BIGNUM **, BIGNUM **);
 void print(char *);
-int privkey(BIGNUM **);
+BIGNUM *make_private_key(void);
 char *srecv(int);
 int ssend(int, char *);
 int ssendf(int, char *, ...);
-void xtoa(uint8_t *, size_t *, char *);
+uint8_t *xtoa(char *, size_t *);

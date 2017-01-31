@@ -14,7 +14,7 @@
 #include "36.h"
 
 BIGNUM *n, *g, *k, *private, *public;
-char *email, *password;
+char *email, *password, *salt;
 
 int
 lo_connect(in_port_t port)
@@ -42,8 +42,8 @@ main(void)
 	int connfd;
 	char *buf;
 
-	if (params(&n, &g, &k) == 0 ||
-	    privkey(&private) == 0 ||
+	if (init_params(&n, &g, &k) == 0 ||
+	    (private = make_private_key()) == NULL ||
 
 	    (connfd = lo_connect(PORT)) == -1 ||
 	    (buf = srecv(connfd)) == 0)
