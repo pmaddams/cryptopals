@@ -13,7 +13,9 @@
 
 #include "36.h"
 
-BIGNUM *n, *g, *k, *private, *public;
+BIGNUM *n, *g, *k, *private, *public,
+    *u, *shared;
+
 char *email, *password, *salt;
 
 int
@@ -67,12 +69,8 @@ main(void)
 	free(buf);
 
 	if ((password = input()) == NULL ||
-	    ssend(connfd, password) == 0 ||
-	    (buf = srecv(connfd)) == 0)
+	    ssend(connfd, password) == 0)
 		err(1, NULL);
-
-	print(buf);
-	free(buf);
 
 	exit(0);
 }

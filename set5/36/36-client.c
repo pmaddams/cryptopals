@@ -13,8 +13,11 @@
 
 #include "36.h"
 
-BIGNUM *n, *g, *k, *private, *public;
-char *email, *password, *salt;
+BIGNUM *modulus, *generator, *multiplier,
+    *private_key, *public_key, *shared_s, *shared_k,
+    *scrambler;
+
+char *email, *password, *salt, *server_pubkey;
 
 int
 lo_connect(in_port_t port)
@@ -42,8 +45,8 @@ main(void)
 	int connfd;
 	char *buf;
 
-	if (init_params(&n, &g, &k) == 0 ||
-	    (private = make_private_key()) == NULL ||
+	if (init_params(&modulus, &generator, &multiplier) == 0 ||
+	    (private_key = make_private_key()) == NULL ||
 
 	    (connfd = lo_connect(PORT)) == -1 ||
 
@@ -67,12 +70,8 @@ main(void)
 	free(buf);
 
 	if ((password = input()) == NULL ||
-	    ssend(connfd, password) == 0 ||
-	    (buf = srecv(connfd)) == 0)
+	    ssend(connfd, password) == 0)
 		err(1, NULL);
-
-	print(buf);
-	free(buf);
 
 	exit(0);
 }
