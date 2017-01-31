@@ -14,8 +14,7 @@
 #include "36.h"
 
 BIGNUM *n, *g, *k, *private, *public;
-char *email, *password;
-uint32_t salt;
+char *email, *password, *salt;
 
 int
 lo_listen(in_port_t port)
@@ -38,6 +37,16 @@ fail:
 	return -1;
 }
 
+char *
+make_salt(void)
+{
+	uint32_t num;
+
+	num = arc4random();
+
+	return atox((uint8_t *) &num, 4);
+}
+
 int
 main(void)
 {
@@ -46,8 +55,9 @@ main(void)
 	char sha[SHA256_DIGEST_LENGTH];
 	BIGNUM *x;
 
-	if (params(&n, &g, &k) == 0 ||
-	    privkey(&private) == 0 ||
+	if (init_params(&n, &g, &k) == 0 ||
+	    (private = make_private_key()) == NULL ||
+	    (salt = make_salt()) == NULL ||
 
 	    (listenfd = lo_listen(PORT)) == -1 ||
 	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
@@ -58,8 +68,7 @@ main(void)
 	    (password = srecv(connfd)) == NULL)
 		err(1, NULL);
 
-	salt = arc4random();
-
+	/*
 	SHA256Init(&ctx);
 	SHA256Update(&ctx, (uint8_t *) &salt, 4);
 	SHA256Update(&ctx, password, strlen(password));
@@ -67,6 +76,7 @@ main(void)
 
 	if ((x = BN_bin2bn(sha, SHA256_DIGEST_LENGTH, NULL)) == NULL)
 		err(1, NULL);
+	*/
 
 	exit(0);
 }

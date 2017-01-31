@@ -15,6 +15,8 @@
 #define G	"2"
 #define K	"3"
 
+#define ACK	"\x06"
+
 char *atox(uint8_t *, size_t);
 char *input(void);
 int init_params(BIGNUM **, BIGNUM **, BIGNUM **);
