@@ -9,7 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <openssl/bn.h>
+
 #include "36.h"
+
+BIGNUM *n, *g, *k, *a;
+char *email, *password;
 
 int
 lo_connect(in_port_t port)
@@ -35,9 +40,12 @@ int
 main(void)
 {
 	int connfd;
-	char *buf, *email, *password;
+	char *buf;
 
-	if ((connfd = lo_connect(PORT)) == -1 ||
+	if (params(&n, &g, &k) == 0 ||
+	    privkey(&a) == 0 ||
+
+	    (connfd = lo_connect(PORT)) == -1 ||
 	    (buf = srecv(connfd)) == 0)
 		err(1, NULL);
 

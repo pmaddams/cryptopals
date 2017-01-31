@@ -6,10 +6,17 @@
 #include <ctype.h>
 #include <err.h>
 #include <netdb.h>
+#include <sha2.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <openssl/bn.h>
+
 #include "36.h"
+
+BIGNUM *n, *g, *k, *b;
+char *email, *password;
+uint32_t salt;
 
 int
 lo_listen(in_port_t port)
@@ -36,16 +43,30 @@ int
 main(void)
 {
 	int listenfd, connfd;
-	char *email, *password;
+	SHA2_CTX ctx;
+	char sha[SHA256_DIGEST_LENGTH];
+	BIGNUM *x;
 
-	if ((listenfd = lo_listen(PORT)) == -1 ||
+	if (params(&n, &g, &k) == 0 ||
+	    privkey(&b) == 0 ||
+
+	    (listenfd = lo_listen(PORT)) == -1 ||
 	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
 
 	    ssend(connfd, "email: ") == 0 ||
 	    (email = srecv(connfd)) == NULL ||
 	    ssend(connfd, "password: ") == 0 ||
-	    (password = srecv(connfd)) == NULL ||
-	    ssendf(connfd, "email: %s\npassword: %s\n", email, password) == 0)
+	    (password = srecv(connfd)) == NULL)
+		err(1, NULL);
+
+	salt = arc4random();
+
+	SHA256Init(&ctx);
+	SHA256Update(&ctx, (uint8_t *) &salt, 4);
+	SHA256Update(&ctx, password, strlen(password));
+	SHA256Final(sha, &ctx);
+
+	if ((x = BN_bin2bn(sha, SHA256_DIGEST_LENGTH, NULL)) == NULL)
 		err(1, NULL);
 
 	exit(0);

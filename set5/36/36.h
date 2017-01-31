@@ -1,3 +1,5 @@
+#include <openssl/bn.h>
+
 #define PORT	12345
 
 #define N	"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"	\
@@ -11,6 +13,8 @@
 #define G	"2"
 #define K	"3"
 
+int params(BIGNUM **, BIGNUM **, BIGNUM **);
+int privkey(BIGNUM **);
 char *input(void);
 void print(char *);
 char *srecv(int);
