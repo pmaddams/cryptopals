@@ -76,6 +76,30 @@ fail:
 	return NULL;
 }
 
+BIGNUM *
+make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
+{
+	BIGNUM *t1, *t2;
+
+	BN_CTX_start(bnctx);
+
+	if ((t1 = BN_CTX_get(bnctx)) == NULL ||
+	    BN_mul(t1, multiplier, verifier, bnctx) == 0 ||
+
+	    (t2 = BN_CTX_get(bnctx)) == NULL ||
+	    BN_mod_exp(t2, generator, private_key, modulus, bnctx) == 0 ||
+
+	    (public_key = BN_new()) == NULL ||
+	    BN_add(public_key, t1, t2) == 0)
+		goto fail;
+
+	BN_CTX_end(bnctx);
+
+	return public_key;
+fail:
+	return NULL;
+}
+
 int
 main(void)
 {
