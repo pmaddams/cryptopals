@@ -13,6 +13,8 @@
 
 #include "36.h"
 
+BN_CTX *bnctx;
+
 BIGNUM *modulus, *generator, *multiplier,
     *private_key, *public_key, *shared_s, *shared_k,
     *verifier, *scrambler;
@@ -51,15 +53,25 @@ make_salt(void)
 }
 
 BIGNUM *
-make_public_key(void)
+make_verifier(char *salt, char *password)
 {
-	SHA2_CTX ctx;
-	uint8_t sha[SHA256_DIGEST_LENGTH];
+	SHA2_CTX sha2ctx;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
+	BIGNUM *x;
 
-	SHA256Init(&ctx);
-	SHA256Update(&ctx, salt, strlen(salt));
-	SHA256Update(&ctx, password, strlen(password));
-	SHA256Final(sha, &ctx);
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, salt, strlen(salt));
+	SHA256Update(&sha2ctx, password, strlen(password));
+	SHA256Final(hash, &sha2ctx);
+
+	if ((x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
+	    (verifier = BN_new()) == NULL ||
+	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
+		goto fail;
+
+	return verifier;
+fail:
+	return NULL;
 }
 
 int
@@ -68,7 +80,8 @@ main(void)
 	int listenfd, connfd;
 	char *buf;
 
-	if (init_params(&modulus, &generator, &multiplier) == 0 ||
+	if ((bnctx = BN_CTX_new()) == NULL ||
+	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (private_key = make_private_key()) == NULL ||
 	    (salt = make_salt()) == NULL ||
 
@@ -85,7 +98,9 @@ main(void)
 	    (email = srecv(connfd)) == NULL ||
 
 	    ssend(connfd, "password: ") == 0 ||
-	    (password = srecv(connfd)) == NULL)
+	    (password = srecv(connfd)) == NULL ||
+
+	    (verifier = make_verifier(salt, password)) == NULL)
 		err(1, NULL);
 
 	exit(0);

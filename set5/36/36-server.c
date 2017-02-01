@@ -16,10 +16,11 @@
 BN_CTX *bnctx;
 
 BIGNUM *modulus, *generator, *multiplier,
-    *private_key, *public_key, *shared_s, *shared_k,
+    *private_key, *public_key, *client_pubkey,
+    *shared_s, *shared_k,
     *verifier, *scrambler;
 
-char *email, *password, *salt, *client_pubkey;
+char *email, *password, *salt;
 
 int
 lo_listen(in_port_t port)
@@ -74,8 +75,6 @@ fail:
 	return NULL;
 }
 
-
-
 int
 main(void)
 {
@@ -102,7 +101,14 @@ main(void)
 	    ssend(connfd, "password: ") == 0 ||
 	    (password = srecv(connfd)) == NULL ||
 
-	    (verifier = make_verifier(salt, password)) == NULL)
+	    ssend(connfd, ACK) == 0 ||
+	    (buf = srecv(connfd)) == NULL ||
+
+	    (client_pubkey = BN_new()) == NULL ||
+	    BN_hex2bn(&client_pubkey, buf) == 0)
+		err(1, NULL);
+
+	if ((verifier = make_verifier(salt, password)) == NULL)
 		err(1, NULL);
 
 	exit(0);
