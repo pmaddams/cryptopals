@@ -18,10 +18,10 @@
 #define ACK	"\x06"
 
 char *atox(uint8_t *, size_t);
-char *input(void);
 int init_params(BIGNUM **, BIGNUM **, BIGNUM **);
-void print(char *);
+char *input(void);
 BIGNUM *make_private_key(void);
+void print(char *);
 char *srecv(int);
 int ssend(int, char *);
 int ssendf(int, char *, ...);

@@ -13,8 +13,11 @@
 
 #include "36.h"
 
-BIGNUM *n, *g, *k, *private, *public, *shared;
-char *email, *password, *salt;
+BIGNUM *modulus, *generator, *multiplier,
+    *private_key, *public_key, *shared_s, *shared_k,
+    *verifier, *scrambler;
+
+char *email, *password, *salt, *client_pubkey;
 
 int
 lo_listen(in_port_t port)
@@ -51,15 +54,12 @@ BIGNUM *
 make_public_key(void)
 {
 	SHA2_CTX ctx;
-	uint8_t sha[SHA2_DIGEST_LENGTH];
-	BIGNUM *v, *x;
+	uint8_t sha[SHA256_DIGEST_LENGTH];
 
 	SHA256Init(&ctx);
 	SHA256Update(&ctx, salt, strlen(salt));
 	SHA256Update(&ctx, password, strlen(password));
 	SHA256Final(sha, &ctx);
-
-	
 }
 
 int
@@ -68,8 +68,8 @@ main(void)
 	int listenfd, connfd;
 	char *buf;
 
-	if (init_params(&n, &g, &k) == 0 ||
-	    (private = make_private_key()) == NULL ||
+	if (init_params(&modulus, &generator, &multiplier) == 0 ||
+	    (private_key = make_private_key()) == NULL ||
 	    (salt = make_salt()) == NULL ||
 
 	    (listenfd = lo_listen(PORT)) == -1 ||
