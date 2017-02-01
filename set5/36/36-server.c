@@ -70,6 +70,7 @@ make_verifier(char *salt, char *password)
 	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
 		goto fail;
 
+	free(x);
 	return verifier;
 fail:
 	return NULL;
