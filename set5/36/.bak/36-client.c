@@ -13,11 +13,14 @@
 
 #include "36.h"
 
+BN_CTX *bnctx;
+
 BIGNUM *modulus, *generator, *multiplier,
-    *private_key, *public_key, *shared_s, *shared_k,
+    *private_key, *public_key, *server_pubkey,
+    *shared_s, *shared_k,
     *scrambler;
 
-char *email, *password, *salt, *server_pubkey;
+char *email, *password, *salt;
 
 int
 lo_connect(in_port_t port)
@@ -39,13 +42,26 @@ fail:
 	return -1;
 }
 
+BIGNUM *
+make_public_key(BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
+{
+	if ((public_key = BN_new()) == NULL ||
+	    BN_mod_exp(public_key, generator, private_key, modulus, bnctx) == 0)
+		goto fail;
+
+	return public_key;
+fail:
+	return NULL;
+}
+
 int
 main(void)
 {
 	int connfd;
 	char *buf;
 
-	if (init_params(&modulus, &generator, &multiplier) == 0 ||
+	if ((bnctx = BN_CTX_new()) == NULL ||
+	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (private_key = make_private_key()) == NULL ||
 
 	    (connfd = lo_connect(PORT)) == -1 ||
@@ -70,8 +86,19 @@ main(void)
 	free(buf);
 
 	if ((password = input()) == NULL ||
-	    ssend(connfd, password) == 0)
+	    ssend(connfd, password) == 0 ||
+
+	    (buf = srecv(connfd)) == 0)
 		err(1, NULL);
+
+	free(buf);
+
+	if ((public_key = make_public_key(generator, private_key, modulus)) == NULL ||
+	    (buf = BN_bn2hex(public_key)) == NULL ||
+	    ssend(connfd, buf) == 0)
+		err(1, NULL);
+
+	free(buf);
 
 	exit(0);
 }
