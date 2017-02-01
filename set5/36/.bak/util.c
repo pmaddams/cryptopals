@@ -11,11 +11,11 @@
 #include "36.h"
 
 int
-init_params(BIGNUM **modp, BIGNUM **genp, BIGNUM **multp)
+init_params(BIGNUM **modp, BIGNUM **genp, BIGNUM **mulp)
 {
 	return BN_hex2bn(modp, N) &&
 	    BN_hex2bn(genp, G) &&
-	    BN_hex2bn(multp, K);
+	    BN_hex2bn(mulp, K);
 }
 
 BIGNUM *

@@ -10,6 +10,8 @@
 
 #include "36.h"
 
+#define TMPSIZ 8192
+
 int
 init_params(BIGNUM **modp, BIGNUM **genp, BIGNUM **mulp)
 {
@@ -31,9 +33,9 @@ make_private_key(void)
 char *
 input(void)
 {
-	char buf[BUFSIZ];
+	char buf[TMPSIZ];
 
-	if (fgets(buf, BUFSIZ, stdin) == NULL)
+	if (fgets(buf, TMPSIZ, stdin) == NULL)
 		goto fail;
 	buf[strcspn(buf, "\n")] = '\0';
 
@@ -61,10 +63,10 @@ int
 ssendf(int fd, char *fmt, ...)
 {
 	va_list ap;
-	char buf[BUFSIZ];
+	char buf[TMPSIZ];
 
 	va_start(ap, fmt);
-	if (vsnprintf(buf, BUFSIZ, fmt, ap) == -1)
+	if (vsnprintf(buf, TMPSIZ, fmt, ap) == -1)
 		goto fail;
 	va_end(ap);
 
@@ -76,10 +78,10 @@ fail:
 char *
 srecv(int fd)
 {
-	char buf[BUFSIZ];
+	char buf[TMPSIZ];
 	ssize_t nr;
 
-	if ((nr = recv(fd, buf, BUFSIZ, 0)) == -1)
+	if ((nr = recv(fd, buf, TMPSIZ, 0)) == -1)
 		goto fail;
 	buf[nr] = '\0';
 
