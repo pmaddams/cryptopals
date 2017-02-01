@@ -133,7 +133,10 @@ main(void)
 	    BN_hex2bn(&client_pubkey, buf) == 0)
 		err(1, NULL);
 
-	if ((verifier = make_verifier(salt, password)) == NULL)
+	if ((verifier = make_verifier(salt, password)) == NULL ||
+	    (public_key = make_public_key(multiplier, verifier, generator, private_key, modulus)) == NULL ||
+	    (buf = BN_bn2hex(public_key)) == NULL ||
+	    ssend(connfd, buf) == 0)
 		err(1, NULL);
 
 	exit(0);

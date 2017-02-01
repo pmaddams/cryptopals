@@ -100,5 +100,12 @@ main(void)
 
 	free(buf);
 
+	if ((buf = srecv(connfd)) == NULL ||
+	    (server_pubkey = BN_new()) == NULL ||
+	    BN_hex2bn(&server_pubkey, buf) == 0)
+		err(1, NULL);
+
+	free(buf);
+
 	exit(0);
 }
