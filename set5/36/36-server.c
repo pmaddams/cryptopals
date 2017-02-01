@@ -13,14 +13,15 @@
 
 #include "36.h"
 
+#define USERNAME "admin@secure.net"
+#define PASSWORD "batman"
+
 BN_CTX *bnctx;
 
 BIGNUM *modulus, *generator, *multiplier,
     *private_key, *public_key, *client_pubkey,
     *shared_s, *shared_k,
     *verifier, *scrambler;
-
-char *email, *password, *salt;
 
 int
 lo_listen(in_port_t port)
@@ -104,39 +105,13 @@ int
 main(void)
 {
 	int listenfd, connfd;
-	char *buf;
 
 	if ((bnctx = BN_CTX_new()) == NULL ||
 	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (private_key = make_private_key()) == NULL ||
 	    (salt = make_salt()) == NULL ||
-
 	    (listenfd = lo_listen(PORT)) == -1 ||
-	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
-
-	    ssend(connfd, salt) == 0 ||
-	    (buf = srecv(connfd)) == 0)
-		err(1, NULL);
-
-	free(buf);
-
-	if (ssend(connfd, "email: ") == 0 ||
-	    (email = srecv(connfd)) == NULL ||
-
-	    ssend(connfd, "password: ") == 0 ||
-	    (password = srecv(connfd)) == NULL ||
-
-	    ssend(connfd, ACK) == 0 ||
-	    (buf = srecv(connfd)) == NULL ||
-
-	    (client_pubkey = BN_new()) == NULL ||
-	    BN_hex2bn(&client_pubkey, buf) == 0)
-		err(1, NULL);
-
-	if ((verifier = make_verifier(salt, password)) == NULL ||
-	    (public_key = make_public_key(multiplier, verifier, generator, private_key, modulus)) == NULL ||
-	    (buf = BN_bn2hex(public_key)) == NULL ||
-	    ssend(connfd, buf) == 0)
+	    (connfd = accept(listenfd, NULL, NULL)) == -1)
 		err(1, NULL);
 
 	exit(0);

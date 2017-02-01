@@ -20,8 +20,6 @@ BIGNUM *modulus, *generator, *multiplier,
     *shared_s, *shared_k,
     *scrambler;
 
-char *email, *password, *salt;
-
 int
 lo_connect(in_port_t port)
 {
@@ -63,49 +61,8 @@ main(void)
 	if ((bnctx = BN_CTX_new()) == NULL ||
 	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (private_key = make_private_key()) == NULL ||
-
-	    (connfd = lo_connect(PORT)) == -1 ||
-
-	    (salt = srecv(connfd)) == 0 ||
-	    ssend(connfd, ACK) == 0)
+	    (connfd = lo_connect(PORT)) == -1)
 		err(1, NULL);
-
-	if ((buf = srecv(connfd)) == 0)
-		err(1, NULL);
-
-	print(buf);
-	free(buf);
-
-	if ((email = input()) == NULL ||
-	    ssend(connfd, email) == 0 ||
-
-	    (buf = srecv(connfd)) == 0)
-		err(1, NULL);
-
-	print(buf);
-	free(buf);
-
-	if ((password = input()) == NULL ||
-	    ssend(connfd, password) == 0 ||
-
-	    (buf = srecv(connfd)) == 0)
-		err(1, NULL);
-
-	free(buf);
-
-	if ((public_key = make_public_key(generator, private_key, modulus)) == NULL ||
-	    (buf = BN_bn2hex(public_key)) == NULL ||
-	    ssend(connfd, buf) == 0)
-		err(1, NULL);
-
-	free(buf);
-
-	if ((buf = srecv(connfd)) == NULL ||
-	    (server_pubkey = BN_new()) == NULL ||
-	    BN_hex2bn(&server_pubkey, buf) == 0)
-		err(1, NULL);
-
-	free(buf);
 
 	exit(0);
 }
