@@ -1,4 +1,5 @@
 #include <sys/types.h>
+#include <sys/param.h>
 
 #include <err.h>
 #include <stdint.h>
@@ -11,11 +12,9 @@
 
 #include "tab.h"
 
-#define MINKEY		6
-#define MAXKEY		40
-#define NBLK		4
-
-#define MINIMUM(a, b)	((a)<(b)?(a):(b))
+#define MINKEY	6
+#define MAXKEY	40
+#define NBLK	4
 
 int
 dist(uint8_t *b1, uint8_t *b2, size_t len)
@@ -60,7 +59,7 @@ crack_keylen(uint8_t *buf, size_t len)
 	size_t guess, found, max;
 	float scr, best;
 
-	max = MINIMUM(len/(NBLK+1), MAXKEY);
+	max = MIN(len/(NBLK+1), MAXKEY);
 
 	for (best = 8., found = guess = MINKEY; guess <= max; guess++)
 		if ((scr = keydist(buf, len, guess)) < best) {

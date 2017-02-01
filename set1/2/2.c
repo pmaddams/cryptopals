@@ -1,11 +1,10 @@
 #include <sys/types.h>
+#include <sys/param.h>
 
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#define MINIMUM(a, b) ((a)<(b)?(a):(b))
 
 char
     s1[] = "1c0111001f010100061a024b53535009181c",
@@ -52,7 +51,7 @@ main(void)
 	xtoa(s1, &l1);
 	xtoa(s2, &l2);
 
-	l1 = MINIMUM(l1, l2);
+	l1 = MIN(l1, l2);
 	xor(s1, s2, l1);
 
 	for (i = 0; i < l1; i++)
