@@ -54,6 +54,40 @@ fail:
 	return NULL;
 }
 
+BIGNUM *
+make_shared_s(BIGNUM *server_pubkey, BIGNUM *multiplier, BIGNUM *generator, char *salt, BIGNUM *private_key, BIGNUM *scrambler)
+{
+	BIGNUM *t1, *t2, *t3, *x;
+
+	BN_CTX_start(bnctx);
+
+	if ((shared_s = BN_new()) == NULL ||
+
+	    (x = BN_new()) == NULL ||
+	    BN_hex2bn(&x, salt) == 0 ||
+
+	    (t1 = BN_CTX_get(bnctx)) == NULL ||
+	    (t2 = BN_CTX_get(bnctx)) == NULL ||
+	    (t3 = BN_CTX_get(bnctx)) == NULL ||
+
+	    BN_exp(t1, generator, x, bnctx) == 0 ||
+	    BN_mul(t2, multiplier, t1, bnctx) == 0 ||
+	    BN_sub(t1, server_pubkey, t2) == 0 ||
+
+	    BN_mul(t3, scrambler, x, bnctx) == 0 ||
+	    BN_add(t2, private_key, t3) == 0 ||
+
+	    BN_exp(shared_s, t1, t2, bnctx) == 0)
+		goto fail;
+
+	BN_CTX_end(bnctx);
+
+	free(x);
+	return shared_s;
+fail:
+	return NULL;
+}
+
 int
 main(void)
 {
@@ -94,7 +128,8 @@ main(void)
 
 	free(buf);
 
-	if ((scrambler = make_scrambler(public_key, server_pubkey)) == NULL)
+	if ((scrambler = make_scrambler(public_key, server_pubkey)) == NULL ||
+	    (shared_s = make_shared_s(server_pubkey, multiplier, generator, salt, private_key, scrambler)) == NULL)
 		err(1, NULL);
 
 	exit(0);
