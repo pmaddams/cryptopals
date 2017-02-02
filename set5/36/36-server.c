@@ -23,6 +23,8 @@ BIGNUM *modulus, *generator, *multiplier,
     *shared_s, *shared_k,
     *verifier, *scrambler;
 
+char *salt;
+
 int
 lo_listen(in_port_t port)
 {
@@ -55,7 +57,7 @@ make_salt(void)
 }
 
 BIGNUM *
-make_verifier(char *salt, char *password)
+make_verifier(char *salt)
 {
 	SHA2_CTX sha2ctx;
 	uint8_t hash[SHA256_DIGEST_LENGTH];
@@ -63,7 +65,7 @@ make_verifier(char *salt, char *password)
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, salt, strlen(salt));
-	SHA256Update(&sha2ctx, password, strlen(password));
+	SHA256Update(&sha2ctx, PASSWORD, strlen(PASSWORD));
 	SHA256Final(hash, &sha2ctx);
 
 	if ((x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
@@ -105,13 +107,18 @@ int
 main(void)
 {
 	int listenfd, connfd;
+	char *buf;
 
 	if ((bnctx = BN_CTX_new()) == NULL ||
 	    init_params(&modulus, &generator, &multiplier) == 0 ||
-	    (private_key = make_private_key()) == NULL ||
 	    (salt = make_salt()) == NULL ||
+	    (verifier = make_verifier(salt)) == NULL ||
+	    (private_key = make_private_key()) == NULL ||
+	    (public_key = make_public_key(multiplier, verifier, generator, private_key, modulus)) == NULL ||
+
 	    (listenfd = lo_listen(PORT)) == -1 ||
-	    (connfd = accept(listenfd, NULL, NULL)) == -1)
+	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
+	    (buf = srecv(connfd)) == NULL)
 		err(1, NULL);
 
 	exit(0);
