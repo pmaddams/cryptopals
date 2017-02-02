@@ -1,6 +1,7 @@
 #include <sys/types.h>
 
 #include <limits.h>
+#include <sha2.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,4 +131,36 @@ atox(uint8_t *src, size_t srclen)
 		snprintf(dst+j, 3, "%02x", src[i]);
 done:
 	return dst;
+}
+
+BIGNUM *
+make_scrambler(BIGNUM *client_pubkey, BIGNUM *server_pubkey)
+{
+	SHA2_CTX ctx;
+	size_t len;
+	char *buf, hash[SHA256_DIGEST_LENGTH];
+
+	SHA256Init(&ctx);
+
+	len = BN_num_bytes(client_pubkey);
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(client_pubkey, buf) == 0)
+		goto fail;
+
+	SHA256Update(&ctx, buf, len);
+	free(buf);
+
+	len = BN_num_bytes(server_pubkey);
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(server_pubkey, buf) == 0)
+		goto fail;
+
+	SHA256Update(&ctx, buf, len);
+	free(buf);
+
+	SHA256Final(hash, &ctx);
+
+	return BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL);
+fail:
+	return NULL;
 }
