@@ -130,7 +130,7 @@ main(void)
 	print("password: ");
 	if ((password = input()) == NULL ||
 
-	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator,private_key, scrambler, modulus)) == NULL)
+	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator, private_key, scrambler, modulus)) == NULL)
 		err(1, NULL);
 
 	if ((buf = BN_bn2hex(shared_s)) == NULL)
