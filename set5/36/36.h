@@ -19,6 +19,7 @@ char *atox(uint8_t *, size_t);
 int init_params(BIGNUM **, BIGNUM **, BIGNUM **);
 char *input(void);
 BIGNUM *make_private_key(void);
+BIGNUM *make_scrambler(BIGNUM *, BIGNUM *);
 void print(char *);
 char *srecv(int);
 int ssend(int, char *);

@@ -20,7 +20,7 @@ BIGNUM *modulus, *generator, *multiplier,
     *shared_s, *shared_k,
     *scrambler;
 
-char *username, *password;
+char *username, *password, *salt;
 
 int
 lo_connect(in_port_t port)
@@ -58,7 +58,8 @@ int
 main(void)
 {
 	int connfd;
-	char *buf;
+	char *buf, *p;
+	size_t i;
 
 	if ((bnctx = BN_CTX_new()) == NULL ||
 	    init_params(&modulus, &generator, &multiplier) == 0 ||
@@ -72,6 +73,26 @@ main(void)
 	    (connfd = lo_connect(PORT)) == -1 ||
 	    ssendf(connfd, "%s %s", username, buf) == 0)
 		err(1, NULL);
+
+	free(buf);
+
+	if ((buf = srecv(connfd)) == NULL)
+		err(1, NULL);
+
+	p = buf;
+	if ((i = strcspn(p, " ")) > strlen(p)-2)
+		errx(1, "invalid salt");
+	p[i] = '\0';
+
+	if ((salt = strdup(p)) == NULL)
+		err(1, NULL);
+
+	p += i+1;
+	if ((server_pubkey = BN_new()) == NULL ||
+	    BN_hex2bn(&server_pubkey, p) == 0)
+		err(1, NULL);
+
+	free(buf);
 
 	exit(0);
 }
