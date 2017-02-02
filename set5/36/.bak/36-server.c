@@ -106,7 +106,8 @@ int
 main(void)
 {
 	int listenfd, connfd;
-	char *buf;
+	char *buf, *p;
+	size_t i;
 
 	if ((bnctx = BN_CTX_new()) == NULL ||
 	    init_params(&modulus, &generator, &multiplier) == 0 ||
@@ -119,6 +120,21 @@ main(void)
 	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
 	    (buf = srecv(connfd)) == NULL)
 		err(1, NULL);
+
+	p = buf;
+	if ((i = strcspn(p, " ")) > strlen(p)-2)
+		errx(1, "invalid username");
+	p[i] = '\0';
+
+	if (strcmp(p, USERNAME) != 0)
+		errx(1, "invalid username");
+
+	p += i+1;
+	if ((client_pubkey = BN_new()) == NULL ||
+	    BN_hex2bn(&client_pubkey, p) == 0)
+		err(1, NULL);
+
+	free(buf);
 
 	exit(0);
 }

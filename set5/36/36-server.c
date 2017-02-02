@@ -136,5 +136,9 @@ main(void)
 
 	free(buf);
 
+	if ((buf = BN_bn2hex(public_key)) == NULL ||
+	    ssendf(connfd, "%s %s", salt, buf) == 0)
+		err(1, NULL);
+
 	exit(0);
 }
