@@ -94,5 +94,8 @@ main(void)
 
 	free(buf);
 
+	if ((scrambler = make_scrambler(public_key, server_pubkey)) == NULL)
+		err(1, NULL);
+
 	exit(0);
 }

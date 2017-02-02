@@ -137,5 +137,10 @@ main(void)
 	    ssendf(connfd, "%s %s", salt, buf) == 0)
 		err(1, NULL);
 
+	free(buf);
+
+	if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL)
+		err(1, NULL);
+
 	exit(0);
 }
