@@ -76,10 +76,8 @@ make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multipl
 	    BN_exp(t1, generator, x, bnctx) == 0 ||
 	    BN_mul(t1, multiplier, t1, bnctx) == 0 ||
 	    BN_sub(t1, server_pubkey, t1) == 0 ||
-
 	    BN_mul(t2, scrambler, x, bnctx) == 0 ||
 	    BN_add(t2, private_key, t2) == 0 ||
-
 	    BN_mod_exp(shared_s, t1, t2, modulus, bnctx) == 0)
 		goto fail;
 
@@ -136,7 +134,6 @@ main(void)
 
 	print("password: ");
 	if ((password = input()) == NULL ||
-
 	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator, private_key, scrambler, modulus)) == NULL)
 		err(1, NULL);
 

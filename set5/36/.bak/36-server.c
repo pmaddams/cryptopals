@@ -66,8 +66,8 @@ make_verifier(char *salt)
 	SHA256Update(&sha2ctx, PASSWORD, strlen(PASSWORD));
 	SHA256Final(hash, &sha2ctx);
 
-	if ((x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
-	    (verifier = BN_new()) == NULL ||
+	if ((verifier = BN_new()) == NULL ||
+	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
 	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
 		goto fail;
 

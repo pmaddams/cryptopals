@@ -112,7 +112,6 @@ make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM
 
 	    BN_exp(tmp, verifier, scrambler, bnctx) == 0 ||
 	    BN_mul(tmp, client_pubkey, tmp, bnctx) == 0 ||
-
 	    BN_mod_exp(shared_s, tmp, private_key, modulus, bnctx) == 0)
 		goto fail;
 
