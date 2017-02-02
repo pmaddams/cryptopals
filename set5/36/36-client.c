@@ -5,6 +5,7 @@
 
 #include <err.h>
 #include <netdb.h>
+#include <sha2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,13 +57,19 @@ fail:
 BIGNUM *
 make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multiplier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *scrambler, BIGNUM *modulus)
 {
+	SHA2_CTX sha2ctx;
+	char hash[SHA256_DIGEST_LENGTH];
 	BIGNUM *x, *t1, *t2;
+
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, salt, strlen(salt));
+	SHA256Update(&sha2ctx, password, strlen(password));
+	SHA256Final(hash, &sha2ctx);
 
 	BN_CTX_start(bnctx);
 
 	if ((shared_s = BN_new()) == NULL ||
-	    (x = BN_new()) == NULL ||
-	    BN_hex2bn(&x, salt) == 0 ||
+	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
 	    (t1 = BN_CTX_get(bnctx)) == NULL ||
 	    (t2 = BN_CTX_get(bnctx)) == NULL ||
 

@@ -54,29 +54,26 @@ fail:
 }
 
 BIGNUM *
-make_shared_s(BIGNUM *server_pubkey, BIGNUM *multiplier, BIGNUM *generator, char *salt, BIGNUM *private_key, BIGNUM *scrambler)
+make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multiplier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *scrambler, BIGNUM *modulus)
 {
-	BIGNUM *x, *t1, *t2, *t3;
+	BIGNUM *x, *t1, *t2;
 
 	BN_CTX_start(bnctx);
 
 	if ((shared_s = BN_new()) == NULL ||
-
 	    (x = BN_new()) == NULL ||
 	    BN_hex2bn(&x, salt) == 0 ||
-
 	    (t1 = BN_CTX_get(bnctx)) == NULL ||
 	    (t2 = BN_CTX_get(bnctx)) == NULL ||
-	    (t3 = BN_CTX_get(bnctx)) == NULL ||
 
 	    BN_exp(t1, generator, x, bnctx) == 0 ||
-	    BN_mul(t2, multiplier, t1, bnctx) == 0 ||
-	    BN_sub(t1, server_pubkey, t2) == 0 ||
+	    BN_mul(t1, multiplier, t1, bnctx) == 0 ||
+	    BN_sub(t1, server_pubkey, t1) == 0 ||
 
-	    BN_mul(t3, scrambler, x, bnctx) == 0 ||
-	    BN_add(t2, private_key, t3) == 0 ||
+	    BN_mul(t2, scrambler, x, bnctx) == 0 ||
+	    BN_add(t2, private_key, t2) == 0 ||
 
-	    BN_exp(shared_s, t1, t2, bnctx) == 0)
+	    BN_mod_exp(shared_s, t1, t2, modulus, bnctx) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);
@@ -127,9 +124,18 @@ main(void)
 
 	free(buf);
 
-	if ((scrambler = make_scrambler(public_key, server_pubkey)) == NULL ||
-	    (shared_s = make_shared_s(server_pubkey, multiplier, generator, salt, private_key, scrambler)) == NULL)
+	if ((scrambler = make_scrambler(public_key, server_pubkey)) == NULL)
 		err(1, NULL);
+
+	print("password: ");
+	if ((password = input()) == NULL ||
+
+	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator, private_key, scrambler, modulus)) == NULL)
+		err(1, NULL);
+
+	if ((buf = BN_bn2hex(shared_s)) == NULL)
+		err(1, NULL);
+	printf("client S: %s\n", shared_s);
 
 	exit(0);
 }
