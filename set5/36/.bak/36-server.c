@@ -18,10 +18,9 @@
 
 BN_CTX *bnctx;
 
-BIGNUM *modulus, *generator, *multiplier,
+BIGNUM *modulus, *generator, *multiplier, *verifier,
     *private_key, *public_key, *client_pubkey,
-    *shared_s, *shared_k,
-    *verifier, *scrambler;
+    *scrambler, *shared_s, *shared_k;
 
 char *salt;
 

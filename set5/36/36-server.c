@@ -18,10 +18,9 @@
 
 BN_CTX *bnctx;
 
-BIGNUM *modulus, *generator, *multiplier,
+BIGNUM *modulus, *generator, *multiplier, *verifier,
     *private_key, *public_key, *client_pubkey,
-    *shared_s, *shared_k,
-    *verifier, *scrambler;
+    *scrambler, *shared_s, *shared_k;
 
 char *salt;
 
@@ -85,19 +84,41 @@ make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM 
 
 	BN_CTX_start(bnctx);
 
-	if ((t1 = BN_CTX_get(bnctx)) == NULL ||
-	    BN_mul(t1, multiplier, verifier, bnctx) == 0 ||
-
+	if ((public_key = BN_new()) == NULL ||
+	    (t1 = BN_CTX_get(bnctx)) == NULL ||
 	    (t2 = BN_CTX_get(bnctx)) == NULL ||
-	    BN_mod_exp(t2, generator, private_key, modulus, bnctx) == 0 ||
 
-	    (public_key = BN_new()) == NULL ||
+	    BN_mul(t1, multiplier, verifier, bnctx) == 0 ||
+	    BN_mod_exp(t2, generator, private_key, modulus, bnctx) == 0 ||
 	    BN_add(public_key, t1, t2) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);
 
 	return public_key;
+fail:
+	return NULL;
+}
+
+BIGNUM *
+make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM *private_key, BIGNUM *modulus)
+{
+	BIGNUM *tmp;
+
+	BN_CTX_start(bnctx);
+
+	if ((shared_s = BN_new()) == NULL ||
+	    (tmp = BN_CTX_get(bnctx)) == NULL ||
+
+	    BN_exp(tmp, verifier, scrambler, bnctx) == 0 ||
+	    BN_mul(tmp, client_pubkey, tmp, bnctx) == 0 ||
+
+	    BN_mod_exp(shared_s, tmp, private_key, modulus, bnctx) == 0)
+		goto fail;
+
+	BN_CTX_end(bnctx);
+
+	return shared_s;
 fail:
 	return NULL;
 }
@@ -139,8 +160,13 @@ main(void)
 
 	free(buf);
 
-	if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL)
+	if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL ||
+	    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL)
 		err(1, NULL);
+
+	if ((buf = BN_bn2hex(shared_s)) == NULL)
+		err(1, NULL);
+	printf("server S: %s\n", shared_s);
 
 	exit(0);
 }
