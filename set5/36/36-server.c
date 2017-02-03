@@ -13,12 +13,8 @@
 
 #include "36.h"
 
-/*
 #define USERNAME "admin@secure.net"
 #define PASSWORD "batman"
-*/
-#define USERNAME "."
-#define PASSWORD "."
 
 BN_CTX *bnctx;
 
@@ -166,12 +162,6 @@ main(void)
 	if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL ||
 	    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL)
 		err(1, NULL);
-
-	/*
-	if ((buf = BN_bn2hex(shared_s)) == NULL)
-		err(1, NULL);
-	printf("server S: %s\n", shared_s);
-	*/
 
 	exit(0);
 }
