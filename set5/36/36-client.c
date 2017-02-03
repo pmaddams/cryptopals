@@ -139,10 +139,8 @@ main(void)
 	    (shared_k = make_shared_k(shared_s)) == NULL ||
 	    (hmac = make_hmac(shared_k, salt)) == NULL ||
 
-	    ssend(connfd, hmac) == 0)
-		err(1, NULL);
-
-	if ((buf = srecv(connfd)) == NULL)
+	    ssend(connfd, hmac) == 0 ||
+	    (buf = srecv(connfd)) == NULL)
 		err(1, NULL);
 
 	puts(strcmp(buf, "OK") == 0 ? "success" : "failure");
