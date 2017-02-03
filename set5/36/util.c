@@ -185,6 +185,4 @@ make_hmac(char *shared_k, char *salt)
 	SHA256Update(&sha2ctx, hash, SHA256_DIGEST_LENGTH);
 
 	return SHA256End(&sha2ctx, NULL);
-fail:
-	return NULL;
 }
