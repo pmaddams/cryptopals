@@ -13,8 +13,12 @@
 
 #include "36.h"
 
+/*
 #define USERNAME "admin@secure.net"
 #define PASSWORD "batman"
+*/
+#define USERNAME "."
+#define PASSWORD "."
 
 BN_CTX *bnctx;
 

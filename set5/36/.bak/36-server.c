@@ -13,8 +13,12 @@
 
 #include "36.h"
 
+/*
 #define USERNAME "admin@secure.net"
 #define PASSWORD "batman"
+*/
+#define USERNAME "."
+#define PASSWORD "."
 
 BN_CTX *bnctx;
 
@@ -110,7 +114,7 @@ make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM
 	if ((shared_s = BN_new()) == NULL ||
 	    (tmp = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_exp(tmp, verifier, scrambler, bnctx) == 0 ||
+	    BN_mod_exp(tmp, verifier, scrambler, modulus, bnctx) == 0 ||
 	    BN_mul(tmp, client_pubkey, tmp, bnctx) == 0 ||
 	    BN_mod_exp(shared_s, tmp, private_key, modulus, bnctx) == 0)
 		goto fail;
@@ -163,9 +167,11 @@ main(void)
 	    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL)
 		err(1, NULL);
 
+	/*
 	if ((buf = BN_bn2hex(shared_s)) == NULL)
 		err(1, NULL);
 	printf("server S: %s\n", shared_s);
+	*/
 
 	exit(0);
 }

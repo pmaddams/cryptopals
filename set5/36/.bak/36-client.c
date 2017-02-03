@@ -73,7 +73,7 @@ make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multipl
 	    (t1 = BN_CTX_get(bnctx)) == NULL ||
 	    (t2 = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_exp(t1, generator, x, bnctx) == 0 ||
+	    BN_mod_exp(t1, generator, x, modulus, bnctx) == 0 ||
 	    BN_mul(t1, multiplier, t1, bnctx) == 0 ||
 	    BN_sub(t1, server_pubkey, t1) == 0 ||
 	    BN_mul(t2, scrambler, x, bnctx) == 0 ||
