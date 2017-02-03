@@ -135,8 +135,16 @@ main(void)
 	print("password: ");
 	if ((password = input()) == NULL ||
 	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator, private_key, scrambler, modulus)) == NULL ||
-	    (shared_k = make_shared_k(shared_s)) == NULL)
+	    (shared_k = make_shared_k(shared_s)) == NULL ||
+	    (hmac = make_hmac(shared_k, salt)) == NULL ||
+
+	    ssend(connfd, hmac) == 0)
 		err(1, NULL);
+
+	if ((buf = srecv(connfd)) == NULL)
+		err(1, NULL);
+
+	puts(strcmp(buf, "OK") == 0 ? "success" : "failure");
 
 	exit(0);
 }

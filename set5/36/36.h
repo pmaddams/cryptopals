@@ -26,4 +26,3 @@ void print(char *);
 char *srecv(int);
 int ssend(int, char *);
 int ssendf(int, char *, ...);
-uint8_t *xtoa(char *, size_t *);

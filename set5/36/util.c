@@ -93,33 +93,6 @@ fail:
 	return NULL;
 }
 
-uint8_t *
-xtoa(char *src, size_t *dstlenp)
-{
-	size_t i, j, k, srclen;
-	uint8_t *dst, buf[3];
-
-	srclen = strlen(src);
-	if ((dst = malloc(srclen/2)) == NULL)
-		goto fail;
-
-	buf[2] = '\0';
-	for (i = j = 0; i < srclen; i += 2) {
-		for (k = 0; k < 2; k++)
-			if (!isxdigit(buf[k] = src[i+k]))
-				goto fail;
-
-		dst[j++] = strtol(buf, NULL, 16);
-	}
-
-	if (dstlenp != NULL)
-		*dstlenp = j;
-
-	return dst;
-fail:
-	return NULL;
-}
-
 char *
 atox(uint8_t *src, size_t srclen)
 {

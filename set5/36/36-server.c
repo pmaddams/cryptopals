@@ -161,8 +161,14 @@ main(void)
 
 	if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL ||
 	    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
-	    (shared_k = make_shared_k(shared_s)) == NULL)
+	    (shared_k = make_shared_k(shared_s)) == NULL ||
+	    (hmac = make_hmac(shared_k, salt)) == NULL ||
+
+	    (buf = srecv(connfd)) == NULL)
 		err(1, NULL);
 
+	ssend(connfd, strcmp(buf, hmac) == 0 ? "OK" : "NO");
+
+	sleep(1);
 	exit(0);
 }
