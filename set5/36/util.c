@@ -162,9 +162,8 @@ fail:
 char *
 make_hmac(char *shared_k, char *salt)
 {
-	char ipad[BLKSIZ], opad[BLKSIZ], buf[BUFSIZ],
-	    h1[SHA256_DIGEST_LENGTH], h2[SHA256_DIGEST_LENGTH];
-	size_t i, len, nr;
+	char ipad[BLKSIZ], opad[BLKSIZ], hash[SHA256_DIGEST_LENGTH];
+	size_t i, len;
 	SHA2_CTX sha2ctx;
 
 	memset(ipad, '\x5c', BLKSIZ);
@@ -179,11 +178,11 @@ make_hmac(char *shared_k, char *salt)
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, ipad, BLKSIZ);
 	SHA256Update(&sha2ctx, salt, strlen(salt));
-	SHA256Final(h1, &sha2ctx);
+	SHA256Final(hash, &sha2ctx);
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, opad, BLKSIZ);
-	SHA256Update(&sha2ctx, h1, SHA256_DIGEST_LENGTH);
+	SHA256Update(&sha2ctx, hash, SHA256_DIGEST_LENGTH);
 
 	return SHA256End(&sha2ctx, NULL);
 fail:

@@ -105,6 +105,7 @@ main(void)
 	print("username: ");
 	if ((username = input()) == NULL ||
 	    (buf = BN_bn2hex(public_key)) == NULL ||
+
 	    (connfd = lo_connect(PORT)) == -1 ||
 	    ssendf(connfd, "%s %s", username, buf) == 0)
 		err(1, NULL);
