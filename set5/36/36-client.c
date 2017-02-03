@@ -20,7 +20,7 @@ BIGNUM *modulus, *generator, *multiplier,
     *private_key, *public_key, *server_pubkey,
     *scrambler, *shared_s;
 
-char *username, *password, *salt, *shared_k;
+char *username, *password, *salt, *shared_k, *hmac;
 
 int
 lo_connect(in_port_t port)

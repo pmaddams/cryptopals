@@ -22,7 +22,7 @@ BIGNUM *modulus, *generator, *multiplier, *verifier,
     *private_key, *public_key, *client_pubkey,
     *scrambler, *shared_s;
 
-char *salt, *shared_k;
+char *salt, *shared_k, *hmac;
 
 int
 lo_listen(in_port_t port)
