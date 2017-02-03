@@ -20,9 +20,9 @@ BN_CTX *bnctx;
 
 BIGNUM *modulus, *generator, *multiplier, *verifier,
     *private_key, *public_key, *client_pubkey,
-    *scrambler, *shared_s;
+    *scrambler, *shared_s, *shared_k;
 
-char *salt, *shared_k;
+char *salt;
 
 int
 lo_listen(in_port_t port)
@@ -160,8 +160,7 @@ main(void)
 	free(buf);
 
 	if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL ||
-	    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
-	    (shared_k = make_shared_k(shared_s)) == NULL)
+	    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL)
 		err(1, NULL);
 
 	exit(0);

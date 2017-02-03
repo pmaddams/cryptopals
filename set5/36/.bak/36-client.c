@@ -18,9 +18,9 @@ BN_CTX *bnctx;
 
 BIGNUM *modulus, *generator, *multiplier,
     *private_key, *public_key, *server_pubkey,
-    *scrambler, *shared_s;
+    *scrambler, *shared_s, *shared_k;
 
-char *username, *password, *salt, *shared_k;
+char *username, *password, *salt;
 
 int
 lo_connect(in_port_t port)
@@ -134,8 +134,7 @@ main(void)
 
 	print("password: ");
 	if ((password = input()) == NULL ||
-	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator, private_key, scrambler, modulus)) == NULL ||
-	    (shared_k = make_shared_k(shared_s)) == NULL)
+	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator, private_key, scrambler, modulus)) == NULL)
 		err(1, NULL);
 
 	exit(0);

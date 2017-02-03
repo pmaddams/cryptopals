@@ -164,22 +164,3 @@ make_scrambler(BIGNUM *client_pubkey, BIGNUM *server_pubkey)
 fail:
 	return NULL;
 }
-
-char *
-make_shared_k(BIGNUM *shared_s)
-{
-	size_t len;
-	char *buf, *res;
-
-	len = BN_num_bytes(shared_s);
-
-	if ((buf = malloc(len)) == NULL ||
-	    BN_bn2bin(shared_s, buf) == 0 ||
-	    (res = SHA256Data(buf, len, NULL)) == NULL)
-		goto fail;
-
-	free(buf);
-	return res;
-fail:
-	return NULL;
-}
