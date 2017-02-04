@@ -145,7 +145,7 @@ fail:
 	return NULL;
 }
 
-BIGNUM * /* bogus */
+BIGNUM *
 make_scrambler(BIGNUM *server_pubkey)
 {
 	SHA2_CTX sha2ctx;
@@ -193,7 +193,7 @@ fail:
 	return NULL;
 }
 
-char * /* bogus */
+char *
 make_shared_k(BIGNUM *shared_s)
 {
 	return SHA256Data("", 0, NULL);
