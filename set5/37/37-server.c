@@ -145,8 +145,8 @@ fail:
 	return NULL;
 }
 
-BIGNUM * /* bogus */
-make_scrambler(BIGNUM *server_pubkey)
+BIGNUM *
+make_scrambler(BIGNUM *client_pubkey, BIGNUM *server_pubkey)
 {
 	SHA2_CTX sha2ctx;
 	size_t len;
@@ -154,10 +154,16 @@ make_scrambler(BIGNUM *server_pubkey)
 
 	SHA256Init(&sha2ctx);
 
-	SHA256Update(&sha2ctx, "", 0);
+	len = BN_num_bytes(client_pubkey);
+	if ((buf = malloc(len+1)) == NULL)
+		goto fail;
+
+	BN_bn2bin(client_pubkey, buf);
+	SHA256Update(&sha2ctx, buf, len);
+	free(buf);
 
 	len = BN_num_bytes(server_pubkey);
-	if ((buf = malloc(len)) == NULL ||
+	if ((buf = malloc(len+1)) == NULL ||
 	    BN_bn2bin(server_pubkey, buf) == 0)
 		goto fail;
 
@@ -193,10 +199,25 @@ fail:
 	return NULL;
 }
 
-char * /* bogus */
+char *
 make_shared_k(BIGNUM *shared_s)
 {
-	return SHA256Data("", 0, NULL);
+	size_t len;
+	char *buf, *res;
+
+	len = BN_num_bytes(shared_s);
+
+	if ((buf = malloc(len+1)) == NULL)
+		goto fail;
+
+	BN_bn2bin(shared_s, buf);
+	if ((res = SHA256Data(buf, len, NULL)) == NULL)
+		goto fail;
+
+	free(buf);
+	return res;
+fail:
+	return NULL;
 }
 
 int
@@ -236,14 +257,14 @@ main(void)
 
 	free(buf);
 
-	if ((scrambler = make_scrambler(public_key)) == NULL ||
+	if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL ||
 	    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
 	    (shared_k = make_shared_k(shared_s)) == NULL ||
 	    (hmac = make_hmac(shared_k, salt)) == NULL ||
 
 	    (buf = srecv(connfd)) == NULL ||
 	    ssend(connfd, strcmp(buf, hmac) == 0 ? "OK" : "NO") == 0)
-		errx(1, "debug");
+		err(1, NULL);
 
 	sleep(1);
 	exit(0);
