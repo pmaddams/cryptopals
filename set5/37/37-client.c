@@ -10,11 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/bn.h>
-
 #include "37.h"
-
-char *salt, *shared_k, *hmac;
 
 int
 lo_connect(in_port_t port)
@@ -34,20 +30,6 @@ lo_connect(in_port_t port)
 	return fd;
 fail:
 	return -1;
-}
-
-BIGNUM *
-zero_key(void)
-{
-	BIGNUM *n;
-
-	if ((n = BN_new()) == NULL ||
-	    BN_zero(n) == 0)
-		goto fail;
-
-	return n;
-fail:
-	return NULL;
 }
 
 int
@@ -70,14 +52,12 @@ main(void)
 		errx(1, "invalid salt");
 	buf[i] = '\0';
 
-	salt = buf;
-
-	if ((shared_k = make_shared_k(zero_key())) == NULL ||
-	    (hmac = make_hmac(shared_k, salt)) == NULL)
+	if (ssend(connfd, make_hmac(SHA256Data("", 0, NULL), buf)) == 0)
 		err(1, NULL);
 
-	if (ssend(connfd, hmac) == 0 ||
-	    (buf = srecv(connfd)) == NULL)
+	free(buf);
+
+	if ((buf = srecv(connfd)) == NULL)
 		err(1, NULL);
 
 	puts(strcmp(buf, "OK") == 0 ? "success" : "failure");

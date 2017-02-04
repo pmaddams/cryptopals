@@ -1,39 +1,16 @@
 #include <sys/types.h>
 
-#include <limits.h>
 #include <sha2.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/bn.h>
-
 #include "37.h"
 
 #define TMPSIZ 8192
 
 #define BLKSIZ 64
-
-char *
-input(void)
-{
-	char buf[TMPSIZ];
-
-	if (fgets(buf, TMPSIZ, stdin) == NULL)
-		goto fail;
-	buf[strcspn(buf, "\n")] = '\0';
-
-	return strdup(buf);
-fail:
-	return NULL;
-}
-
-void
-print(char *s)
-{
-	fputs(s, stdout);
-}
 
 int
 ssend(int fd, char *s)
@@ -73,12 +50,6 @@ srecv(int fd)
 	return strdup(buf);
 fail:
 	return NULL;
-}
-
-char *
-make_shared_k(BIGNUM *shared_s)
-{
-	return SHA256Data("", 0, NULL);
 }
 
 char *

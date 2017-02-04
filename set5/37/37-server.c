@@ -193,6 +193,12 @@ fail:
 	return NULL;
 }
 
+char *
+make_shared_k(BIGNUM *shared_s)
+{
+	return SHA256Data("", 0, NULL);
+}
+
 int
 main(void)
 {
