@@ -1,6 +1,5 @@
 #include <sys/types.h>
 
-#include <limits.h>
 #include <sha2.h>
 #include <stdarg.h>
 #include <stdio.h>
