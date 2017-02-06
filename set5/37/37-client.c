@@ -14,13 +14,11 @@
 
 #include "37.h"
 
+BIGNUM *modulus;
+
+char *salt, *shared_k, *hmac;
+
 BN_CTX *bnctx;
-
-BIGNUM *modulus, *generator, *multiplier,
-    *private_key, *public_key, *server_pubkey,
-    *scrambler, *shared_s;
-
-char *username, *password, *salt, *shared_k, *hmac;
 
 int
 lo_connect(in_port_t port)
@@ -42,108 +40,107 @@ fail:
 	return -1;
 }
 
-BIGNUM *
-make_public_key(BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
+char *
+make_shared_k(void)
 {
-	if ((public_key = BN_new()) == NULL ||
-	    BN_mod_exp(public_key, generator, private_key, modulus, bnctx) == 0)
-		goto fail;
+	if (!shared_k)
+		shared_k = SHA256Data("", 0, NULL);
 
-	return public_key;
-fail:
-	return NULL;
+	return shared_k;
 }
 
-BIGNUM *
-make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multiplier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *scrambler, BIGNUM *modulus)
+char *
+make_hmac(char *shared_k, char *salt)
 {
+	char ipad[BLKSIZ], opad[BLKSIZ], hash[SHA256_DIGEST_LENGTH];
+	size_t i, len;
 	SHA2_CTX sha2ctx;
-	char hash[SHA256_DIGEST_LENGTH];
-	BIGNUM *x, *t1, *t2;
 
-	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, salt, strlen(salt));
-	SHA256Update(&sha2ctx, password, strlen(password));
-	SHA256Final(hash, &sha2ctx);
+	if (!hmac) {
+		memset(ipad, '\x5c', BLKSIZ);
+		memset(opad, '\x36', BLKSIZ);
+	
+		len = strlen(shared_k);
+		for (i = 0; i < len; i++) {
+			ipad[i] ^= shared_k[i];
+			opad[i] ^= shared_k[i];
+		}
+	
+		SHA256Init(&sha2ctx);
+		SHA256Update(&sha2ctx, ipad, BLKSIZ);
+		SHA256Update(&sha2ctx, salt, strlen(salt));
+		SHA256Final(hash, &sha2ctx);
+	
+		SHA256Init(&sha2ctx);
+		SHA256Update(&sha2ctx, opad, BLKSIZ);
+		SHA256Update(&sha2ctx, hash, SHA256_DIGEST_LENGTH);
+	
+		hmac = SHA256End(&sha2ctx, NULL);
+	}
 
-	BN_CTX_start(bnctx);
-
-	if ((shared_s = BN_new()) == NULL ||
-	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
-	    (t1 = BN_CTX_get(bnctx)) == NULL ||
-	    (t2 = BN_CTX_get(bnctx)) == NULL ||
-
-	    BN_mod_exp(t1, generator, x, modulus, bnctx) == 0 ||
-	    BN_mul(t1, multiplier, t1, bnctx) == 0 ||
-	    BN_sub(t1, server_pubkey, t1) == 0 ||
-	    BN_mul(t2, scrambler, x, bnctx) == 0 ||
-	    BN_add(t2, private_key, t2) == 0 ||
-	    BN_mod_exp(shared_s, t1, t2, modulus, bnctx) == 0)
-		goto fail;
-
-	BN_CTX_end(bnctx);
-
-	free(x);
-	return shared_s;
-fail:
-	return NULL;
+	return hmac;
 }
 
 int
-main(void)
+crack_srp(uint32_t factor)
 {
-	int connfd;
-	char *buf, *p;
+	BIGNUM *x, *fake_key;
+	char *buf;
+	int connfd, res;
 	size_t i;
 
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    init_params(&modulus, &generator, &multiplier) == 0 ||
-	    (private_key = make_private_key()) == NULL ||
-	    (public_key = make_public_key(generator, private_key, modulus)) == NULL)
-		err(1, NULL);
+	factor = htobe32(factor);
 
-	print("username: ");
-	if ((username = input()) == NULL ||
-	    (buf = BN_bn2hex(public_key)) == NULL ||
+	if ((x = BN_bin2bn((uint8_t *) &factor, sizeof(factor), NULL)) == NULL ||
+	    (fake_key = BN_new()) == NULL ||
+	    BN_mul(fake_key, modulus, x, bnctx) == 0)
+		goto fail;
+
+	if ((buf = BN_bn2hex(fake_key)) == NULL ||
 
 	    (connfd = lo_connect(PORT)) == -1 ||
-	    ssendf(connfd, "%s %s", username, buf) == 0)
+	    ssendf(connfd, "%s %s", USERNAME, buf) == 0)
 		err(1, NULL);
 
 	free(buf);
 
-	if ((buf = srecv(connfd)) == NULL)
+	if ((salt = srecv(connfd)) == NULL)
 		err(1, NULL);
 
-	p = buf;
-	if ((i = strcspn(p, " ")) > strlen(p)-2)
+	if ((i = strcspn(salt, " ")) > strlen(salt)-2)
 		errx(1, "invalid salt");
-	p[i] = '\0';
+	salt[i] = '\0';
 
-	if ((salt = strdup(p)) == NULL)
-		err(1, NULL);
-
-	p += i+1;
-	if ((server_pubkey = BN_new()) == NULL ||
-	    BN_hex2bn(&server_pubkey, p) == 0)
-		err(1, NULL);
-
-	free(buf);
-
-	if ((scrambler = make_scrambler(public_key, server_pubkey)) == NULL)
-		err(1, NULL);
-
-	print("password: ");
-	if ((password = input()) == NULL ||
-	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator, private_key, scrambler, modulus)) == NULL ||
-	    (shared_k = make_shared_k(shared_s)) == NULL ||
+	if ((shared_k = make_shared_k()) == NULL ||
 	    (hmac = make_hmac(shared_k, salt)) == NULL ||
 
 	    ssend(connfd, hmac) == 0 ||
 	    (buf = srecv(connfd)) == NULL)
 		err(1, NULL);
 
-	puts(strcmp(buf, "OK") == 0 ? "success" : "failure");
+	res = strcmp(buf, "OK") == 0;
+
+	BN_free(x);
+	BN_free(fake_key);
+	free(salt);
+	free(buf);
+
+	return res;
+fail:
+	return 0;
+}
+
+int
+main(void)
+{
+	uint32_t factor;
+
+	if ((bnctx = BN_CTX_new()) == NULL ||
+	    BN_hex2bn(&modulus, N) == 0)
+		err(1, NULL);
+
+	for (factor = 0; factor < 3; factor++)
+		puts(crack_srp(factor) ? "success" : "failure");
 
 	exit(0);
 }

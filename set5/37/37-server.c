@@ -6,6 +6,7 @@
 #include <err.h>
 #include <netdb.h>
 #include <sha2.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -14,8 +15,17 @@
 
 #include "37.h"
 
-#define USERNAME "admin@secure.net"
-#define PASSWORD "batman"
+#define N	"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"	\
+		"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd"	\
+		"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec"	\
+		"6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f"	\
+		"24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48371"	\
+		"c55d39a69163fa8fd24cf5f83755d23dca3ad961c62f356208552"	\
+		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff"	\
+		"fffffffffffff"
+#define G	"2"
+#define K	"3"
+
 
 BN_CTX *bnctx;
 
@@ -46,6 +56,39 @@ fail:
 	return -1;
 }
 
+int
+init_params(BIGNUM **modp, BIGNUM **genp, BIGNUM **mulp)
+{
+	return BN_hex2bn(modp, N) &&
+	    BN_hex2bn(genp, G) &&
+	    BN_hex2bn(mulp, K);
+}
+
+BIGNUM *
+make_private_key(void)
+{
+	char buf[BUFSIZ];
+
+	arc4random_buf(buf, BUFSIZ);
+
+	return BN_bin2bn(buf, BUFSIZ, NULL);
+}
+
+char *
+atox(uint8_t *src, size_t srclen)
+{
+	size_t i, j;
+	char *dst;
+
+	if ((dst = malloc(srclen*2+1)) == NULL)
+		goto done;
+
+	for (i = j = 0; i < srclen; i++, j += 2)
+		snprintf(dst+j, 3, "%02x", src[i]);
+done:
+	return dst;
+}
+
 char *
 make_salt(void)
 {
@@ -58,13 +101,16 @@ make_salt(void)
 BIGNUM *
 make_verifier(char *salt)
 {
+	uint8_t password[BUFSIZ],
+	    hash[SHA256_DIGEST_LENGTH];
 	SHA2_CTX sha2ctx;
-	uint8_t hash[SHA256_DIGEST_LENGTH];
 	BIGNUM *x;
+
+	arc4random_buf(password, BUFSIZ);
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, salt, strlen(salt));
-	SHA256Update(&sha2ctx, PASSWORD, strlen(PASSWORD));
+	SHA256Update(&sha2ctx, password, BUFSIZ);
 	SHA256Final(hash, &sha2ctx);
 
 	if ((verifier = BN_new()) == NULL ||
@@ -99,6 +145,88 @@ make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM 
 	return public_key;
 fail:
 	return NULL;
+}
+
+BIGNUM *
+make_scrambler(BIGNUM *client_pubkey, BIGNUM *server_pubkey)
+{
+	SHA2_CTX sha2ctx;
+	size_t len;
+	char *buf, hash[SHA256_DIGEST_LENGTH];
+
+	SHA256Init(&sha2ctx);
+
+	len = BN_num_bytes(client_pubkey);
+	if ((buf = malloc(len+1)) == NULL)
+		goto fail;
+
+	BN_bn2bin(client_pubkey, buf);
+
+	SHA256Update(&sha2ctx, buf, len);
+	free(buf);
+
+	len = BN_num_bytes(server_pubkey);
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(server_pubkey, buf) == 0)
+		goto fail;
+
+	SHA256Update(&sha2ctx, buf, len);
+	free(buf);
+
+	SHA256Final(hash, &sha2ctx);
+
+	return BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL);
+fail:
+	return NULL;
+}
+
+char *
+make_shared_k(BIGNUM *shared_s)
+{
+	size_t len;
+	char *buf, *res;
+
+	len = BN_num_bytes(shared_s);
+	if ((buf = malloc(len+1)) == NULL)
+		goto fail;
+
+	BN_bn2bin(shared_s, buf);
+
+	if ((res = SHA256Data(buf, len, NULL)) == NULL)
+		goto fail;
+
+	free(buf);
+	return res;
+fail:
+	return NULL;
+}
+
+char *
+make_hmac(char *shared_k, char *salt)
+{
+	char ipad[BLKSIZ], opad[BLKSIZ], hash[SHA256_DIGEST_LENGTH];
+	size_t i, len;
+	SHA2_CTX sha2ctx;
+
+	memset(ipad, '\x5c', BLKSIZ);
+	memset(opad, '\x36', BLKSIZ);
+
+	len = strlen(shared_k);
+	for (i = 0; i < len; i++) {
+		ipad[i] ^= shared_k[i];
+		opad[i] ^= shared_k[i];
+	}
+
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, ipad, BLKSIZ);
+	SHA256Update(&sha2ctx, salt, strlen(salt));
+	SHA256Final(hash, &sha2ctx);
+
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, opad, BLKSIZ);
+	SHA256Update(&sha2ctx, hash, SHA256_DIGEST_LENGTH);
+
+	return SHA256End(&sha2ctx, NULL);
 }
 
 BIGNUM *
