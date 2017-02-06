@@ -101,15 +101,15 @@ crack_srp(uint32_t factor)
 
 	    (connfd = lo_connect(PORT)) == -1 ||
 	    ssendf(connfd, "%s %s", USERNAME, buf) == 0)
-		err(1, NULL);
+		goto fail;
 
 	free(buf);
 
 	if ((salt = srecv(connfd)) == NULL)
-		err(1, NULL);
+		goto fail;
 
 	if ((i = strcspn(salt, " ")) > strlen(salt)-2)
-		errx(1, "invalid salt");
+		goto fail;
 	salt[i] = '\0';
 
 	if ((shared_k = make_shared_k()) == NULL ||
@@ -117,7 +117,7 @@ crack_srp(uint32_t factor)
 
 	    ssend(connfd, hmac) == 0 ||
 	    (buf = srecv(connfd)) == NULL)
-		err(1, NULL);
+		goto fail;
 
 	res = strcmp(buf, "OK") == 0;
 
