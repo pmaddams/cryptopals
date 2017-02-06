@@ -127,6 +127,7 @@ int
 main(void)
 {
 	int listenfd, connfd;
+	pid_t pid;
 	char *buf, *p;
 	size_t i;
 
@@ -136,39 +137,52 @@ main(void)
 	    (verifier = make_verifier(salt)) == NULL ||
 	    (private_key = make_private_key()) == NULL ||
 	    (public_key = make_public_key(multiplier, verifier, generator, private_key, modulus)) == NULL ||
-
-	    (listenfd = lo_listen(PORT)) == -1 ||
-	    (connfd = accept(listenfd, NULL, NULL)) == -1 ||
-	    (buf = srecv(connfd)) == NULL)
+	    (listenfd = lo_listen(PORT)) == -1)
 		err(1, NULL);
 
-	p = buf;
-	if ((i = strcspn(p, " ")) > strlen(p)-2 ||
-	    strncmp(p, USERNAME, i) != 0)
-		errx(1, "invalid username");
+	for (;;) {
+		if ((connfd = accept(listenfd, NULL, NULL)) == -1 ||
+		    (pid = fork()) == -1)
+			err(1, NULL);
 
-	p += i+1;
-	if ((client_pubkey = BN_new()) == NULL ||
-	    BN_hex2bn(&client_pubkey, p) == 0)
-		err(1, NULL);
+		if (pid != 0) {
+			close(connfd);
+			continue;
+		}
+		close(listenfd);
 
-	free(buf);
+		if ((buf = srecv(connfd)) == NULL)
+			err(1, NULL);
 
-	if ((buf = BN_bn2hex(public_key)) == NULL ||
-	    ssendf(connfd, "%s %s", salt, buf) == 0)
-		err(1, NULL);
+		p = buf;
+		if ((i = strcspn(p, " ")) > strlen(p)-2 ||
+		    strncmp(p, USERNAME, i) != 0)
+			errx(1, "invalid username");
 
-	free(buf);
+		p += i+1;
+		if ((client_pubkey = BN_new()) == NULL ||
+		    BN_hex2bn(&client_pubkey, p) == 0)
+			err(1, NULL);
 
-	if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL ||
-	    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
-	    (shared_k = make_shared_k(shared_s)) == NULL ||
-	    (hmac = make_hmac(shared_k, salt)) == NULL ||
+		free(buf);
 
-	    (buf = srecv(connfd)) == NULL ||
-	    ssend(connfd, strcmp(buf, hmac) == 0 ? "OK" : "NO") == 0)
-		err(1, NULL);
+		if ((buf = BN_bn2hex(public_key)) == NULL ||
+		    ssendf(connfd, "%s %s", salt, buf) == 0)
+			err(1, NULL);
 
-	sleep(1);
+		free(buf);
+
+		if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL ||
+		    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
+		    (shared_k = make_shared_k(shared_s)) == NULL ||
+		    (hmac = make_hmac(shared_k, salt)) == NULL ||
+
+		    (buf = srecv(connfd)) == NULL ||
+		    ssend(connfd, strcmp(buf, hmac) == 0 ? "OK" : "NO") == 0)
+			err(1, NULL);
+
+		break;
+	}
+
 	exit(0);
 }
