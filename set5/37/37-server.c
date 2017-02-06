@@ -214,7 +214,8 @@ fail:
 char *
 make_hmac(char *shared_k, char *salt)
 {
-	char ipad[BLKSIZ], opad[BLKSIZ], hash[SHA256_DIGEST_LENGTH];
+	char ipad[BLKSIZ], opad[BLKSIZ],
+	    hash[SHA256_DIGEST_LENGTH];
 	size_t i, len;
 	SHA2_CTX sha2ctx;
 

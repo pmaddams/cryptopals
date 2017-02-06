@@ -52,7 +52,8 @@ make_shared_k(void)
 char *
 make_hmac(char *shared_k, char *salt)
 {
-	char ipad[BLKSIZ], opad[BLKSIZ], hash[SHA256_DIGEST_LENGTH];
+	char ipad[BLKSIZ], opad[BLKSIZ],
+	    hash[SHA256_DIGEST_LENGTH];
 	size_t i, len;
 	SHA2_CTX sha2ctx;
 
@@ -122,6 +123,7 @@ crack_srp(uint32_t factor)
 
 	BN_free(x);
 	BN_free(fake_key);
+	close(connfd);
 	free(salt);
 	free(buf);
 
