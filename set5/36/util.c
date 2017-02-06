@@ -146,7 +146,6 @@ make_shared_k(BIGNUM *shared_s)
 	char *buf, *res;
 
 	len = BN_num_bytes(shared_s);
-
 	if ((buf = malloc(len)) == NULL ||
 	    BN_bn2bin(shared_s, buf) == 0 ||
 	    (res = SHA256Data(buf, len, NULL)) == NULL)

@@ -117,10 +117,9 @@ make_scrambler(BIGNUM *client_pubkey, BIGNUM *server_pubkey)
 	SHA256Init(&sha2ctx);
 
 	len = BN_num_bytes(client_pubkey);
-	if ((buf = malloc(len+1)) == NULL)
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(client_pubkey, buf) == 0)
 		goto fail;
-
-	BN_bn2bin(client_pubkey, buf);
 
 	SHA256Update(&sha2ctx, buf, len);
 	free(buf);
@@ -147,12 +146,10 @@ make_shared_k(BIGNUM *shared_s)
 	char *buf, *res;
 
 	len = BN_num_bytes(shared_s);
-	if ((buf = malloc(len+1)) == NULL)
-		goto fail;
 
-	BN_bn2bin(shared_s, buf);
-
-	if ((res = SHA256Data(buf, len, NULL)) == NULL)
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(shared_s, buf) == 0 ||
+	    (res = SHA256Data(buf, len, NULL)) == NULL)
 		goto fail;
 
 	free(buf);
