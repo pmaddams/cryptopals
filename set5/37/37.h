@@ -1,7 +1,3 @@
-#include <sys/types.h>
-
-#include <openssl/bn.h>
-
 #define USERNAME	"admin@secure.net"
 #define PORT		12345
 
