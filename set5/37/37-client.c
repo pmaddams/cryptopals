@@ -3,6 +3,7 @@
 
 #include <netinet/in.h>
 
+#include <endian.h>
 #include <err.h>
 #include <netdb.h>
 #include <sha2.h>
