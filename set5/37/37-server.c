@@ -15,18 +15,6 @@
 
 #include "37.h"
 
-#define N	"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"	\
-		"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd"	\
-		"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec"	\
-		"6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f"	\
-		"24117c4b1fe649286651ece45b3dc2007cb8a163bf0598da48371"	\
-		"c55d39a69163fa8fd24cf5f83755d23dca3ad961c62f356208552"	\
-		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff"	\
-		"fffffffffffff"
-#define G	"2"
-#define K	"3"
-
-
 BN_CTX *bnctx;
 
 BIGNUM *modulus, *generator, *multiplier, *verifier,
@@ -62,16 +50,6 @@ init_params(BIGNUM **modp, BIGNUM **genp, BIGNUM **mulp)
 	return BN_hex2bn(modp, N) &&
 	    BN_hex2bn(genp, G) &&
 	    BN_hex2bn(mulp, K);
-}
-
-BIGNUM *
-make_private_key(void)
-{
-	char buf[BUFSIZ];
-
-	arc4random_buf(buf, BUFSIZ);
-
-	return BN_bin2bn(buf, BUFSIZ, NULL);
 }
 
 char *
@@ -122,6 +100,16 @@ make_verifier(char *salt)
 	return verifier;
 fail:
 	return NULL;
+}
+
+BIGNUM *
+make_private_key(void)
+{
+	char buf[BUFSIZ];
+
+	arc4random_buf(buf, BUFSIZ);
+
+	return BN_bin2bn(buf, BUFSIZ, NULL);
 }
 
 BIGNUM *
@@ -180,6 +168,28 @@ fail:
 	return NULL;
 }
 
+BIGNUM *
+make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM *private_key, BIGNUM *modulus)
+{
+	BIGNUM *tmp;
+
+	BN_CTX_start(bnctx);
+
+	if ((shared_s = BN_new()) == NULL ||
+	    (tmp = BN_CTX_get(bnctx)) == NULL ||
+
+	    BN_mod_exp(tmp, verifier, scrambler, modulus, bnctx) == 0 ||
+	    BN_mul(tmp, client_pubkey, tmp, bnctx) == 0 ||
+	    BN_mod_exp(shared_s, tmp, private_key, modulus, bnctx) == 0)
+		goto fail;
+
+	BN_CTX_end(bnctx);
+
+	return shared_s;
+fail:
+	return NULL;
+}
+
 char *
 make_shared_k(BIGNUM *shared_s)
 {
@@ -227,28 +237,6 @@ make_hmac(char *shared_k, char *salt)
 	SHA256Update(&sha2ctx, hash, SHA256_DIGEST_LENGTH);
 
 	return SHA256End(&sha2ctx, NULL);
-}
-
-BIGNUM *
-make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM *private_key, BIGNUM *modulus)
-{
-	BIGNUM *tmp;
-
-	BN_CTX_start(bnctx);
-
-	if ((shared_s = BN_new()) == NULL ||
-	    (tmp = BN_CTX_get(bnctx)) == NULL ||
-
-	    BN_mod_exp(tmp, verifier, scrambler, modulus, bnctx) == 0 ||
-	    BN_mul(tmp, client_pubkey, tmp, bnctx) == 0 ||
-	    BN_mod_exp(shared_s, tmp, private_key, modulus, bnctx) == 0)
-		goto fail;
-
-	BN_CTX_end(bnctx);
-
-	return shared_s;
-fail:
-	return NULL;
 }
 
 int
