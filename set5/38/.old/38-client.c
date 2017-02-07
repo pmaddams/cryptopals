@@ -130,6 +130,9 @@ main(void)
 
 	free(buf);
 
+	if ((scrambler = make_scrambler(public_key, server_pubkey)) == NULL)
+		err(1, NULL);
+
 	print("password: ");
 	if ((password = input()) == NULL ||
 	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator, private_key, scrambler, modulus)) == NULL ||
