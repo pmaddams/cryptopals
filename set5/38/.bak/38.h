@@ -20,6 +20,7 @@ int init_params(BIGNUM **, BIGNUM **, BIGNUM **);
 char *input(void);
 char *make_hmac(char *, char *);
 BIGNUM *make_private_key(void);
+BIGNUM *make_scrambler(BIGNUM *, BIGNUM *);
 char *make_shared_k(BIGNUM *);
 void print(char *);
 char *srecv(int);

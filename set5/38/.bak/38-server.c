@@ -56,20 +56,45 @@ make_salt(void)
 }
 
 BIGNUM *
-make_scrambler(void)
+make_verifier(char *salt)
 {
-	uint8_t buf[16];
+	SHA2_CTX sha2ctx;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
+	BIGNUM *x;
 
-	arc4random_buf(buf, 16);
-	return BN_bin2bn(buf, 16, NULL);
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, salt, strlen(salt));
+	SHA256Update(&sha2ctx, PASSWORD, strlen(PASSWORD));
+	SHA256Final(hash, &sha2ctx);
+
+	if ((verifier = BN_new()) == NULL ||
+	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
+	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
+		goto fail;
+
+	free(x);
+	return verifier;
+fail:
+	return NULL;
 }
 
 BIGNUM *
-make_public_key(BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
+make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
 {
+	BIGNUM *t1, *t2;
+
+	BN_CTX_start(bnctx);
+
 	if ((public_key = BN_new()) == NULL ||
-	    BN_mod_exp(public_key, generator, private_key, modulus, bnctx) == 0)
+	    (t1 = BN_CTX_get(bnctx)) == NULL ||
+	    (t2 = BN_CTX_get(bnctx)) == NULL ||
+
+	    BN_mul(t1, multiplier, verifier, bnctx) == 0 ||
+	    BN_mod_exp(t2, generator, private_key, modulus, bnctx) == 0 ||
+	    BN_add(public_key, t1, t2) == 0)
 		goto fail;
+
+	BN_CTX_end(bnctx);
 
 	return public_key;
 fail:
@@ -109,8 +134,9 @@ main(void)
 	if ((bnctx = BN_CTX_new()) == NULL ||
 	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (salt = make_salt()) == NULL ||
+	    (verifier = make_verifier(salt)) == NULL ||
 	    (private_key = make_private_key()) == NULL ||
-	    (public_key = make_public_key(generator, private_key, modulus)) == NULL ||
+	    (public_key = make_public_key(multiplier, verifier, generator, private_key, modulus)) == NULL ||
 	    (listenfd = lo_listen(PORT)) == -1)
 		err(1, NULL);
 
@@ -146,7 +172,7 @@ main(void)
 
 		free(buf);
 
-		if ((scrambler = make_scrambler()) == NULL ||
+		if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL ||
 		    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
 		    (shared_k = make_shared_k(shared_s)) == NULL ||
 		    (hmac = make_hmac(shared_k, salt)) == NULL ||

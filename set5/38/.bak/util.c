@@ -108,6 +108,38 @@ done:
 	return dst;
 }
 
+BIGNUM *
+make_scrambler(BIGNUM *client_pubkey, BIGNUM *server_pubkey)
+{
+	SHA2_CTX sha2ctx;
+	size_t len;
+	char *buf, hash[SHA256_DIGEST_LENGTH];
+
+	SHA256Init(&sha2ctx);
+
+	len = BN_num_bytes(client_pubkey);
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(client_pubkey, buf) == 0)
+		goto fail;
+
+	SHA256Update(&sha2ctx, buf, len);
+	free(buf);
+
+	len = BN_num_bytes(server_pubkey);
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(server_pubkey, buf) == 0)
+		goto fail;
+
+	SHA256Update(&sha2ctx, buf, len);
+	free(buf);
+
+	SHA256Final(hash, &sha2ctx);
+
+	return BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL);
+fail:
+	return NULL;
+}
+
 char *
 make_shared_k(BIGNUM *shared_s)
 {
