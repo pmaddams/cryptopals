@@ -17,6 +17,8 @@
 #define USERNAME "admin@secure.net"
 #define PASSWORD "batman"
 
+BN_CTX *bnctx;
+
 BIGNUM *modulus, *generator, *multiplier, *verifier,
     *private_key, *public_key, *client_pubkey,
     *scrambler, *shared_s;
@@ -56,28 +58,45 @@ make_salt(void)
 BIGNUM *
 make_verifier(char *salt)
 {
-	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
 	uint8_t hash[SHA256_DIGEST_LENGTH];
-	BIGNUM *res, *x;
-
-	if ((bnctx = BN_CTX_new()) == NULL)
-		goto fail;
+	BIGNUM *x;
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, salt, strlen(salt));
 	SHA256Update(&sha2ctx, PASSWORD, strlen(PASSWORD));
 	SHA256Final(hash, &sha2ctx);
 
-	if ((res = BN_new()) == NULL ||
+	if ((verifier = BN_new()) == NULL ||
 	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
-	    BN_mod_exp(res, generator, x, modulus, bnctx) == 0)
+	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
 		goto fail;
 
-	BN_CTX_free(bnctx);
 	free(x);
+	return verifier;
+fail:
+	return NULL;
+}
 
-	return res;
+BIGNUM *
+make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
+{
+	BIGNUM *t1, *t2;
+
+	BN_CTX_start(bnctx);
+
+	if ((public_key = BN_new()) == NULL ||
+	    (t1 = BN_CTX_get(bnctx)) == NULL ||
+	    (t2 = BN_CTX_get(bnctx)) == NULL ||
+
+	    BN_mul(t1, multiplier, verifier, bnctx) == 0 ||
+	    BN_mod_exp(t2, generator, private_key, modulus, bnctx) == 0 ||
+	    BN_add(public_key, t1, t2) == 0)
+		goto fail;
+
+	BN_CTX_end(bnctx);
+
+	return public_key;
 fail:
 	return NULL;
 }
@@ -85,25 +104,21 @@ fail:
 BIGNUM *
 make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM *private_key, BIGNUM *modulus)
 {
-	BN_CTX *bnctx;
-	BIGNUM *res, *tmp;
+	BIGNUM *tmp;
 
-	if ((bnctx = BN_CTX_new()) == NULL)
-		goto fail;
 	BN_CTX_start(bnctx);
 
-	if ((res = BN_new()) == NULL ||
+	if ((shared_s = BN_new()) == NULL ||
 	    (tmp = BN_CTX_get(bnctx)) == NULL ||
 
 	    BN_mod_exp(tmp, verifier, scrambler, modulus, bnctx) == 0 ||
 	    BN_mul(tmp, client_pubkey, tmp, bnctx) == 0 ||
-	    BN_mod_exp(res, tmp, private_key, modulus, bnctx) == 0)
+	    BN_mod_exp(shared_s, tmp, private_key, modulus, bnctx) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);
-	BN_CTX_free(bnctx);
 
-	return res;
+	return shared_s;
 fail:
 	return NULL;
 }
@@ -116,11 +131,12 @@ main(void)
 	char *buf, *p;
 	size_t i;
 
-	if (init_params(&modulus, &generator, &multiplier) == 0 ||
+	if ((bnctx = BN_CTX_new()) == NULL ||
+	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (salt = make_salt()) == NULL ||
 	    (verifier = make_verifier(salt)) == NULL ||
 	    (private_key = make_private_key()) == NULL ||
-	    (public_key = make_public_key(generator, private_key, modulus)) == NULL ||
+	    (public_key = make_public_key(multiplier, verifier, generator, private_key, modulus)) == NULL ||
 	    (listenfd = lo_listen(PORT)) == -1)
 		err(1, NULL);
 

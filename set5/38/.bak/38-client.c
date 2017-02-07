@@ -14,6 +14,8 @@
 
 #include "38.h"
 
+BN_CTX *bnctx;
+
 BIGNUM *modulus, *generator, *multiplier,
     *private_key, *public_key, *server_pubkey,
     *scrambler, *shared_s;
@@ -41,23 +43,32 @@ fail:
 }
 
 BIGNUM *
+make_public_key(BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
+{
+	if ((public_key = BN_new()) == NULL ||
+	    BN_mod_exp(public_key, generator, private_key, modulus, bnctx) == 0)
+		goto fail;
+
+	return public_key;
+fail:
+	return NULL;
+}
+
+BIGNUM *
 make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multiplier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *scrambler, BIGNUM *modulus)
 {
-	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
 	char hash[SHA256_DIGEST_LENGTH];
-	BIGNUM *res, *x, *t1, *t2;
-
-	if ((bnctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(bnctx);
+	BIGNUM *x, *t1, *t2;
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, salt, strlen(salt));
 	SHA256Update(&sha2ctx, password, strlen(password));
 	SHA256Final(hash, &sha2ctx);
 
-	if ((res = BN_new()) == NULL ||
+	BN_CTX_start(bnctx);
+
+	if ((shared_s = BN_new()) == NULL ||
 	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
 	    (t1 = BN_CTX_get(bnctx)) == NULL ||
 	    (t2 = BN_CTX_get(bnctx)) == NULL ||
@@ -71,10 +82,9 @@ make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multipl
 		goto fail;
 
 	BN_CTX_end(bnctx);
-	BN_CTX_free(bnctx);
-	free(x);
 
-	return res;
+	free(x);
+	return shared_s;
 fail:
 	return NULL;
 }
@@ -86,7 +96,8 @@ main(void)
 	char *buf, *p;
 	size_t i;
 
-	if (init_params(&modulus, &generator, &multiplier) == 0 ||
+	if ((bnctx = BN_CTX_new()) == NULL ||
+	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (private_key = make_private_key()) == NULL ||
 	    (public_key = make_public_key(generator, private_key, modulus)) == NULL)
 		err(1, NULL);

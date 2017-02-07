@@ -33,24 +33,6 @@ make_private_key(void)
 	return BN_bin2bn(buf, BUFSIZ, NULL);
 }
 
-BIGNUM *
-make_public_key(BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
-{
-	BN_CTX *bnctx;
-	BIGNUM *res;
-
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    (res = BN_new()) == NULL ||
-	    BN_mod_exp(res, generator, private_key, modulus, bnctx) == 0)
-		goto fail;
-
-	BN_CTX_free(bnctx);
-
-	return res;
-fail:
-	return NULL;
-}
-
 char *
 input(void)
 {
