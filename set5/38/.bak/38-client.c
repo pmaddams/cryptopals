@@ -20,7 +20,7 @@ BIGNUM *modulus, *generator, *multiplier,
     *private_key, *public_key, *server_pubkey,
     *scrambler, *shared_s;
 
-char *password, *salt, *shared_k, *hmac;
+char *username, *password, *salt, *shared_k, *hmac;
 
 int
 lo_connect(in_port_t port)
@@ -95,11 +95,15 @@ main(void)
 	if ((bnctx = BN_CTX_new()) == NULL ||
 	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (private_key = make_private_key()) == NULL ||
-	    (public_key = make_public_key(generator, private_key, modulus)) == NULL ||
+	    (public_key = make_public_key(generator, private_key, modulus)) == NULL)
+		err(1, NULL);
+
+	print("username: ");
+	if ((username = input()) == NULL ||
 	    (buf = BN_bn2hex(public_key)) == NULL ||
 
 	    (connfd = lo_connect(PORT)) == -1 ||
-	    ssendf(connfd, "%s %s", USERNAME, buf) == 0)
+	    ssendf(connfd, "%s %s", username, buf) == 0)
 		err(1, NULL);
 
 	free(buf);

@@ -14,6 +14,9 @@
 
 #include "38.h"
 
+#define USERNAME "admin@secure.net"
+#define PASSWORD "batman"
+
 BN_CTX *bnctx;
 
 BIGNUM *modulus, *generator, *multiplier, *verifier,
@@ -171,7 +174,7 @@ main(void)
 		free(buf);
 		free(buf2);
 
-		if ((verifier = make_verifier(generator, salt, "batman", modulus)) == NULL ||
+		if ((verifier = make_verifier(generator, salt, PASSWORD, modulus)) == NULL ||
 		    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
 		    (shared_k = make_shared_k(shared_s)) == NULL ||
 		    (hmac = make_hmac(shared_k, salt)) == NULL ||
