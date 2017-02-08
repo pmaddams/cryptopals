@@ -64,18 +64,6 @@ make_scrambler(void)
 }
 
 BIGNUM *
-make_public_key(BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
-{
-	if ((public_key = BN_new()) == NULL ||
-	    BN_mod_exp(public_key, generator, private_key, modulus, bnctx) == 0)
-		goto fail;
-
-	return public_key;
-fail:
-	return NULL;
-}
-
-BIGNUM *
 make_verifier(BIGNUM *generator, char *salt, char *password, BIGNUM *modulus)
 {
 	SHA2_CTX sha2ctx;

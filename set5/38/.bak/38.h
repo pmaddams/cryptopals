@@ -19,7 +19,7 @@
 #define K		"3"
 
 char *atox(uint8_t *, size_t);
-int init_params(BIGNUM **, BIGNUM **, BIGNUM **);
+int init_params(BIGNUM **, BIGNUM **);
 char *input(void);
 char *make_hmac(char *, char *);
 BIGNUM *make_private_key(void);

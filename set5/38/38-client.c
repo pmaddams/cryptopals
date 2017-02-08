@@ -43,18 +43,6 @@ fail:
 }
 
 BIGNUM *
-make_public_key(BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
-{
-	if ((public_key = BN_new()) == NULL ||
-	    BN_mod_exp(public_key, generator, private_key, modulus, bnctx) == 0)
-		goto fail;
-
-	return public_key;
-fail:
-	return NULL;
-}
-
-BIGNUM *
 make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *private_key, BIGNUM *scrambler, BIGNUM *modulus)
 {
 	SHA2_CTX sha2ctx;
