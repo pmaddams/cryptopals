@@ -141,7 +141,7 @@ main(void)
 	    (buf = srecv(connfd)) == NULL)
 		err(1, NULL);
 
-	puts(strcmp(buf, "OK") == 0 ? "success" : "failure");
+	puts(buf);
 
 	exit(0);
 }

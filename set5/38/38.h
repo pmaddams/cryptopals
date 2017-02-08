@@ -5,6 +5,8 @@
 #define USERNAME	"admin@secure.net"
 #define PORT		12345
 
+#define DATABASE	"DATA"
+
 #define N		"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"	\
 			"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd"	\
 			"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec"	\
