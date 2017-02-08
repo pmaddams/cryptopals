@@ -17,8 +17,6 @@
 #define USERNAME "admin@secure.net"
 #define PASSWORD "batman"
 
-BN_CTX *bnctx;
-
 BIGNUM *modulus, *generator, *multiplier, *verifier,
     *private_key, *public_key, *client_pubkey,
     *scrambler, *shared_s;
@@ -58,9 +56,13 @@ make_salt(void)
 BIGNUM *
 make_verifier(char *salt)
 {
+	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
 	uint8_t hash[SHA256_DIGEST_LENGTH];
 	BIGNUM *x;
+
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, salt, strlen(salt));
@@ -72,7 +74,9 @@ make_verifier(char *salt)
 	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
 		goto fail;
 
+	BN_CTX_free(bnctx);
 	free(x);
+
 	return verifier;
 fail:
 	return NULL;
@@ -81,8 +85,11 @@ fail:
 BIGNUM *
 make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
 {
+	BN_CTX *bnctx;
 	BIGNUM *t1, *t2;
 
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
 	BN_CTX_start(bnctx);
 
 	if ((public_key = BN_new()) == NULL ||
@@ -95,6 +102,7 @@ make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM 
 		goto fail;
 
 	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
 
 	return public_key;
 fail:
@@ -104,8 +112,11 @@ fail:
 BIGNUM *
 make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM *private_key, BIGNUM *modulus)
 {
+	BN_CTX *bnctx;
 	BIGNUM *tmp;
 
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
 	BN_CTX_start(bnctx);
 
 	if ((shared_s = BN_new()) == NULL ||
@@ -117,6 +128,7 @@ make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM
 		goto fail;
 
 	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
 
 	return shared_s;
 fail:
@@ -131,8 +143,7 @@ main(void)
 	char *buf, *p;
 	size_t i;
 
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    init_params(&modulus, &generator, &multiplier) == 0 ||
+	if (init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (salt = make_salt()) == NULL ||
 	    (verifier = make_verifier(salt)) == NULL ||
 	    (private_key = make_private_key()) == NULL ||

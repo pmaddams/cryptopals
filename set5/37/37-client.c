@@ -15,8 +15,6 @@
 
 #include "37.h"
 
-BN_CTX *bnctx;
-
 BIGNUM *modulus;
 
 char *salt, *shared_k, *hmac;
@@ -86,15 +84,17 @@ make_hmac(char *shared_k, char *salt)
 int
 crack_srp(uint32_t factor)
 {
-	BIGNUM *x, *fake_key;
+	BN_CTX *bnctx;
+	BIGNUM *fake_key, *x;
 	char *buf;
 	int connfd, res;
 	size_t i;
 
 	factor = htobe32(factor);
 
-	if ((x = BN_bin2bn((uint8_t *) &factor, sizeof(factor), NULL)) == NULL ||
+	if ((bnctx = BN_CTX_new()) == NULL ||
 	    (fake_key = BN_new()) == NULL ||
+	    (x = BN_bin2bn((uint8_t *) &factor, sizeof(factor), NULL)) == NULL ||
 	    BN_mul(fake_key, modulus, x, bnctx) == 0)
 		goto fail;
 
@@ -122,8 +122,9 @@ crack_srp(uint32_t factor)
 
 	res = strcmp(buf, "OK") == 0;
 
-	BN_free(x);
+	BN_CTX_free(bnctx);
 	BN_free(fake_key);
+	BN_free(x);
 	close(connfd);
 	free(salt);
 	free(buf);
@@ -138,8 +139,7 @@ main(void)
 {
 	uint32_t factor;
 
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    BN_hex2bn(&modulus, N) == 0)
+	if (BN_hex2bn(&modulus, N) == 0)
 		err(1, NULL);
 
 	for (factor = 0; factor < 3; factor++)
