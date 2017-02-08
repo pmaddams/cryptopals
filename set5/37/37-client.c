@@ -15,11 +15,11 @@
 
 #include "37.h"
 
+BN_CTX *bnctx;
+
 BIGNUM *modulus;
 
 char *salt, *shared_k, *hmac;
-
-BN_CTX *bnctx;
 
 int
 lo_connect(in_port_t port)
