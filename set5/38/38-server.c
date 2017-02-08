@@ -98,6 +98,29 @@ fail:
 	return NULL;
 }
 
+BIGNUM *
+make_verifier(BIGNUM *generator, char *salt, char *password, BIGNUM *modulus)
+{
+	SHA2_CTX sha2ctx;
+	char hash[SHA256_DIGEST_LENGTH];
+	BIGNUM *x;
+
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, salt, strlen(salt));
+	SHA256Update(&sha2ctx, password, strlen(password));
+	SHA256Final(hash, &sha2ctx);
+
+	if ((verifier = BN_new()) == NULL ||
+	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
+	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
+		goto fail;
+
+	free(x);
+	return verifier;
+fail:
+	return NULL;
+}
+
 int
 main(void)
 {
@@ -151,7 +174,8 @@ main(void)
 		free(buf);
 		free(buf2);
 
-		if ((shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
+		if ((verifier = make_verifier(generator, salt, PASSWORD, modulus)) == NULL ||
+		    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
 		    (shared_k = make_shared_k(shared_s)) == NULL ||
 		    (hmac = make_hmac(shared_k, salt)) == NULL ||
 
