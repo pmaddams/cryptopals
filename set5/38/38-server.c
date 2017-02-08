@@ -16,6 +16,8 @@
 
 #include "38.h"
 
+#define DATABASE "DATA"
+
 BIGNUM *modulus, *generator, *multiplier,
     *private_key, *public_key, *client_pubkey,
     *scrambler;
@@ -195,9 +197,6 @@ main(void)
 
 		p = buf;
 		if ((i = strcspn(p, " ")) > strlen(p)-2)
-			errx(1, "invalid username");
-		p[i] = '\0';
-		if (strcmp(p, USERNAME) != 0)
 			errx(1, "invalid username");
 
 		p += i+1;
