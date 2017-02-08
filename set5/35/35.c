@@ -33,25 +33,43 @@ struct party {
 };
 
 BIGNUM *p;
-BN_CTX *bnctx;
 
 int
 dh_params(struct party *party, BIGNUM *g)
 {
+	BN_CTX *bnctx;
 	uint8_t buf[BUFSIZ];
+
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
 
 	memset(party, 0, sizeof(*party));
 	arc4random_buf(buf, BUFSIZ);
 
-	return BN_bin2bn(buf, BUFSIZ, &party->private) &&
-	    BN_mod_exp(&party->public, g, &party->private, p, bnctx);
+	if (BN_bin2bn(buf, BUFSIZ, &party->private) == 0 ||
+	    BN_mod_exp(&party->public, g, &party->private, p, bnctx) == 0)
+		goto fail;
+
+	BN_CTX_free(bnctx);
+	return 1;
+fail:
+	return 0;
 }
 
 int
 dh_xchg(struct party *p1, struct party *p2)
 {
-	return BN_mod_exp(&p1->shared, &p2->public, &p1->private, p, bnctx) &&
-	    BN_mod_exp(&p2->shared, &p1->public, &p2->private, p, bnctx);
+	BN_CTX *bnctx;
+
+	if ((bnctx = BN_CTX_new()) == NULL ||
+	    BN_mod_exp(&p1->shared, &p2->public, &p1->private, p, bnctx) == 0 ||
+	    BN_mod_exp(&p2->shared, &p1->public, &p2->private, p, bnctx) == 0)
+		goto fail;
+
+	BN_CTX_free(bnctx);
+	return 1;
+fail:
+	return 0;
 }
 
 int
@@ -62,7 +80,6 @@ enc_params(struct party *party)
 	SHA1_CTX sha1ctx;
 
 	len = BN_num_bytes(&party->shared);
-
 	if ((buf = malloc(len)) == NULL)
 		goto fail;
 
@@ -164,12 +181,9 @@ main(void)
 	BIGNUM *g;
 	struct party alice, bob, chuck;
 
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    BN_hex2bn(&p, P) == 0 ||
-	    (g = BN_new()) == NULL)
+	if ((g = BN_new()) == NULL ||
+	    BN_hex2bn(&p, P) == 0)
 		err(1, NULL);
-
-	BN_init(g);
 
 	if (BN_one(g) == 0 ||
 	    dh_params(&alice, g) == 0 ||

@@ -10,6 +10,7 @@
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 
+#define G	"2"
 #define P	"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"	\
 		"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd"	\
 		"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec"	\
@@ -18,7 +19,6 @@
 		"c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552"	\
 		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff"	\
 		"fffffffffffff"
-#define G	"2"
 
 #define BLKSIZ	16
 
@@ -33,25 +33,43 @@ struct party {
 	char *message;
 };
 
-BIGNUM *p, *g;
-BN_CTX *bnctx;
+BIGNUM *g, *p;
 
 int
 dh_params(struct party *party)
 {
+	BN_CTX *bnctx;
 	uint8_t buf[BUFSIZ];
+
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
 
 	memset(party, 0, sizeof(*party));
 	arc4random_buf(buf, BUFSIZ);
 
-	return BN_bin2bn(buf, BUFSIZ, &party->private) &&
-	    BN_mod_exp(&party->public, g, &party->private, p, bnctx);
+	if (BN_bin2bn(buf, BUFSIZ, &party->private) == 0 ||
+	    BN_mod_exp(&party->public, g, &party->private, p, bnctx) == 0)
+		goto fail;
+
+	BN_CTX_free(bnctx);
+	return 1;
+fail:
+	return 0;
 }
 
 int
 send_key(struct party *party, BIGNUM *b)
 {
-	return BN_mod_exp(&party->shared, b, &party->private, p, bnctx);
+	BN_CTX *bnctx;
+
+	if ((bnctx = BN_CTX_new()) == NULL ||
+	    BN_mod_exp(&party->shared, b, &party->private, p, bnctx) == 0)
+		goto fail;
+
+	BN_CTX_free(bnctx);
+	return 1;
+fail:
+	return 0;
 }
 
 int
@@ -62,7 +80,6 @@ enc_params(struct party *party)
 	SHA1_CTX sha1ctx;
 
 	len = BN_num_bytes(&party->shared);
-
 	if ((buf = malloc(len)) == NULL)
 		goto fail;
 
@@ -139,9 +156,8 @@ main(void)
 {
 	struct party alice, bob, chuck;
 
-	if ((bnctx = BN_CTX_new()) == NULL ||
+	if (BN_hex2bn(&g, G) == 0 ||
 	    BN_hex2bn(&p, P) == 0 ||
-	    BN_hex2bn(&g, G) == 0 ||
 
 	    dh_params(&alice) == 0 ||
 	    dh_params(&bob) == 0 ||
