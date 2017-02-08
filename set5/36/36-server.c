@@ -155,8 +155,10 @@ main(void)
 			err(1, NULL);
 
 		p = buf;
-		if ((i = strcspn(p, " ")) > strlen(p)-2 ||
-		    strncmp(p, USERNAME, i) != 0)
+		if ((i = strcspn(p, " ")) > strlen(p)-2)
+			errx(1, "invalid username");
+		p[i] = '\0';
+		if (strcmp(p, USERNAME) != 0)
 			errx(1, "invalid username");
 
 		p += i+1;
