@@ -16,7 +16,7 @@
 
 BN_CTX *bnctx;
 
-BIGNUM *modulus, *generator,
+BIGNUM *modulus, *generator, *multiplier,
     *private_key, *public_key, *server_pubkey,
     *scrambler, *shared_s;
 
@@ -55,7 +55,7 @@ fail:
 }
 
 BIGNUM *
-make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *private_key, BIGNUM *scrambler, BIGNUM *modulus)
+make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multiplier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *scrambler, BIGNUM *modulus)
 {
 	SHA2_CTX sha2ctx;
 	char hash[SHA256_DIGEST_LENGTH];
@@ -93,7 +93,7 @@ main(void)
 	size_t i;
 
 	if ((bnctx = BN_CTX_new()) == NULL ||
-	    init_params(&modulus, &generator) == 0 ||
+	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (private_key = make_private_key()) == NULL ||
 	    (public_key = make_public_key(generator, private_key, modulus)) == NULL ||
 	    (buf = BN_bn2hex(public_key)) == NULL ||
@@ -133,7 +133,7 @@ main(void)
 
 	print("password: ");
 	if ((password = input()) == NULL ||
-	    (shared_s = make_shared_s(salt, password, server_pubkey, private_key, scrambler, modulus)) == NULL ||
+	    (shared_s = make_shared_s(salt, password, server_pubkey, multiplier, generator, private_key, scrambler, modulus)) == NULL ||
 	    (shared_k = make_shared_k(shared_s)) == NULL ||
 	    (hmac = make_hmac(shared_k, salt)) == NULL ||
 

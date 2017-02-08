@@ -176,7 +176,7 @@ main(void)
 	size_t i;
 
 	if ((bnctx = BN_CTX_new()) == NULL ||
-	    init_params(&modulus, &generator) == 0 ||
+	    init_params(&modulus, &generator, &multiplier) == 0 ||
 	    (salt = make_salt()) == NULL ||
 	    (private_key = make_private_key()) == NULL ||
 	    (public_key = make_public_key(generator, private_key, modulus)) == NULL ||
