@@ -103,7 +103,7 @@ main(void)
 {
 	int listenfd, connfd;
 	pid_t pid;
-	char *buf, *p;
+	char *buf, *buf2, *p;
 	size_t i;
 
 	if ((bnctx = BN_CTX_new()) == NULL ||
@@ -111,6 +111,7 @@ main(void)
 	    (salt = make_salt()) == NULL ||
 	    (private_key = make_private_key()) == NULL ||
 	    (public_key = make_public_key(generator, private_key, modulus)) == NULL ||
+	    (scrambler = make_scrambler()) == NULL ||
 	    (listenfd = lo_listen(PORT)) == -1)
 		err(1, NULL);
 
@@ -141,13 +142,14 @@ main(void)
 		free(buf);
 
 		if ((buf = BN_bn2hex(public_key)) == NULL ||
-		    ssendf(connfd, "%s %s", salt, buf) == 0)
+		    (buf2 = BN_bn2hex(scrambler)) == NULL ||
+		    ssendf(connfd, "%s %s %s", salt, buf, buf2) == 0)
 			err(1, NULL);
 
 		free(buf);
+		free(buf2);
 
-		if ((scrambler = make_scrambler()) == NULL ||
-		    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
+		if ((shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
 		    (shared_k = make_shared_k(shared_s)) == NULL ||
 		    (hmac = make_hmac(shared_k, salt)) == NULL ||
 

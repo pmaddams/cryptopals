@@ -124,8 +124,17 @@ main(void)
 		err(1, NULL);
 
 	p += i+1;
+	if ((i = strcspn(p, " ")) > strlen(p)-2)
+		errx(1, "invalid key");
+	p[i] = '\0';
+
 	if ((server_pubkey = BN_new()) == NULL ||
 	    BN_hex2bn(&server_pubkey, p) == 0)
+		err(1, NULL);
+
+	p += i+1;
+	if ((scrambler = BN_new()) == NULL ||
+	   BN_hex2bn(&scrambler, p) == 0)
 		err(1, NULL);
 
 	free(buf);
