@@ -16,8 +16,6 @@
 
 #include "38.h"
 
-BN_CTX *bnctx;
-
 BIGNUM *modulus, *generator, *multiplier,
     *private_key, *public_key, *client_pubkey,
     *scrambler;
@@ -66,9 +64,13 @@ make_scrambler(void)
 BIGNUM *
 make_verifier(BIGNUM *generator, char *salt, char *password, BIGNUM *modulus)
 {
+	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
 	char hash[SHA256_DIGEST_LENGTH];
 	BIGNUM *verifier, *x;
+
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, salt, strlen(salt));
@@ -80,7 +82,9 @@ make_verifier(BIGNUM *generator, char *salt, char *password, BIGNUM *modulus)
 	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
 		goto fail;
 
+	BN_CTX_free(bnctx);
 	free(x);
+
 	return verifier;
 fail:
 	return NULL;
@@ -89,8 +93,11 @@ fail:
 BIGNUM *
 make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM *private_key, BIGNUM *modulus)
 {
+	BN_CTX *bnctx;
 	BIGNUM *shared_s, *tmp;
 
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
 	BN_CTX_start(bnctx);
 
 	if ((shared_s = BN_new()) == NULL ||
@@ -102,6 +109,7 @@ make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM
 		goto fail;
 
 	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
 
 	return shared_s;
 fail:
@@ -163,8 +171,7 @@ main(void)
 	char *buf, *buf2, *p;
 	size_t i;
 
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    init_params(&modulus, &generator) == 0 ||
+	if (init_params(&modulus, &generator) == 0 ||
 	    (salt = make_salt()) == NULL ||
 	    (private_key = make_private_key()) == NULL ||
 	    (public_key = make_public_key(generator, private_key, modulus)) == NULL ||
