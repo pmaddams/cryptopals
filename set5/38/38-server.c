@@ -6,7 +6,6 @@
 #include <err.h>
 #include <netdb.h>
 #include <sha2.h>
-#include <search.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
