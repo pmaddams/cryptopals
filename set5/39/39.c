@@ -1,13 +1,10 @@
-#include <err.h>
-#include <stdio.h>
-
 #include <openssl/bn.h>
 
 BIGNUM *
 invmod(BIGNUM *n, BIGNUM *modulus)
 {
-	BN_CTX *ctx;
 	BIGNUM *res, *remainder, *quotient, *x0, *x1, *t0, *t1;
+	BN_CTX *ctx;
 
 	if (BN_is_zero(n) || BN_is_zero(modulus))
 		goto fail;
@@ -45,10 +42,10 @@ invmod(BIGNUM *n, BIGNUM *modulus)
 			goto fail;
 	}
 
-	if (BN_is_one(res)) {
-		if (BN_mod(res, x0, modulus, ctx) == 0)
-			goto fail;
-	}
+	if (!BN_is_one(res) ||
+	    BN_mod(res, x0, modulus, ctx) == 0)
+		goto fail;
+
 	BN_zero(t0);
 	if (BN_cmp(res, t0) < 0)
 		BN_add(res, modulus, res);
@@ -59,27 +56,4 @@ done:
 	return res;
 fail:
 	return NULL;
-}
-
-int
-main(int argc, char **argv)
-{
-	BIGNUM *a, *b, *res;
-	char *buf;
-
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s n1 n2\n", argv[0]);
-		return 1;
-	}
-
-	a = b = NULL;
-	if (BN_dec2bn(&a, argv[1]) == 0 ||
-	    BN_dec2bn(&b, argv[2]) == 0 ||
-	    (res = invmod(a, b)) == NULL ||
-	    (buf = BN_bn2dec(res)) == NULL)
-		err(1, NULL);
-
-	puts(buf);
-
-	return 0;
 }
