@@ -46,8 +46,7 @@ invmod(BIGNUM *n, BIGNUM *modulus)
 	    BN_mod(res, x0, modulus, ctx) == 0)
 		goto fail;
 
-	BN_zero(t0);
-	if (BN_cmp(res, t0) < 0)
+	if (BN_is_negative(res))
 		BN_add(res, modulus, res);
 
 	BN_CTX_end(ctx);
