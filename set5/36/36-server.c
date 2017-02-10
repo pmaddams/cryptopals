@@ -86,19 +86,19 @@ BIGNUM *
 make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
 {
 	BN_CTX *bnctx;
-	BIGNUM *t1, *t2;
+	BIGNUM *t0, *t1;
 
 	if ((bnctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(bnctx);
 
 	if ((public_key = BN_new()) == NULL ||
+	    (t0 = BN_CTX_get(bnctx)) == NULL ||
 	    (t1 = BN_CTX_get(bnctx)) == NULL ||
-	    (t2 = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mul(t1, multiplier, verifier, bnctx) == 0 ||
-	    BN_mod_exp(t2, generator, private_key, modulus, bnctx) == 0 ||
-	    BN_add(public_key, t1, t2) == 0)
+	    BN_mul(t0, multiplier, verifier, bnctx) == 0 ||
+	    BN_mod_exp(t1, generator, private_key, modulus, bnctx) == 0 ||
+	    BN_add(public_key, t0, t1) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);
