@@ -1,7 +1,10 @@
 #include <err.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <openssl/bn.h>
+
+#define VERBOSE
 
 #define E	"3"
 
@@ -78,6 +81,10 @@ rsa_init(struct rsa *rsa)
 	BN_CTX *ctx;
 	BIGNUM *totient, *t0, *t1;
 
+#ifdef VERBOSE
+	fprintf(stderr, "initializing, please wait...");
+#endif
+
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(ctx);
@@ -94,18 +101,23 @@ rsa_init(struct rsa *rsa)
 
 	    BN_generate_prime_ex(rsa->p, BITS, 0, NULL, NULL, NULL) == 0 ||
 	    BN_generate_prime_ex(rsa->q, BITS, 0, NULL, NULL, NULL) == 0 ||
+
 	    BN_mul(rsa->n, rsa->p, rsa->q, ctx) == 0 ||
+
 	    BN_dec2bn(&rsa->e, E) == 0 ||
 
 	    BN_sub(t0, rsa->p, BN_value_one()) == 0 ||
 	    BN_sub(t1, rsa->q, BN_value_one()) == 0 ||
 	    BN_mul(totient, t0, t1, ctx) == 0 ||
-
 	    (rsa->d = invmod(rsa->e, totient)) == NULL)
 		goto fail;
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
+
+#ifdef VERBOSE
+	fprintf(stderr, "done.\n");
+#endif
 
 	return 1;
 fail:
