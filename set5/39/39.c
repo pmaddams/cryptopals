@@ -22,14 +22,14 @@ struct rsa {
 };
 
 BIGNUM *
-invmod(BIGNUM *n, BIGNUM *modulus)
+invmod(BIGNUM *a, BIGNUM *modulus)
 {
 	BIGNUM *res, *remainder, *quotient, *x0, *x1, *t0, *t1;
 	BN_CTX *ctx;
 
-	if (BN_is_zero(n) || BN_is_zero(modulus))
+	if (BN_is_zero(a) || BN_is_zero(modulus))
 		goto fail;
-	if (BN_is_one(n) || BN_is_one(modulus)) {
+	if (BN_is_one(a) || BN_is_one(modulus)) {
 		res = BN_dup(BN_value_one());
 		goto done;
 	}
@@ -38,7 +38,7 @@ invmod(BIGNUM *n, BIGNUM *modulus)
 		goto fail;
 	BN_CTX_start(ctx);
 
-	if ((res = BN_dup(n)) == NULL ||
+	if ((res = BN_dup(a)) == NULL ||
 	    (remainder = BN_CTX_get(ctx)) == NULL ||
 	    (quotient = BN_CTX_get(ctx)) == NULL ||
 	    (x0 = BN_CTX_get(ctx)) == NULL ||
@@ -153,6 +153,7 @@ rsa_crypt(struct rsa *rsa, uint8_t *inbuf, size_t inlen, size_t *outlenp, int en
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
 
+	outbuf[outlen] = '\0';
 	if (outlenp != NULL)
 		*outlenp = outlen;
 
