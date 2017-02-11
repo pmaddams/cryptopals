@@ -1,5 +1,6 @@
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <openssl/bn.h>
@@ -7,8 +8,10 @@
 #define VERBOSE
 
 #define E	"3"
-
 #define BITS	2048
+
+#define DECRYPT	0
+#define ENCRYPT	1
 
 struct rsa {
 	BIGNUM *p;
@@ -124,13 +127,68 @@ fail:
 	return 0;
 }
 
+char *
+rsa_crypt(struct rsa *rsa, uint8_t *inbuf, size_t inlen, size_t *outlenp, int enc)
+{
+	BN_CTX *ctx;
+	BIGNUM *in, *out;
+	size_t outlen;
+	char *outbuf;
+
+	if ((ctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(ctx);
+
+	if ((in = BN_CTX_get(ctx)) == NULL ||
+	    (out = BN_CTX_get(ctx)) == NULL ||
+	    BN_bin2bn(inbuf, inlen, in) == 0 ||
+	    BN_mod_exp(out, in, enc ? rsa->e : rsa->d, rsa->n, ctx) == 0)
+		goto fail;
+
+	outlen = BN_num_bytes(out);
+	if ((outbuf = malloc(outlen+1)) == NULL ||
+	    BN_bn2bin(out, outbuf) == 0)
+		goto fail;
+
+	BN_CTX_end(ctx);
+	BN_CTX_free(ctx);
+
+	if (outlenp != NULL)
+		*outlenp = outlen;
+
+	return outbuf;
+fail:
+	return NULL;
+}
+
 int
-main(void)
+main(int argc, char **argv)
 {
 	struct rsa rsa;
+	char *s, *enc, *dec;
+	size_t enclen;
+
+	if (argc == 1) {
+		fprintf(stderr, "usage: %s string ...\n", argv[0]);
+		exit(1);
+	}
 
 	if (rsa_init(&rsa) == 0)
 		err(1, NULL);
 
-	return 0;
+	while (argc > 1) {
+		s = argv[1];
+		if ((enc = rsa_crypt(&rsa, s, strlen(s), &enclen, ENCRYPT)) == NULL ||
+		    (dec = rsa_crypt(&rsa, enc, enclen, NULL, DECRYPT)) == NULL)
+			err(1, NULL);
+
+		puts(dec);
+
+		free(enc);
+		free(dec);
+		argc--;
+		argv++;
+	}
+
+	exit(0);
 }
