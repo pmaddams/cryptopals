@@ -62,7 +62,7 @@ make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multipl
 	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
 	char hash[SHA256_DIGEST_LENGTH];
-	BIGNUM *x, *t0, *t1;
+	BIGNUM *x, *t1, *t2;
 
 	if ((bnctx = BN_CTX_new()) == NULL)
 		goto fail;
@@ -75,15 +75,15 @@ make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multipl
 
 	if ((shared_s = BN_new()) == NULL ||
 	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
-	    (t0 = BN_CTX_get(bnctx)) == NULL ||
 	    (t1 = BN_CTX_get(bnctx)) == NULL ||
+	    (t2 = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mod_exp(t0, generator, x, modulus, bnctx) == 0 ||
-	    BN_mul(t0, multiplier, t0, bnctx) == 0 ||
-	    BN_sub(t0, server_pubkey, t0) == 0 ||
-	    BN_mul(t1, scrambler, x, bnctx) == 0 ||
-	    BN_add(t1, private_key, t1) == 0 ||
-	    BN_mod_exp(shared_s, t0, t1, modulus, bnctx) == 0)
+	    BN_mod_exp(t1, generator, x, modulus, bnctx) == 0 ||
+	    BN_mul(t1, multiplier, t1, bnctx) == 0 ||
+	    BN_sub(t1, server_pubkey, t1) == 0 ||
+	    BN_mul(t2, scrambler, x, bnctx) == 0 ||
+	    BN_add(t2, private_key, t2) == 0 ||
+	    BN_mod_exp(shared_s, t1, t2, modulus, bnctx) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);

@@ -24,7 +24,7 @@ struct rsa {
 BIGNUM *
 invmod(BIGNUM *a, BIGNUM *modulus)
 {
-	BIGNUM *res, *remainder, *quotient, *x0, *x1, *t0, *t1;
+	BIGNUM *res, *remainder, *quotient, *x1, *x2, *t1, *t2;
 	BN_CTX *ctx;
 
 	if (BN_is_zero(a) || BN_is_zero(modulus))
@@ -41,30 +41,30 @@ invmod(BIGNUM *a, BIGNUM *modulus)
 	if ((res = BN_dup(a)) == NULL ||
 	    (remainder = BN_CTX_get(ctx)) == NULL ||
 	    (quotient = BN_CTX_get(ctx)) == NULL ||
-	    (x0 = BN_CTX_get(ctx)) == NULL ||
 	    (x1 = BN_CTX_get(ctx)) == NULL ||
-	    (t0 = BN_CTX_get(ctx)) == NULL ||
+	    (x2 = BN_CTX_get(ctx)) == NULL ||
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
+	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
 	    BN_copy(remainder, modulus) == NULL ||
-	    BN_one(x0) == 0 ||
-	    BN_zero(x1) == 0)
+	    BN_one(x1) == 0 ||
+	    BN_zero(x2) == 0)
 		goto fail;
 
 	while (!BN_is_zero(remainder)) {
-		if (BN_div(quotient, t0, res, remainder, ctx) == 0 ||
+		if (BN_div(quotient, t1, res, remainder, ctx) == 0 ||
 		    BN_copy(res, remainder) == NULL ||
-		    BN_copy(remainder, t0) == NULL ||
+		    BN_copy(remainder, t1) == NULL ||
 
-		    BN_copy(t0, x1) == NULL ||
-		    BN_mul(t1, quotient, x1, ctx) == 0 ||
-		    BN_sub(x1, x0, t1) == 0 ||
-		    BN_copy(x0, t0) == NULL)
+		    BN_copy(t1, x2) == NULL ||
+		    BN_mul(t2, quotient, x2, ctx) == 0 ||
+		    BN_sub(x2, x1, t2) == 0 ||
+		    BN_copy(x1, t1) == NULL)
 			goto fail;
 	}
 
 	if (!BN_is_one(res) ||
-	    BN_mod(res, x0, modulus, ctx) == 0)
+	    BN_mod(res, x1, modulus, ctx) == 0)
 		goto fail;
 
 	if (BN_is_negative(res))
@@ -82,7 +82,7 @@ int
 rsa_init(struct rsa *rsa)
 {
 	BN_CTX *ctx;
-	BIGNUM *totient, *t0, *t1;
+	BIGNUM *totient, *t1, *t2;
 
 #ifdef VERBOSE
 	fprintf(stderr, "initializing, please wait...");
@@ -99,8 +99,8 @@ rsa_init(struct rsa *rsa)
 	    (rsa->n = BN_new()) == NULL ||
 
 	    (totient = BN_CTX_get(ctx)) == NULL ||
-	    (t0 = BN_CTX_get(ctx)) == NULL ||
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
+	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
 	    BN_generate_prime_ex(rsa->p, BITS, 0, NULL, NULL, NULL) == 0 ||
 	    BN_generate_prime_ex(rsa->q, BITS, 0, NULL, NULL, NULL) == 0 ||
@@ -109,9 +109,9 @@ rsa_init(struct rsa *rsa)
 
 	    BN_dec2bn(&rsa->e, E) == 0 ||
 
-	    BN_sub(t0, rsa->p, BN_value_one()) == 0 ||
-	    BN_sub(t1, rsa->q, BN_value_one()) == 0 ||
-	    BN_mul(totient, t0, t1, ctx) == 0 ||
+	    BN_sub(t1, rsa->p, BN_value_one()) == 0 ||
+	    BN_sub(t2, rsa->q, BN_value_one()) == 0 ||
+	    BN_mul(totient, t1, t2, ctx) == 0 ||
 	    (rsa->d = invmod(rsa->e, totient)) == NULL)
 		goto fail;
 

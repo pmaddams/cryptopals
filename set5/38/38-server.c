@@ -169,7 +169,7 @@ main(void)
 {
 	int listenfd, connfd;
 	pid_t pid;
-	char *buf, *buf1, *p;
+	char *buf, *buf2, *p;
 	size_t i;
 
 	if (init_params(&modulus, &generator) == 0 ||
@@ -206,12 +206,12 @@ main(void)
 		free(buf);
 
 		if ((buf = BN_bn2hex(public_key)) == NULL ||
-		    (buf1 = BN_bn2hex(scrambler)) == NULL ||
-		    ssendf(connfd, "%s %s %s", salt, buf, buf1) == 0)
+		    (buf2 = BN_bn2hex(scrambler)) == NULL ||
+		    ssendf(connfd, "%s %s %s", salt, buf, buf2) == 0)
 			err(1, NULL);
 
 		free(buf);
-		free(buf1);
+		free(buf2);
 
 		if ((client_hmac = srecv(connfd)) == NULL)
 			err(1, NULL);
