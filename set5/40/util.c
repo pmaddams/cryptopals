@@ -3,7 +3,7 @@
 #include "40.h"
 
 int
-cubert(BIGNUM *res, BIGNUM *a, BN_CTX *ctx)
+cubert(BIGNUM *res, BIGNUM *bn, BN_CTX *ctx)
 {
 	BIGNUM *out, *two, *three, *t1, *t2;
 
@@ -13,14 +13,14 @@ cubert(BIGNUM *res, BIGNUM *a, BN_CTX *ctx)
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
 	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
-	    BN_copy(out, a) == NULL ||
+	    BN_copy(out, bn) == NULL ||
 	    BN_dec2bn(&two, "2") == 0 ||
 	    BN_dec2bn(&three, "3") == 0)
 		goto fail;
 
 	for (;;) {
 		BN_exp(t1, out, two, ctx);
-		BN_div(t1, NULL, a, t1, ctx);
+		BN_div(t1, NULL, bn, t1, ctx);
 
 		BN_mul(t2, out, two, ctx);
 
@@ -39,13 +39,13 @@ fail:
 }
 
 int
-invmod(BIGNUM *res, BIGNUM *a, BIGNUM *modulus, BN_CTX *ctx)
+invmod(BIGNUM *res, BIGNUM *bn, BIGNUM *modulus, BN_CTX *ctx)
 {
 	BIGNUM *out, *remainder, *quotient, *x1, *x2, *t1, *t2;
 
-	if (BN_is_zero(a) || BN_is_zero(modulus))
+	if (BN_is_zero(bn) || BN_is_zero(modulus))
 		goto fail;
-	if (BN_is_one(a) || BN_is_one(modulus))
+	if (BN_is_one(bn) || BN_is_one(modulus))
 		return BN_copy(res, BN_value_one()) != NULL;
 
 	if ((out = BN_CTX_get(ctx)) == NULL ||
@@ -56,7 +56,7 @@ invmod(BIGNUM *res, BIGNUM *a, BIGNUM *modulus, BN_CTX *ctx)
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
 	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
-	    BN_copy(out, a) == NULL ||
+	    BN_copy(out, bn) == NULL ||
 	    BN_copy(remainder, modulus) == NULL ||
 	    BN_one(x1) == 0 ||
 	    BN_zero(x2) == 0)

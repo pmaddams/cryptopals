@@ -22,14 +22,14 @@ struct rsa {
 };
 
 BIGNUM *
-invmod(BIGNUM *a, BIGNUM *modulus)
+invmod(BIGNUM *bn, BIGNUM *modulus)
 {
 	BIGNUM *res, *remainder, *quotient, *x1, *x2, *t1, *t2;
 	BN_CTX *ctx;
 
-	if (BN_is_zero(a) || BN_is_zero(modulus))
+	if (BN_is_zero(bn) || BN_is_zero(modulus))
 		goto fail;
-	if (BN_is_one(a) || BN_is_one(modulus)) {
+	if (BN_is_one(bn) || BN_is_one(modulus)) {
 		res = BN_dup(BN_value_one());
 		goto done;
 	}
@@ -38,7 +38,7 @@ invmod(BIGNUM *a, BIGNUM *modulus)
 		goto fail;
 	BN_CTX_start(ctx);
 
-	if ((res = BN_dup(a)) == NULL ||
+	if ((res = BN_dup(bn)) == NULL ||
 	    (remainder = BN_CTX_get(ctx)) == NULL ||
 	    (quotient = BN_CTX_get(ctx)) == NULL ||
 	    (x1 = BN_CTX_get(ctx)) == NULL ||
