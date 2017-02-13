@@ -58,12 +58,12 @@ fail:
 }
 
 int
-send_key(struct party *party, BIGNUM *b)
+send_key(struct party *party, BIGNUM *pubkey)
 {
 	BN_CTX *bnctx;
 
 	if ((bnctx = BN_CTX_new()) == NULL ||
-	    BN_mod_exp(&party->shared, b, &party->private, p, bnctx) == 0)
+	    BN_mod_exp(&party->shared, pubkey, &party->private, p, bnctx) == 0)
 		goto fail;
 
 	BN_CTX_free(bnctx);
