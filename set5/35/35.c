@@ -118,7 +118,7 @@ mitm(struct party *m, BIGNUM *g, struct party *p1, struct party *p2)
 			if (BN_one(&m->shared) == 0)
 				goto fail;
 		} else
-			if (BN_copy(&m->shared, p) == 0 ||
+			if (BN_copy(&m->shared, p) == NULL ||
 			    BN_sub(&m->shared, &m->shared, BN_value_one()) == 0)
 				goto fail;
 	}
@@ -206,7 +206,7 @@ main(void)
 
 	put_msg(&chuck);
 
-	if (BN_copy(g, p) == 0 ||
+	if (BN_copy(g, p) == NULL ||
 	    dh_params(&alice, g) == 0 ||
 	    dh_params(&bob, g) == 0 ||
 	    dh_xchg(&alice, &bob) == 0 ||

@@ -1,16 +1,13 @@
 #include <openssl/bn.h>
 
-BIGNUM *
-cubert(BIGNUM *a)
+#include "40.h"
+
+int
+cubert(BIGNUM *r, BIGNUM *a, BN_CTX *ctx)
 {
-	BN_CTX *ctx;
 	BIGNUM *res, *two, *three, *t1, *t2;
 
-	if ((ctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(ctx);
-
-	if ((res = BN_new()) == NULL ||
+	if ((res = BN_CTX_get(ctx)) == NULL ||
 	    (two = BN_CTX_get(ctx)) == NULL ||
 	    (three = BN_CTX_get(ctx)) == NULL ||
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
@@ -36,32 +33,22 @@ cubert(BIGNUM *a)
 			goto fail;
 	}
 
-	BN_CTX_end(ctx);
-	BN_CTX_free(ctx);
-
-	return res;
+	return BN_copy(r, res) != NULL;
 fail:
-	return NULL;
+	return 0;
 }
 
-BIGNUM *
-invmod(BIGNUM *a, BIGNUM *modulus)
+int
+invmod(BIGNUM *r, BIGNUM *a, BIGNUM *modulus, BN_CTX *ctx)
 {
 	BIGNUM *res, *remainder, *quotient, *x1, *x2, *t1, *t2;
-	BN_CTX *ctx;
 
 	if (BN_is_zero(a) || BN_is_zero(modulus))
 		goto fail;
-	if (BN_is_one(a) || BN_is_one(modulus)) {
-		res = BN_dup(BN_value_one());
-		goto done;
-	}
+	if (BN_is_one(a) || BN_is_one(modulus))
+		return BN_copy(r, BN_value_one()) != NULL;
 
-	if ((ctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(ctx);
-
-	if ((res = BN_dup(a)) == NULL ||
+	if ((res = BN_CTX_get(ctx)) == NULL ||
 	    (remainder = BN_CTX_get(ctx)) == NULL ||
 	    (quotient = BN_CTX_get(ctx)) == NULL ||
 	    (x1 = BN_CTX_get(ctx)) == NULL ||
@@ -69,6 +56,7 @@ invmod(BIGNUM *a, BIGNUM *modulus)
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
 	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
+	    BN_copy(res, a) == NULL ||
 	    BN_copy(remainder, modulus) == NULL ||
 	    BN_one(x1) == 0 ||
 	    BN_zero(x2) == 0)
@@ -90,10 +78,7 @@ invmod(BIGNUM *a, BIGNUM *modulus)
 	    BN_nnmod(res, x1, modulus, ctx) == 0)
 		goto fail;
 
-	BN_CTX_end(ctx);
-	BN_CTX_free(ctx);
-done:
-	return res;
+	return BN_copy(r, res) != NULL;
 fail:
-	return NULL;
+	return 0;
 }

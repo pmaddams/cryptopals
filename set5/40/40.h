@@ -1,4 +1,4 @@
 #include <openssl/bn.h>
 
-BIGNUM *cubert(BIGNUM *);
-BIGNUM *invmod(BIGNUM *, BIGNUM *);
+int cubert(BIGNUM *, BIGNUM *, BN_CTX *);
+int invmod(BIGNUM *, BIGNUM *, BIGNUM *, BN_CTX *);
