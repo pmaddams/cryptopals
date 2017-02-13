@@ -63,7 +63,7 @@ BIGNUM *
 cubert(BIGNUM *a)
 {
 	BN_CTX *ctx;
-	BIGNUM *res, *two, *three, *t1, *t2, *t3;
+	BIGNUM *res, *two, *three, *t1, *t2;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
@@ -74,24 +74,22 @@ cubert(BIGNUM *a)
 	    (three = BN_CTX_get(ctx)) == NULL ||
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
 	    (t2 = BN_CTX_get(ctx)) == NULL ||
-	    (t3 = BN_CTX_get(ctx)) == NULL ||
 
-	    BN_one(res) == 0 ||
+	    BN_copy(res, a) == 0 ||
 	    BN_dec2bn(&two, "2") == 0 ||
-	    BN_dec2bn(&three, "3"))
+	    BN_dec2bn(&three, "3") == 0)
 		goto fail;
 
 	for (;;) {
-		BN_exp(t1, res, three, ctx);
-		BN_sub(t1, t1, a);
+		BN_exp(t1, res, two, ctx);
+		BN_div(t1, NULL, a, t1, ctx);
 
-		BN_exp(t2, res, two, ctx);
-		BN_mul(t2, t2, three, ctx);
+		BN_mul(t2, res, two, ctx);
 
-		BN_div(t1, NULL, t1, t2, ctx);
-		BN_add(t1, t1, res);
+		BN_add(t1, t1, t2);
+		BN_div(t1, NULL, t1, three, ctx);
 
-		if (!BN_cmp(res, t1))
+		if (BN_cmp(res, t1) == 0)
 			break;
 		if (BN_copy(res, t1) == NULL)
 			goto fail;
