@@ -3,52 +3,52 @@
 #include "40.h"
 
 int
-cubert(BIGNUM *r, BIGNUM *a, BN_CTX *ctx)
+cubert(BIGNUM *res, BIGNUM *a, BN_CTX *ctx)
 {
-	BIGNUM *res, *two, *three, *t1, *t2;
+	BIGNUM *out, *two, *three, *t1, *t2;
 
-	if ((res = BN_CTX_get(ctx)) == NULL ||
+	if ((out = BN_CTX_get(ctx)) == NULL ||
 	    (two = BN_CTX_get(ctx)) == NULL ||
 	    (three = BN_CTX_get(ctx)) == NULL ||
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
 	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
-	    BN_copy(res, a) == 0 ||
+	    BN_copy(out, a) == NULL ||
 	    BN_dec2bn(&two, "2") == 0 ||
 	    BN_dec2bn(&three, "3") == 0)
 		goto fail;
 
 	for (;;) {
-		BN_exp(t1, res, two, ctx);
+		BN_exp(t1, out, two, ctx);
 		BN_div(t1, NULL, a, t1, ctx);
 
-		BN_mul(t2, res, two, ctx);
+		BN_mul(t2, out, two, ctx);
 
 		BN_add(t1, t1, t2);
 		BN_div(t1, NULL, t1, three, ctx);
 
-		if (BN_cmp(res, t1) == 0)
+		if (BN_cmp(out, t1) == 0)
 			break;
-		if (BN_copy(res, t1) == NULL)
+		if (BN_copy(out, t1) == NULL)
 			goto fail;
 	}
 
-	return BN_copy(r, res) != NULL;
+	return BN_copy(res, out) != NULL;
 fail:
 	return 0;
 }
 
 int
-invmod(BIGNUM *r, BIGNUM *a, BIGNUM *modulus, BN_CTX *ctx)
+invmod(BIGNUM *res, BIGNUM *a, BIGNUM *modulus, BN_CTX *ctx)
 {
-	BIGNUM *res, *remainder, *quotient, *x1, *x2, *t1, *t2;
+	BIGNUM *out, *remainder, *quotient, *x1, *x2, *t1, *t2;
 
 	if (BN_is_zero(a) || BN_is_zero(modulus))
 		goto fail;
 	if (BN_is_one(a) || BN_is_one(modulus))
-		return BN_copy(r, BN_value_one()) != NULL;
+		return BN_copy(res, BN_value_one()) != NULL;
 
-	if ((res = BN_CTX_get(ctx)) == NULL ||
+	if ((out = BN_CTX_get(ctx)) == NULL ||
 	    (remainder = BN_CTX_get(ctx)) == NULL ||
 	    (quotient = BN_CTX_get(ctx)) == NULL ||
 	    (x1 = BN_CTX_get(ctx)) == NULL ||
@@ -56,15 +56,15 @@ invmod(BIGNUM *r, BIGNUM *a, BIGNUM *modulus, BN_CTX *ctx)
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
 	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
-	    BN_copy(res, a) == NULL ||
+	    BN_copy(out, a) == NULL ||
 	    BN_copy(remainder, modulus) == NULL ||
 	    BN_one(x1) == 0 ||
 	    BN_zero(x2) == 0)
 		goto fail;
 
 	while (!BN_is_zero(remainder)) {
-		if (BN_div(quotient, t1, res, remainder, ctx) == 0 ||
-		    BN_copy(res, remainder) == NULL ||
+		if (BN_div(quotient, t1, out, remainder, ctx) == 0 ||
+		    BN_copy(out, remainder) == NULL ||
 		    BN_copy(remainder, t1) == NULL ||
 
 		    BN_copy(t1, x2) == NULL ||
@@ -74,11 +74,11 @@ invmod(BIGNUM *r, BIGNUM *a, BIGNUM *modulus, BN_CTX *ctx)
 			goto fail;
 	}
 
-	if (!BN_is_one(res) ||
-	    BN_nnmod(res, x1, modulus, ctx) == 0)
+	if (!BN_is_one(out) ||
+	    BN_nnmod(out, x1, modulus, ctx) == 0)
 		goto fail;
 
-	return BN_copy(r, res) != NULL;
+	return BN_copy(res, out) != NULL;
 fail:
 	return 0;
 }
