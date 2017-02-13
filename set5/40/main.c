@@ -7,25 +7,22 @@
 
 #include "40.h"
 
+#define VERBOSE
+
 #define E	"3"
 #define BITS	2048
-
-#define DECRYPT	0
-#define ENCRYPT	1
 
 struct rsa {
 	BIGNUM *p;
 	BIGNUM *q;
 	BIGNUM *n;
 	BIGNUM *e;
-	BIGNUM *d;
 };
 
 int
 rsa_init(struct rsa *rsa)
 {
 	BN_CTX *ctx;
-	BIGNUM *totient, *t1, *t2;
 
 #ifdef VERBOSE
 	fprintf(stderr, "initializing, please wait...");
@@ -33,7 +30,6 @@ rsa_init(struct rsa *rsa)
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
-	BN_CTX_start(ctx);
 
 	memset(rsa, 0, sizeof(*rsa));
 
@@ -41,24 +37,14 @@ rsa_init(struct rsa *rsa)
 	    (rsa->q = BN_new()) == NULL ||
 	    (rsa->n = BN_new()) == NULL ||
 
-	    (totient = BN_CTX_get(ctx)) == NULL ||
-	    (t1 = BN_CTX_get(ctx)) == NULL ||
-	    (t2 = BN_CTX_get(ctx)) == NULL ||
-
 	    BN_generate_prime_ex(rsa->p, BITS, 0, NULL, NULL, NULL) == 0 ||
 	    BN_generate_prime_ex(rsa->q, BITS, 0, NULL, NULL, NULL) == 0 ||
 
 	    BN_mul(rsa->n, rsa->p, rsa->q, ctx) == 0 ||
 
-	    BN_dec2bn(&rsa->e, E) == 0 ||
-
-	    BN_sub(t1, rsa->p, BN_value_one()) == 0 ||
-	    BN_sub(t2, rsa->q, BN_value_one()) == 0 ||
-	    BN_mul(totient, t1, t2, ctx) == 0 ||
-	    (rsa->d = invmod(rsa->e, totient)) == NULL)
+	    BN_dec2bn(&rsa->e, E) == 0)
 		goto fail;
 
-	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
 
 #ifdef VERBOSE
@@ -71,7 +57,7 @@ fail:
 }
 
 char *
-rsa_crypt(struct rsa *rsa, uint8_t *inbuf, size_t inlen, size_t *outlenp, int enc)
+rsa_encrypt(struct rsa *rsa, uint8_t *inbuf, size_t inlen, size_t *outlenp)
 {
 	BN_CTX *ctx;
 	BIGNUM *in, *out;
@@ -85,7 +71,7 @@ rsa_crypt(struct rsa *rsa, uint8_t *inbuf, size_t inlen, size_t *outlenp, int en
 	if ((in = BN_CTX_get(ctx)) == NULL ||
 	    (out = BN_CTX_get(ctx)) == NULL ||
 	    BN_bin2bn(inbuf, inlen, in) == 0 ||
-	    BN_mod_exp(out, in, enc ? rsa->e : rsa->d, rsa->n, ctx) == 0)
+	    BN_mod_exp(out, in, rsa->e, rsa->n, ctx) == 0)
 		goto fail;
 
 	outlen = BN_num_bytes(out);
@@ -145,7 +131,9 @@ crack_rsa(BIGNUM *c1, BIGNUM *n1, BIGNUM *c2, BIGNUM *n2, BIGNUM *c3, BIGNUM *n3
 	    BN_mul(tmp, n1, n2, ctx) == 0 ||
 	    BN_mul(tmp, tmp, n3, ctx) == 0 ||
 
-	    BN_mod(res, res, tmp, ctx) == 0)
+	    BN_mod(res, res, tmp, ctx) == 0 ||
+
+	    (res = cubert(res)) == NULL)
 		goto fail;
 
 	BN_CTX_end(ctx);
@@ -157,7 +145,30 @@ fail:
 }
 
 int
-main(void)
+main(int argc, char **argv)
 {
+	struct rsa r1, r2, r3;
+	char *s, *enc, *dec;
+	BIGNUM *c1, *c2, *c3;
+
+	if (argc == 1) {
+		fprintf(stderr, "usage: %s string ...\n", argv[0]);
+		exit(0);
+	}
+
+	if (rsa_init(&r1) == 0 ||
+	    rsa_init(&r2) == 0 ||
+	    rsa_init(&r3) == 0 ||
+
+	    (c1 = BN_new()) == NULL ||
+	    (c2 = BN_new()) == NULL ||
+	    (c3 = BN_new()) == NULL)
+		err(1, NULL);
+
+	while (argc > 1) {
+		s = argv[1];
+		
+	}
+
 	return 0;
 }
