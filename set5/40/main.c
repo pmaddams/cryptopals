@@ -56,37 +56,26 @@ fail:
 	return 0;
 }
 
-char *
-rsa_encrypt(struct rsa *rsa, uint8_t *inbuf, size_t inlen, size_t *outlenp)
+BIGNUM *
+rsa_encrypt(struct rsa *rsa, uint8_t *buf, size_t len)
 {
 	BN_CTX *ctx;
 	BIGNUM *in, *out;
-	size_t outlen;
-	char *outbuf;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(ctx);
 
 	if ((in = BN_CTX_get(ctx)) == NULL ||
-	    (out = BN_CTX_get(ctx)) == NULL ||
-	    BN_bin2bn(inbuf, inlen, in) == 0 ||
+	    (out = BN_new()) == NULL ||
+	    BN_bin2bn(buf, len, in) == 0 ||
 	    BN_mod_exp(out, in, rsa->e, rsa->n, ctx) == 0)
-		goto fail;
-
-	outlen = BN_num_bytes(out);
-	if ((outbuf = malloc(outlen+1)) == NULL ||
-	    BN_bn2bin(out, outbuf) == 0)
 		goto fail;
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
 
-	outbuf[outlen] = '\0';
-	if (outlenp != NULL)
-		*outlenp = outlen;
-
-	return outbuf;
+	return out;
 fail:
 	return NULL;
 }
@@ -148,8 +137,9 @@ int
 main(int argc, char **argv)
 {
 	struct rsa r1, r2, r3;
-	char *s, *enc, *dec;
-	BIGNUM *c1, *c2, *c3;
+	char *in, *out;
+	size_t inlen, outlen;
+	BIGNUM *c1, *c2, *c3, *p;
 
 	if (argc == 1) {
 		fprintf(stderr, "usage: %s string ...\n", argv[0]);
@@ -166,8 +156,31 @@ main(int argc, char **argv)
 		err(1, NULL);
 
 	while (argc > 1) {
-		s = argv[1];
-		
+		in = argv[1];
+		inlen = strlen(in);
+
+		if ((c1 = rsa_encrypt(&r1, in, inlen)) == NULL ||
+		    (c2 = rsa_encrypt(&r2, in, inlen)) == NULL ||
+		    (c3 = rsa_encrypt(&r3, in, inlen)) == NULL ||
+
+		    (p = crack_rsa(c1, r1.n, c2, r2.n, c3, r3.n)) == NULL)
+			err(1, NULL);
+
+		outlen = BN_num_bytes(p);
+		if ((out = malloc(outlen+1)) == NULL ||
+		    BN_bn2bin(p, out) == 0)
+			err(1, NULL);
+		out[outlen] = '\0';
+
+		puts(out);
+
+		free(c1);
+		free(c2);
+		free(c3);
+		free(p);
+		free(out);
+		argc--;
+		argv++;
 	}
 
 	return 0;
