@@ -87,11 +87,8 @@ invmod(BIGNUM *a, BIGNUM *modulus)
 	}
 
 	if (!BN_is_one(res) ||
-	    BN_mod(res, x1, modulus, ctx) == 0)
+	    BN_nnmod(res, x1, modulus, ctx) == 0)
 		goto fail;
-
-	if (BN_is_negative(res))
-		BN_add(res, modulus, res);
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
