@@ -7,6 +7,8 @@
 
 #include "40.h"
 
+#define VERBOSE
+
 #define E	"3"
 #define BITS	2048
 
@@ -106,54 +108,9 @@ fail:
 }
 
 BIGNUM *
-crack_rsa(BIGNUM *c1, BIGNUM *n1, BIGNUM *c2, BIGNUM *n2, BIGNUM *c3, BIGNUM *n3)
+crack_rsa()
 {
-	BN_CTX *ctx;
-	BIGNUM *res, *tmp;
 
-	if ((ctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(ctx);
-
-	if ((res = BN_new()) == NULL ||
-	    (tmp = BN_CTX_get(ctx)) == NULL)
-		goto fail;
-
-	if (BN_zero(res) == 0 ||
-
-	    BN_mul(tmp, n2, n3, ctx) == 0 ||
-	    (tmp = invmod(tmp, n1)) == NULL ||
-	    BN_mul(tmp, tmp, c1, ctx) == 0 ||
-	    BN_mul(tmp, tmp, n2, ctx) == 0 ||
-	    BN_mul(tmp, tmp, n3, ctx) == 0 ||
-	    BN_add(res, res, tmp) == 0 ||
-
-	    BN_mul(tmp, n1, n3, ctx) == 0 ||
-	    (tmp = invmod(tmp, n2)) == NULL ||
-	    BN_mul(tmp, tmp, c2, ctx) == 0 ||
-	    BN_mul(tmp, tmp, n1, ctx) == 0 ||
-	    BN_mul(tmp, tmp, n3, ctx) == 0 ||
-	    BN_add(res, res, tmp) == 0 ||
-
-	    BN_mul(tmp, n1, n2, ctx) == 0 ||
-	    (tmp = invmod(tmp, n3)) == NULL ||
-	    BN_mul(tmp, tmp, c3, ctx) == 0 ||
-	    BN_mul(tmp, tmp, n1, ctx) == 0 ||
-	    BN_mul(tmp, tmp, n2, ctx) == 0 ||
-	    BN_add(res, res, tmp) == 0 ||
-
-	    BN_mul(tmp, n1, n2, ctx) == 0 ||
-	    BN_mul(tmp, tmp, n3, ctx) == 0 ||
-
-	    BN_mod(res, res, tmp, ctx) == 0)
-		goto fail;
-
-	BN_CTX_end(ctx);
-	BN_CTX_free(ctx);
-
-	return res;
-fail:
-	return NULL;
 }
 
 int
