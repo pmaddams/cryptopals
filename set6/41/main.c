@@ -1,6 +1,8 @@
 #include <sys/types.h>
 
 #include <sha2.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include <openssl/bn.h>
@@ -17,6 +19,8 @@ struct entry {
 	char *hash;
 	struct entry *next;
 };
+
+struct entry *tab[HASHSIZE];
 
 char *
 encrypt_message(struct rsa *rsa, char *text)
@@ -42,8 +46,45 @@ fail:
 }
 
 int
-check_message()
+check_message(char *enc)
 {
+	time_t cur;
+	char *hash;
+	size_t i;
+	struct entry *entry, **p, *next;
+
+	if (time(&cur) == -1 ||
+	    (hash = SHA256Data(enc, strlen(enc), NULL)) == NULL)
+		goto fail;
+
+	i = *(size_t *) hash % HASHSIZE;
+
+	for (entry = tab[i]; entry != NULL;)
+		if (cur - entry->timestamp > TIMEOUT) {
+			p = &entry;
+			next = entry->next;
+
+			free(entry->hash);
+			free(entry);
+
+			*p = entry = next;
+		} else if (strcmp(hash, entry->hash) == 0) {
+			free(hash);
+			goto fail;
+		} else
+			entry = entry->next;
+
+	if ((entry = malloc(sizeof(*entry))) == NULL)
+		goto fail;
+
+	entry->timestamp = cur;
+	entry->hash = hash;
+	entry->next = tab[i];
+	tab[i] = entry;
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
