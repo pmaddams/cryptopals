@@ -87,9 +87,26 @@ fail:
 	return 0;
 }
 
-int
-decrypt_message()
+char *
+decrypt_message(struct rsa *rsa, char *enc)
 {
+	BIGNUM *in, *out;
+	struct message msg;
+	char *text;
+
+	if ((in = BN_new()) == NULL ||
+	    BN_hex2bn(&in, enc) == 0 ||
+	    (out = rsa_crypt(rsa, in, DECRYPT)) == NULL ||
+	    BN_bn2bin(out, (uint8_t *) &msg) == 0 ||
+	    (text = strdup(msg.text)) == NULL)
+		goto fail;
+
+	free(in);
+	free(out);
+
+	return text;
+fail:
+	return NULL;
 }
 
 int
