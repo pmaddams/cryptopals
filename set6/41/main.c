@@ -119,6 +119,7 @@ main(int argc, char **argv)
 
 	if (rsa_init(&rsa) == 0 ||
 	    (enc = encrypt_message(&rsa, "hello world")) == NULL ||
+	    check_message(enc) == 0 ||
 	    (dec = decrypt_message(&rsa, enc)) == NULL)
 		err(1, NULL);
 

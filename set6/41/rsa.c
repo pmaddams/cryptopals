@@ -119,6 +119,7 @@ rsa_crypt(struct rsa *rsa, BIGNUM *in, int enc)
 	BIGNUM *out;
 
 	if ((ctx = BN_CTX_new()) == NULL ||
+	    (out = BN_new()) == NULL ||
 	    BN_mod_exp(out, in, enc ? rsa->e : rsa->d, rsa->n, ctx) == 0)
 		goto fail;
 
