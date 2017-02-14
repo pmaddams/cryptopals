@@ -51,8 +51,8 @@ int
 check_message(char *enc)
 {
 	time_t cur;
-	uint8_t hash[SHA256_DIGEST_LENGTH];
 	SHA2_CTX ctx;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
 	size_t h;
 	struct entry *entry, **p, *next;
 
