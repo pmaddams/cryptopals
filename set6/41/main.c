@@ -54,7 +54,7 @@ check_message(char *enc)
 	SHA2_CTX ctx;
 	uint8_t hash[SHA256_DIGEST_LENGTH];
 	size_t h;
-	struct entry *entry, **p, *next;
+	struct entry *entry, *prev, *next;
 
 	if (time(&cur) == -1)
 		goto fail;
@@ -65,19 +65,25 @@ check_message(char *enc)
 
 	h = *(size_t *) hash % HASHSIZE;
 
-	for (entry = tab[h]; entry != NULL;)
+	for (prev = NULL, entry = tab[h]; entry != NULL;)
 		if (cur - entry->timestamp > TIMEOUT) {
-			p = &entry;
 			next = entry->next;
+
+			if (prev == NULL)
+				tab[h] = next;
+			else
+				prev->next = next;
 
 			free(entry->hash);
 			free(entry);
 
-			*p = entry = next;
+			entry = next;
 		} else if (memcmp(hash, entry->hash, SHA256_DIGEST_LENGTH) == 0)
 			goto fail;
-		else
+		else {
+			prev = entry;
 			entry = entry->next;
+		}
 
 	if ((entry = malloc(sizeof(*entry))) == NULL ||
 	    (entry->hash = malloc(SHA256_DIGEST_LENGTH)) == NULL)
