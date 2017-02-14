@@ -2,6 +2,8 @@
 
 #include <openssl/bn.h>
 
+#define VERBOSE
+
 #define HASHSIZE	101
 #define TIMEOUT		999
 

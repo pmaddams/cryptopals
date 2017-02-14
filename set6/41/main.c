@@ -96,7 +96,8 @@ decrypt_message(struct rsa *rsa, char *enc)
 	struct message msg;
 	char *res;
 
-	if ((in = BN_new()) == NULL ||
+	if (check_message(enc) == 0 ||
+	    (in = BN_new()) == NULL ||
 	    BN_hex2bn(&in, enc) == 0 ||
 	    (out = rsa_crypt(rsa, in, DECRYPT)) == NULL ||
 	    BN_bn2bin(out, (uint8_t *) &msg) == 0 ||
@@ -119,7 +120,6 @@ main(int argc, char **argv)
 
 	if (rsa_init(&rsa) == 0 ||
 	    (enc = encrypt_message(&rsa, "hello world")) == NULL ||
-	    check_message(enc) == 0 ||
 	    (dec = decrypt_message(&rsa, enc)) == NULL)
 		err(1, NULL);
 
