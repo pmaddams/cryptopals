@@ -105,7 +105,7 @@ mitm(struct party *m)
 }
 
 int
-send_msg(struct party *from, struct party *to, char *message)
+send_message(struct party *from, struct party *to, char *message)
 {
 	BIO *mem, *enc, *dec, *bio_out;
 	FILE *memstream;
@@ -142,7 +142,7 @@ fail:
 }
 
 void
-put_msg(struct party *party)
+put_message(struct party *party)
 {
 	if (party->message) {
 		puts(party->message);
@@ -171,15 +171,15 @@ main(void)
 	    enc_params(&bob) == 0 ||
 	    enc_params(&chuck) == 0 ||
 
-	    send_msg(&alice, &chuck, "hello") == 0)
+	    send_message(&alice, &chuck, "hello") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
-	if (send_msg(&bob, &chuck, "world") == 0)
+	if (send_message(&bob, &chuck, "world") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
 	exit(0);
 }

@@ -24,7 +24,7 @@ struct party {
 BIGNUM *g, *p;
 
 int
-generate(struct party *party)
+dh_params(struct party *party)
 {
 	BN_CTX *ctx;
 	uint8_t buf[BUFSIZ];
@@ -46,7 +46,7 @@ fail:
 }
 
 int
-exchange(struct party *p1, struct party *p2)
+dh_exchange(struct party *p1, struct party *p2)
 {
 	BN_CTX *ctx;
 
@@ -62,7 +62,7 @@ fail:
 }
 
 int
-verify(struct party *p1, struct party *p2)
+dh_verify(struct party *p1, struct party *p2)
 {
 	return BN_cmp(&p1->shared, &p2->shared) == 0;
 }
@@ -75,13 +75,13 @@ main(void)
 	if (BN_hex2bn(&g, G) == 0 ||
 	    BN_hex2bn(&p, P) == 0 ||
 
-	    generate(&alice) == 0 ||
-	    generate(&bob) == 0 ||
+	    dh_params(&alice) == 0 ||
+	    dh_params(&bob) == 0 ||
 
-	    exchange(&alice, &bob) == 0)
+	    dh_exchange(&alice, &bob) == 0)
 		err(1, NULL);
 
-	puts(verify(&alice, &bob) ? "success" : "failure");
+	puts(dh_verify(&alice, &bob) ? "success" : "failure");
 
 	exit(0);
 }

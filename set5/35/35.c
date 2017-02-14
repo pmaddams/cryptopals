@@ -57,7 +57,7 @@ fail:
 }
 
 int
-dh_xchg(struct party *p1, struct party *p2)
+dh_exchange(struct party *p1, struct party *p2)
 {
 	BN_CTX *bnctx;
 
@@ -129,7 +129,7 @@ fail:
 }
 
 int
-send_msg(struct party *from, struct party *to, char *message)
+send_message(struct party *from, struct party *to, char *message)
 {
 	BIO *mem, *enc, *dec, *bio_out;
 	FILE *memstream;
@@ -166,7 +166,7 @@ fail:
 }
 
 void
-put_msg(struct party *party)
+put_message(struct party *party)
 {
 	if (party->message) {
 		puts(party->message);
@@ -188,7 +188,7 @@ main(void)
 	if (BN_one(g) == 0 ||
 	    dh_params(&alice, g) == 0 ||
 	    dh_params(&bob, g) == 0 ||
-	    dh_xchg(&alice, &bob) == 0 ||
+	    dh_exchange(&alice, &bob) == 0 ||
 
 	    mitm(&chuck, g, NULL, NULL) == 0 ||
 
@@ -196,20 +196,20 @@ main(void)
 	    enc_params(&bob) == 0 ||
 	    enc_params(&chuck) == 0 ||
 
-	    send_msg(&alice, &chuck, "c") == 0)
+	    send_message(&alice, &chuck, "c") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
-	if (send_msg(&bob, &chuck, "r") == 0)
+	if (send_message(&bob, &chuck, "r") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
 	if (BN_copy(g, p) == NULL ||
 	    dh_params(&alice, g) == 0 ||
 	    dh_params(&bob, g) == 0 ||
-	    dh_xchg(&alice, &bob) == 0 ||
+	    dh_exchange(&alice, &bob) == 0 ||
 
 	    mitm(&chuck, g, NULL, NULL) == 0 ||
 
@@ -217,20 +217,20 @@ main(void)
 	    enc_params(&bob) == 0 ||
 	    enc_params(&chuck) == 0 ||
 
-	    send_msg(&alice, &chuck, "y") == 0)
+	    send_message(&alice, &chuck, "y") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
-	if (send_msg(&bob, &chuck, "p") == 0)
+	if (send_message(&bob, &chuck, "p") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
 	if (BN_sub(g, g, BN_value_one()) == 0 ||
 	    dh_params(&alice, g) == 0 ||
 	    dh_params(&bob, g) == 0 ||
-	    dh_xchg(&alice, &bob) == 0 ||
+	    dh_exchange(&alice, &bob) == 0 ||
 
 	    mitm(&chuck, g, &alice, &bob) == 0 ||
 
@@ -238,15 +238,15 @@ main(void)
 	    enc_params(&bob) == 0 ||
 	    enc_params(&chuck) == 0 ||
 
-	    send_msg(&alice, &chuck, "t") == 0)
+	    send_message(&alice, &chuck, "t") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
-	if (send_msg(&bob, &chuck, "o") == 0)
+	if (send_message(&bob, &chuck, "o") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
 	exit(0);
 }
