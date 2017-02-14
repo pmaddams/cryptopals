@@ -114,8 +114,8 @@ char *
 crack_message(struct rsa *rsa, char *enc)
 {
 	BN_CTX *ctx;
-	BIGNUM *s, *c, *cprime, *tmp;
-	char *encprime, *res;
+	BIGNUM *s, *c, *cprime, *p, *pprime, *tmp;
+	char *encprime, *decprime, *dec;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
@@ -124,6 +124,8 @@ crack_message(struct rsa *rsa, char *enc)
 	if ((s = BN_CTX_get(ctx)) == NULL ||
 	    (c = BN_CTX_get(ctx)) == NULL ||
 	    (cprime = BN_CTX_get(ctx)) == NULL ||
+	    (p = BN_CTX_get(ctx)) == NULL ||
+	    (pprime = BN_CTX_get(ctx)) == NULL ||
 
 	    BN_dec2bn(&s, S) == 0 ||
 	    BN_hex2bn(&c, enc) == 0 ||
@@ -131,15 +133,10 @@ crack_message(struct rsa *rsa, char *enc)
 	    BN_mod_exp(cprime, s, rsa->e, rsa->n, ctx) == 0 ||
 	    BN_mod_mul(cprime, cprime, c, rsa->n, ctx) == 0 ||
 
-	    (encprime = BN_bn2hex(cprime)) == NULL ||
-	    (res = decrypt_message(rsa, encprime)) == NULL)
+	    (encprime = BN_bn2hex(cprime)) == NULL)
 		goto fail;
 
-	BN_CTX_end(ctx);
-	BN_CTX_free(ctx);
-	free(encprime);
-
-	return res;
+	return dec;
 fail:
 	return NULL;
 }
@@ -152,12 +149,10 @@ main(int argc, char **argv)
 
 	if (rsa_init(&rsa) == 0 ||
 	    (enc = encrypt_message(&rsa, "hello world")) == NULL ||
-	    (dec = decrypt_message(&rsa, enc)) == NULL ||
-	    (dec2 = crack_message(&rsa, enc)) == NULL)
+	    (dec = decrypt_message(&rsa, enc)) == NULL)
 		err(1, NULL);
 
 	puts(dec);
-	puts(dec2);
 
 	exit(0);
 }
