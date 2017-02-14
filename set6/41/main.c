@@ -13,26 +13,26 @@
 
 struct message {
 	time_t timestamp;
-	char *text;
+	char *buf;
 };
 
 struct entry {
 	time_t timestamp;
-	char *hash;
+	uint8_t *hash;
 	struct entry *next;
 };
 
 struct entry *tab[HASHSIZE];
 
 char *
-encrypt_message(struct rsa *rsa, char *text)
+encrypt_message(struct rsa *rsa, char *buf)
 {
 	struct message msg;
 	BIGNUM *in, *out;
 	char *res;
 
 	time(&msg.timestamp);
-	msg.text = text;
+	msg.buf = buf;
 
 	if ((in = BN_bin2bn((uint8_t *) &msg, sizeof(msg), NULL)) == NULL ||
 	    (out = rsa_crypt(rsa, in, ENCRYPT)) == NULL ||
@@ -51,17 +51,21 @@ int
 check_message(char *enc)
 {
 	time_t cur;
-	char *hash;
-	size_t i;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
+	SHA2_CTX ctx;
+	size_t h;
 	struct entry *entry, **p, *next;
 
-	if (time(&cur) == -1 ||
-	    (hash = SHA256Data(enc, strlen(enc), NULL)) == NULL)
+	if (time(&cur) == -1)
 		goto fail;
 
-	i = *(size_t *) hash % HASHSIZE;
+	SHA256Init(&ctx);
+	SHA256Update(&ctx, enc, strlen(enc));
+	SHA256Final(hash, &ctx);
 
-	for (entry = tab[i]; entry != NULL;)
+	h = *(size_t *) hash % HASHSIZE;
+
+	for (entry = tab[h]; entry != NULL;)
 		if (cur - entry->timestamp > TIMEOUT) {
 			p = &entry;
 			next = entry->next;
@@ -70,19 +74,19 @@ check_message(char *enc)
 			free(entry);
 
 			*p = entry = next;
-		} else if (strcmp(hash, entry->hash) == 0) {
-			free(hash);
+		} else if (memcmp(hash, entry->hash, SHA256_DIGEST_LENGTH) == 0)
 			goto fail;
-		} else
+		else
 			entry = entry->next;
 
-	if ((entry = malloc(sizeof(*entry))) == NULL)
+	if ((entry = malloc(sizeof(*entry))) == NULL ||
+	    (entry->hash = malloc(SHA256_DIGEST_LENGTH)) == NULL)
 		goto fail;
 
 	entry->timestamp = cur;
-	entry->hash = hash;
-	entry->next = tab[i];
-	tab[i] = entry;
+	memcpy(entry->hash, hash, SHA256_DIGEST_LENGTH);
+	entry->next = tab[h];
+	tab[h] = entry;
 
 	return 1;
 fail:
@@ -101,7 +105,7 @@ decrypt_message(struct rsa *rsa, char *enc)
 	    BN_hex2bn(&in, enc) == 0 ||
 	    (out = rsa_crypt(rsa, in, DECRYPT)) == NULL ||
 	    BN_bn2bin(out, (uint8_t *) &msg) == 0 ||
-	    (res = strdup(msg.text)) == NULL)
+	    (res = strdup(msg.buf)) == NULL)
 		goto fail;
 
 	free(in);
