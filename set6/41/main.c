@@ -1,6 +1,8 @@
 #include <sys/types.h>
 
+#include <err.h>
 #include <sha2.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -92,19 +94,19 @@ decrypt_message(struct rsa *rsa, char *enc)
 {
 	BIGNUM *in, *out;
 	struct message msg;
-	char *text;
+	char *res;
 
 	if ((in = BN_new()) == NULL ||
 	    BN_hex2bn(&in, enc) == 0 ||
 	    (out = rsa_crypt(rsa, in, DECRYPT)) == NULL ||
 	    BN_bn2bin(out, (uint8_t *) &msg) == 0 ||
-	    (text = strdup(msg.text)) == NULL)
+	    (res = strdup(msg.text)) == NULL)
 		goto fail;
 
 	free(in);
 	free(out);
 
-	return text;
+	return res;
 fail:
 	return NULL;
 }
@@ -112,4 +114,15 @@ fail:
 int
 main(int argc, char **argv)
 {
+	struct rsa rsa;
+	char *enc, *dec;
+
+	if (rsa_init(&rsa) == 0 ||
+	    (enc = encrypt_message(&rsa, "hello world")) == NULL ||
+	    (dec = decrypt_message(&rsa, enc)) == NULL)
+		err(1, NULL);
+
+	puts(dec);
+
+	exit(0);
 }
