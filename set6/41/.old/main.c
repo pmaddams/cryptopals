@@ -11,6 +11,19 @@
 
 #include "41.h"
 
+struct message {
+	time_t timestamp;
+	char *buf;
+};
+
+struct entry {
+	time_t timestamp;
+	uint8_t *hash;
+	struct entry *next;
+};
+
+struct entry *tab[HASHSIZE];
+
 char *
 encrypt_message(struct rsa *rsa, char *buf)
 {
@@ -41,7 +54,6 @@ check_message(char *enc)
 	SHA2_CTX ctx;
 	uint8_t hash[SHA256_DIGEST_LENGTH];
 	size_t h;
-	static struct entry *tab[HASHSIZE];
 	struct entry *entry, *prev, *next;
 
 	if (time(&cur) == -1)
@@ -110,54 +122,18 @@ fail:
 	return NULL;
 }
 
-char *
-crack_message(struct rsa *rsa, char *enc)
-{
-	BN_CTX *ctx;
-	BIGNUM *s, *c, *cprime, *tmp;
-	char *encprime, *res;
-
-	if ((ctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(ctx);
-
-	if ((s = BN_CTX_get(ctx)) == NULL ||
-	    (c = BN_CTX_get(ctx)) == NULL ||
-	    (cprime = BN_CTX_get(ctx)) == NULL ||
-
-	    BN_dec2bn(&s, S) == 0 ||
-	    BN_hex2bn(&c, enc) == 0 ||
-
-	    BN_mod_exp(cprime, s, rsa->e, rsa->n, ctx) == 0 ||
-	    BN_mod_mul(cprime, cprime, c, rsa->n, ctx) == 0 ||
-
-	    (encprime = BN_bn2hex(cprime)) == NULL ||
-	    (res = decrypt_message(rsa, encprime)) == NULL)
-		goto fail;
-
-	BN_CTX_end(ctx);
-	BN_CTX_free(ctx);
-	free(encprime);
-
-	return res;
-fail:
-	return NULL;
-}
-
 int
 main(int argc, char **argv)
 {
 	struct rsa rsa;
-	char *enc, *dec, *dec2;
+	char *enc, *dec;
 
 	if (rsa_init(&rsa) == 0 ||
 	    (enc = encrypt_message(&rsa, "hello world")) == NULL ||
-	    (dec = decrypt_message(&rsa, enc)) == NULL ||
-	    (dec2 = crack_message(&rsa, enc)) == NULL)
+	    (dec = decrypt_message(&rsa, enc)) == NULL)
 		err(1, NULL);
 
 	puts(dec);
-	puts(dec2);
 
 	exit(0);
 }

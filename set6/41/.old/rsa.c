@@ -1,10 +1,13 @@
+#include "41.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <openssl/bn.h>
 
-#include "41.h"
+#define E	"3"
+#define BITS	2048
 
 BIGNUM *
 invmod(BIGNUM *bn, BIGNUM *modulus)
