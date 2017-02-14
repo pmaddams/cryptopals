@@ -9,7 +9,7 @@
 #define E	"3"
 #define BITS	2048
 
-static BIGNUM *
+BIGNUM *
 invmod(BIGNUM *bn, BIGNUM *modulus)
 {
 	BIGNUM *res, *remainder, *quotient, *x1, *x2, *t1, *t2;
@@ -113,18 +113,18 @@ fail:
 }
 
 BIGNUM *
-rsa_crypt(struct rsa *rsa, BIGNUM *in, int enc)
+rsa_crypt(struct rsa *rsa, BIGNUM *bn, int enc)
 {
 	BN_CTX *ctx;
-	BIGNUM *out;
+	BIGNUM *res;
 
 	if ((ctx = BN_CTX_new()) == NULL ||
-	    (out = BN_new()) == NULL ||
-	    BN_mod_exp(out, in, enc ? rsa->e : rsa->d, rsa->n, ctx) == 0)
+	    (res = BN_new()) == NULL ||
+	    BN_mod_exp(res, bn, enc ? rsa->e : rsa->d, rsa->n, ctx) == 0)
 		goto fail;
 
 	BN_CTX_free(ctx);
-	return out;
+	return res;
 fail:
 	return NULL;
 }

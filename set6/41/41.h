@@ -18,5 +18,6 @@ struct rsa {
 	BIGNUM *d;
 };
 
+BIGNUM *invmod(BIGNUM *, BIGNUM *);
 int rsa_init(struct rsa *);
 BIGNUM *rsa_crypt(struct rsa *, BIGNUM *, int);
