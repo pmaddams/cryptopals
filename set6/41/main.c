@@ -88,18 +88,16 @@ fail:
 }
 
 char *
-decrypt_message(struct rsa *rsa, char *enc)
+decrypt_blob(struct rsa *rsa, char *enc)
 {
 	BIGNUM *in, *out;
-	struct message msg;
 	char *res;
 
 	if (check_message(enc) == 0 ||
 	    (in = BN_new()) == NULL ||
 	    BN_hex2bn(&in, enc) == 0 ||
 	    (out = rsa_crypt(rsa, in, DECRYPT)) == NULL ||
-	    BN_bn2bin(out, (uint8_t *) &msg) == 0 ||
-	    (res = strdup(msg.buf)) == NULL)
+	    (res = BN_bn2hex(out)) == NULL)
 		goto fail;
 
 	free(in);
@@ -111,11 +109,45 @@ fail:
 }
 
 char *
+decode_blob(char *buf)
+{
+	BIGNUM *bn;
+	struct message msg;
+	char *res;
+
+	if ((bn = BN_new()) == NULL ||
+	    BN_hex2bn(&bn, buf) == 0 ||
+	    BN_bn2bin(bn, (uint8_t *) &msg) == 0 ||
+	    (res = strdup(msg.buf)) == NULL)
+		goto fail;
+
+	free(bn);
+	return res;
+fail:
+	return NULL;
+}
+
+char *
+decrypt_message(struct rsa *rsa, char *enc)
+{
+	char *dec, *res;
+
+	if ((dec = decrypt_blob(rsa, enc)) == NULL ||
+	    (res = decode_blob(dec)) == NULL)
+		goto fail;
+
+	free(dec);
+	return res;
+fail:
+	return NULL;
+}
+
+char *
 crack_message(struct rsa *rsa, char *enc)
 {
 	BN_CTX *ctx;
-	BIGNUM *s, *c, *cprime, *p, *pprime, *tmp;
-	char *encprime, *decprime, *dec;
+	BIGNUM *s, *c, *cprime, *p, *pprime, *denom;
+	char *encprime, *decprime, *dec, *res;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
@@ -133,10 +165,25 @@ crack_message(struct rsa *rsa, char *enc)
 	    BN_mod_exp(cprime, s, rsa->e, rsa->n, ctx) == 0 ||
 	    BN_mod_mul(cprime, cprime, c, rsa->n, ctx) == 0 ||
 
-	    (encprime = BN_bn2hex(cprime)) == NULL)
+	    (encprime = BN_bn2hex(cprime)) == NULL ||
+	    (decprime = decrypt_blob(rsa, encprime)) == NULL ||
+
+	    BN_hex2bn(&pprime, decprime) == 0 ||
+	    (denom = invmod(s, rsa->n)) == NULL ||
+
+	    BN_mod_mul(p, pprime, denom, rsa->n, ctx) == 0 ||
+	    (dec = BN_bn2hex(p)) == NULL ||
+	    (res = decode_blob(dec)) == NULL)
 		goto fail;
 
-	return dec;
+	BN_CTX_end(ctx);
+	BN_CTX_free(ctx);
+	free(encprime);
+	free(decprime);
+	free(denom);
+	free(dec);
+
+	return res;
 fail:
 	return NULL;
 }
@@ -147,12 +194,32 @@ main(int argc, char **argv)
 	struct rsa rsa;
 	char *enc, *dec, *dec2;
 
-	if (rsa_init(&rsa) == 0 ||
-	    (enc = encrypt_message(&rsa, "hello world")) == NULL ||
-	    (dec = decrypt_message(&rsa, enc)) == NULL)
+	if (argc == 1) {
+		fprintf(stderr, "usage: %s string ...\n", argv[0]);
+		exit(1);
+	}
+
+	if (rsa_init(&rsa) == 0)
 		err(1, NULL);
 
-	puts(dec);
+	while (argc > 1) {
+		if ((enc = encrypt_message(&rsa, argv[1])) == NULL ||
+		    (dec = decrypt_message(&rsa, enc)) == NULL ||
+		    (dec2 = crack_message(&rsa, enc)) == NULL)
+			err(1, NULL);
+
+		if (strcmp(dec, dec2) == 0)
+			printf("cracked \"%s\": \"%s\"\n", dec, dec2);
+		else
+			puts("crack failed");
+
+		free(enc);	
+		free(dec);	
+		free(dec2);
+
+		argc--;
+		argv++;
+	}
 
 	exit(0);
 }
