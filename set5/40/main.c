@@ -7,18 +7,6 @@
 
 #include "40.h"
 
-#define VERBOSE
-
-#define E	"3"
-#define BITS	2048
-
-struct rsa {
-	BIGNUM *p;
-	BIGNUM *q;
-	BIGNUM *n;
-	BIGNUM *e;
-};
-
 int
 rsa_init(struct rsa *rsa)
 {
