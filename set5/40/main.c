@@ -178,6 +178,7 @@ main(int argc, char **argv)
 		free(c3);
 		free(p);
 		free(out);
+
 		argc--;
 		argv++;
 	}
