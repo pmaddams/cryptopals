@@ -26,13 +26,14 @@ cubert(BIGNUM *res, BIGNUM *bn, BN_CTX *ctx)
 		goto fail;
 
 	for (;;) {
-		BN_exp(t1, out, two, ctx);
-		BN_div(t1, NULL, bn, t1, ctx);
+		if (BN_exp(t1, out, two, ctx) == 0 ||
+		    BN_div(t1, NULL, bn, t1, ctx) == 0 ||
 
-		BN_mul(t2, out, two, ctx);
+		    BN_mul(t2, out, two, ctx) == 0 ||
 
-		BN_add(t1, t1, t2);
-		BN_div(t1, NULL, t1, three, ctx);
+		    BN_add(t1, t1, t2) == 0 ||
+		    BN_div(t1, NULL, t1, three, ctx) == 0)
+			goto fail;
 
 		if (BN_cmp(out, t1) == 0)
 			break;
