@@ -21,24 +21,17 @@ struct rsa {
 	BIGNUM *d;
 };
 
-BIGNUM *
-invmod(BIGNUM *bn, BIGNUM *modulus)
+int
+invmod(BIGNUM *res, BIGNUM *bn, BIGNUM *modulus, BN_CTX *ctx)
 {
-	BIGNUM *res, *remainder, *quotient, *x1, *x2, *t1, *t2;
-	BN_CTX *ctx;
+	BIGNUM *out, *remainder, *quotient, *x1, *x2, *t1, *t2;
 
 	if (BN_is_zero(bn) || BN_is_zero(modulus))
 		goto fail;
-	if (BN_is_one(bn) || BN_is_one(modulus)) {
-		res = BN_dup(BN_value_one());
-		goto done;
-	}
+	if (BN_is_one(bn) || BN_is_one(modulus))
+		return BN_copy(res, BN_value_one()) != NULL;
 
-	if ((ctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(ctx);
-
-	if ((res = BN_dup(bn)) == NULL ||
+	if ((out = BN_CTX_get(ctx)) == NULL ||
 	    (remainder = BN_CTX_get(ctx)) == NULL ||
 	    (quotient = BN_CTX_get(ctx)) == NULL ||
 	    (x1 = BN_CTX_get(ctx)) == NULL ||
@@ -46,14 +39,15 @@ invmod(BIGNUM *bn, BIGNUM *modulus)
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
 	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
+	    BN_copy(out, bn) == NULL ||
 	    BN_copy(remainder, modulus) == NULL ||
 	    BN_one(x1) == 0 ||
 	    BN_zero(x2) == 0)
 		goto fail;
 
 	while (!BN_is_zero(remainder)) {
-		if (BN_div(quotient, t1, res, remainder, ctx) == 0 ||
-		    BN_copy(res, remainder) == NULL ||
+		if (BN_div(quotient, t1, out, remainder, ctx) == 0 ||
+		    BN_copy(out, remainder) == NULL ||
 		    BN_copy(remainder, t1) == NULL ||
 
 		    BN_copy(t1, x2) == NULL ||
@@ -63,16 +57,13 @@ invmod(BIGNUM *bn, BIGNUM *modulus)
 			goto fail;
 	}
 
-	if (!BN_is_one(res) ||
-	    BN_nnmod(res, x1, modulus, ctx) == 0)
+	if (!BN_is_one(out) ||
+	    BN_nnmod(out, x1, modulus, ctx) == 0)
 		goto fail;
 
-	BN_CTX_end(ctx);
-	BN_CTX_free(ctx);
-done:
-	return res;
+	return BN_copy(res, out) != NULL;
 fail:
-	return NULL;
+	return 0;
 }
 
 int
@@ -89,11 +80,11 @@ rsa_init(struct rsa *rsa)
 		goto fail;
 	BN_CTX_start(ctx);
 
-	memset(rsa, 0, sizeof(*rsa));
-
 	if ((rsa->p = BN_new()) == NULL ||
 	    (rsa->q = BN_new()) == NULL ||
 	    (rsa->n = BN_new()) == NULL ||
+	    (rsa->e = BN_new()) == NULL ||
+	    (rsa->d = BN_new()) == NULL ||
 
 	    (totient = BN_CTX_get(ctx)) == NULL ||
 	    (t1 = BN_CTX_get(ctx)) == NULL ||
@@ -109,7 +100,7 @@ rsa_init(struct rsa *rsa)
 	    BN_sub(t1, rsa->p, BN_value_one()) == 0 ||
 	    BN_sub(t2, rsa->q, BN_value_one()) == 0 ||
 	    BN_mul(totient, t1, t2, ctx) == 0 ||
-	    (rsa->d = invmod(rsa->e, totient)) == NULL)
+	    invmod(rsa->d, rsa->e, totient, ctx) == 0)
 		goto fail;
 
 	BN_CTX_end(ctx);
