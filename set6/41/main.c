@@ -158,6 +158,7 @@ crack_message(struct rsa *rsa, char *enc)
 	    (cprime = BN_CTX_get(ctx)) == NULL ||
 	    (p = BN_CTX_get(ctx)) == NULL ||
 	    (pprime = BN_CTX_get(ctx)) == NULL ||
+	    (denom = BN_CTX_get(ctx)) == NULL ||
 
 	    BN_dec2bn(&s, S) == 0 ||
 	    BN_hex2bn(&c, enc) == 0 ||
@@ -169,7 +170,7 @@ crack_message(struct rsa *rsa, char *enc)
 	    (decprime = decrypt_blob(rsa, encprime)) == NULL ||
 
 	    BN_hex2bn(&pprime, decprime) == 0 ||
-	    (denom = invmod(s, rsa->n)) == NULL ||
+	    invmod(denom, s, rsa->n, ctx) == 0 ||
 
 	    BN_mod_mul(p, pprime, denom, rsa->n, ctx) == 0 ||
 	    (dec = BN_bn2hex(p)) == NULL ||
@@ -180,7 +181,6 @@ crack_message(struct rsa *rsa, char *enc)
 	BN_CTX_free(ctx);
 	free(encprime);
 	free(decprime);
-	free(denom);
 	free(dec);
 
 	return res;
@@ -208,10 +208,10 @@ main(int argc, char **argv)
 		    (dec2 = crack_message(&rsa, enc)) == NULL)
 			err(1, NULL);
 
-		if (strcmp(dec, dec2) == 0)
-			printf("cracked \"%s\": \"%s\"\n", dec, dec2);
-		else
-			puts("crack failed");
+		if (strcmp(dec, dec2) != 0)
+			errx(1, "crack failed");
+
+		puts(dec2);
 
 		free(enc);	
 		free(dec);	
