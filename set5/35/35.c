@@ -29,7 +29,7 @@ struct party {
 	uint8_t key[BLKSIZ];
 	uint8_t iv[BLKSIZ];
 
-	char *message;
+	char *msg;
 };
 
 BIGNUM *p;
@@ -129,7 +129,7 @@ fail:
 }
 
 int
-send_message(struct party *from, struct party *to, char *message)
+send_msg(struct party *from, struct party *to, char *msg)
 {
 	BIO *mem, *enc, *dec, *bio_out;
 	FILE *memstream;
@@ -137,7 +137,7 @@ send_message(struct party *from, struct party *to, char *message)
 	size_t len;
 	ssize_t nr;
 
-	if ((mem = BIO_new_mem_buf(message, strlen(message))) == NULL ||
+	if ((mem = BIO_new_mem_buf(msg, strlen(msg))) == NULL ||
 	    (enc = BIO_new(BIO_f_cipher())) == NULL ||
 	    (dec = BIO_new(BIO_f_cipher())) == NULL ||
 	    (memstream = open_memstream(&buf, &len)) == NULL ||
@@ -158,7 +158,7 @@ send_message(struct party *from, struct party *to, char *message)
 	BIO_free_all(enc);
 	BIO_free_all(dec);
 
-	to->message = buf;
+	to->msg = buf;
 
 	return 1;
 fail:
@@ -166,12 +166,12 @@ fail:
 }
 
 void
-put_message(struct party *party)
+put_msg(struct party *party)
 {
-	if (party->message) {
-		puts(party->message);
-		free(party->message);
-		party->message = NULL;
+	if (party->msg) {
+		puts(party->msg);
+		free(party->msg);
+		party->msg = NULL;
 	}
 }
 
@@ -196,15 +196,15 @@ main(void)
 	    enc_params(&bob) == 0 ||
 	    enc_params(&chuck) == 0 ||
 
-	    send_message(&alice, &chuck, "c") == 0)
+	    send_msg(&alice, &chuck, "c") == 0)
 		err(1, NULL);
 
-	put_message(&chuck);
+	put_msg(&chuck);
 
-	if (send_message(&bob, &chuck, "r") == 0)
+	if (send_msg(&bob, &chuck, "r") == 0)
 		err(1, NULL);
 
-	put_message(&chuck);
+	put_msg(&chuck);
 
 	if (BN_copy(g, p) == NULL ||
 	    dh_params(&alice, g) == 0 ||
@@ -217,15 +217,15 @@ main(void)
 	    enc_params(&bob) == 0 ||
 	    enc_params(&chuck) == 0 ||
 
-	    send_message(&alice, &chuck, "y") == 0)
+	    send_msg(&alice, &chuck, "y") == 0)
 		err(1, NULL);
 
-	put_message(&chuck);
+	put_msg(&chuck);
 
-	if (send_message(&bob, &chuck, "p") == 0)
+	if (send_msg(&bob, &chuck, "p") == 0)
 		err(1, NULL);
 
-	put_message(&chuck);
+	put_msg(&chuck);
 
 	if (BN_sub(g, g, BN_value_one()) == 0 ||
 	    dh_params(&alice, g) == 0 ||
@@ -238,15 +238,15 @@ main(void)
 	    enc_params(&bob) == 0 ||
 	    enc_params(&chuck) == 0 ||
 
-	    send_message(&alice, &chuck, "t") == 0)
+	    send_msg(&alice, &chuck, "t") == 0)
 		err(1, NULL);
 
-	put_message(&chuck);
+	put_msg(&chuck);
 
-	if (send_message(&bob, &chuck, "o") == 0)
+	if (send_msg(&bob, &chuck, "o") == 0)
 		err(1, NULL);
 
-	put_message(&chuck);
+	put_msg(&chuck);
 
 	exit(0);
 }
