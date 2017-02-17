@@ -18,7 +18,7 @@
 #define HASHSIZE	101
 #define TIMEOUT		999
 
-struct message {
+struct msg {
 	time_t timestamp;
 	char *buf;
 };
@@ -75,9 +75,9 @@ fail:
 }
 
 char *
-encrypt_message(RSA *rsa, char *buf)
+encrypt_msg(RSA *rsa, char *buf)
 {
-	struct message msg;
+	struct msg msg;
 	ssize_t rsa_size;
 	char *enc, *res;
 	BIGNUM *bn;
@@ -104,7 +104,7 @@ fail:
 }
 
 int
-check_message(char *enc)
+check_msg(char *enc)
 {
 	time_t cur;
 	SHA2_CTX ctx;
@@ -163,7 +163,7 @@ decrypt_blob(RSA *rsa, char *enc)
 	char *in, *out, *res;
 	BIGNUM *bn;
 
-	if (check_message(enc) == 0)
+	if (check_msg(enc) == 0)
 		goto fail;
 
 	rsa_size = RSA_size(rsa);
@@ -194,7 +194,7 @@ decode_blob(RSA *rsa, char *dec)
 {
 	char *buf, *res;
 	BIGNUM *bn;
-	struct message msg;
+	struct msg msg;
 
 	if ((buf = malloc(RSA_size(rsa))) == NULL ||
 
@@ -216,7 +216,7 @@ fail:
 }
 
 char *
-decrypt_message(RSA *rsa, char *enc)
+decrypt_msg(RSA *rsa, char *enc)
 {
 	char *dec, *res;
 
@@ -231,7 +231,7 @@ fail:
 }
 
 char *
-crack_message(RSA *rsa, char *enc)
+crack_msg(RSA *rsa, char *enc)
 {
 	BN_CTX *ctx;
 	BIGNUM *s, *c, *cprime, *p, *pprime, *denom;
@@ -296,9 +296,9 @@ main(int argc, char **argv)
 		err(1, NULL);
 
 	while (argc > 1) {
-		if ((enc = encrypt_message(rsa, argv[1])) == NULL ||
-		    (dec = decrypt_message(rsa, enc)) == NULL ||
-		    (dec2 = crack_message(rsa, enc)) == NULL)
+		if ((enc = encrypt_msg(rsa, argv[1])) == NULL ||
+		    (dec = decrypt_msg(rsa, enc)) == NULL ||
+		    (dec2 = crack_msg(rsa, enc)) == NULL)
 			err(1, NULL);
 
 		if (strcmp(dec, dec2) != 0)
