@@ -66,7 +66,7 @@ int
 ssendf(int fd, char *fmt, ...)
 {
 	va_list ap;
-	char buf[TMPSIZ];
+	static char buf[TMPSIZ];
 
 	va_start(ap, fmt);
 	if (vsnprintf(buf, TMPSIZ, fmt, ap) == -1)
