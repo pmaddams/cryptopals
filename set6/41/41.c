@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include <openssl/bn.h>
+#include <openssl/rsa.h>
 
 #define S		"2"
 
@@ -16,9 +17,6 @@
 
 #define HASHSIZE	101
 #define TIMEOUT		999
-
-#define DECRYPT		0
-#define ENCRYPT		1
 
 struct message {
 	time_t timestamp;
@@ -29,14 +27,6 @@ struct entry {
 	time_t timestamp;
 	uint8_t *hash;
 	struct entry *next;
-};
-
-struct rsa {
-	BIGNUM *p;
-	BIGNUM *q;
-	BIGNUM *n;
-	BIGNUM *e;
-	BIGNUM *d;
 };
 
 int
@@ -84,81 +74,28 @@ fail:
 	return 0;
 }
 
-int
-rsa_init(struct rsa *rsa)
-{
-	BN_CTX *ctx;
-	BIGNUM *totient, *t1, *t2;
-
-	if ((ctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(ctx);
-
-	if ((rsa->p = BN_new()) == NULL ||
-	    (rsa->q = BN_new()) == NULL ||
-	    (rsa->n = BN_new()) == NULL ||
-	    (rsa->e = BN_new()) == NULL ||
-	    (rsa->d = BN_new()) == NULL ||
-
-	    (totient = BN_CTX_get(ctx)) == NULL ||
-	    (t1 = BN_CTX_get(ctx)) == NULL ||
-	    (t2 = BN_CTX_get(ctx)) == NULL ||
-
-	    BN_generate_prime_ex(rsa->p, BITS, 0, NULL, NULL, NULL) == 0 ||
-	    BN_generate_prime_ex(rsa->q, BITS, 0, NULL, NULL, NULL) == 0 ||
-
-	    BN_mul(rsa->n, rsa->p, rsa->q, ctx) == 0 ||
-
-	    BN_dec2bn(&rsa->e, E) == 0 ||
-
-	    BN_sub(t1, rsa->p, BN_value_one()) == 0 ||
-	    BN_sub(t2, rsa->q, BN_value_one()) == 0 ||
-	    BN_mul(totient, t1, t2, ctx) == 0 ||
-	    invmod(rsa->d, rsa->e, totient, ctx) == 0)
-		goto fail;
-
-	BN_CTX_end(ctx);
-	BN_CTX_free(ctx);
-
-	return 1;
-fail:
-	return 0;
-}
-
-BIGNUM *
-rsa_crypt(struct rsa *rsa, BIGNUM *bn, int enc)
-{
-	BN_CTX *ctx;
-	BIGNUM *res;
-
-	if ((ctx = BN_CTX_new()) == NULL ||
-	    (res = BN_new()) == NULL ||
-	    BN_mod_exp(res, bn, enc ? rsa->e : rsa->d, rsa->n, ctx) == 0)
-		goto fail;
-
-	BN_CTX_free(ctx);
-	return res;
-fail:
-	return NULL;
-}
-
 char *
-encrypt_message(struct rsa *rsa, char *buf)
+encrypt_message(RSA *rsa, char *buf)
 {
 	struct message msg;
-	BIGNUM *in, *out;
-	char *res;
+	ssize_t rsa_size;
+	char *enc, *res;
+	BIGNUM *bn;
 
 	time(&msg.timestamp);
 	msg.buf = buf;
 
-	if ((in = BN_bin2bn((uint8_t *) &msg, sizeof(msg), NULL)) == NULL ||
-	    (out = rsa_crypt(rsa, in, ENCRYPT)) == NULL ||
-	    (res = BN_bn2hex(out)) == NULL)
+	rsa_size = RSA_size(rsa);
+	if ((enc = malloc(rsa_size)) == NULL ||
+
+	    RSA_public_encrypt(rsa_size, (uint8_t *) &msg, enc, rsa, RSA_NO_PADDING) == 0 ||
+	    (bn = BN_new()) == NULL ||
+	    BN_bin2bn(enc, rsa_size, bn) == 0 ||
+	    (res = BN_bn2hex(bn)) == NULL)
 		goto fail;
 
-	free(in);
-	free(out);
+	free(enc);
+	BN_free(bn);
 
 	return res;
 fail:
@@ -219,20 +156,32 @@ fail:
 }
 
 char *
-decrypt_blob(struct rsa *rsa, char *enc)
+decrypt_blob(RSA *rsa, char *enc)
 {
-	BIGNUM *in, *out;
-	char *res;
+	ssize_t rsa_size;
+	char *in, *out, *res;
+	BIGNUM *bn;
 
-	if (check_message(enc) == 0 ||
-	    (in = BN_new()) == NULL ||
-	    BN_hex2bn(&in, enc) == 0 ||
-	    (out = rsa_crypt(rsa, in, DECRYPT)) == NULL ||
-	    (res = BN_bn2hex(out)) == NULL)
+	if (check_message(enc) == 0)
+		goto fail;
+
+	rsa_size = RSA_size(rsa);
+	if ((in = malloc(rsa_size)) == NULL ||
+	    (out = malloc(rsa_size)) == NULL ||
+
+	    (bn = BN_new()) == NULL ||
+	    BN_hex2bn(&bn, enc) == 0 ||
+	    BN_bn2bin(bn, in) == 0 ||
+
+	    RSA_private_decrypt(rsa_size, in, out, rsa, RSA_NO_PADDING) == 0 ||
+
+	    BN_bin2bn(out, rsa_size, bn) == 0 ||
+	    (res = BN_bn2hex(bn)) == NULL)
 		goto fail;
 
 	free(in);
 	free(out);
+	BN_free(bn);
 
 	return res;
 fail:
@@ -240,31 +189,38 @@ fail:
 }
 
 char *
-decode_blob(char *buf)
+decode_blob(RSA *rsa, char *dec)
 {
+	char *buf, *res;
 	BIGNUM *bn;
 	struct message msg;
-	char *res;
 
-	if ((bn = BN_new()) == NULL ||
-	    BN_hex2bn(&bn, buf) == 0 ||
-	    BN_bn2bin(bn, (uint8_t *) &msg) == 0 ||
-	    (res = strdup(msg.buf)) == NULL)
+	if ((buf = malloc(RSA_size(rsa))) == NULL ||
+
+	    (bn = BN_new()) == NULL ||
+	    BN_hex2bn(&bn, dec) == 0 ||
+	    BN_bn2bin(bn, buf) == 0)
+		err(1, NULL);
+
+	memcpy(&msg, buf, sizeof(msg));
+	if ((res = strdup(msg.buf)) == NULL)
 		goto fail;
 
+	free(buf);
 	free(bn);
+
 	return res;
 fail:
 	return NULL;
 }
 
 char *
-decrypt_message(struct rsa *rsa, char *enc)
+decrypt_message(RSA *rsa, char *enc)
 {
 	char *dec, *res;
 
 	if ((dec = decrypt_blob(rsa, enc)) == NULL ||
-	    (res = decode_blob(dec)) == NULL)
+	    (res = decode_blob(rsa, dec)) == NULL)
 		goto fail;
 
 	free(dec);
@@ -274,7 +230,7 @@ fail:
 }
 
 char *
-crack_message(struct rsa *rsa, char *enc)
+crack_message(RSA *rsa, char *enc)
 {
 	BN_CTX *ctx;
 	BIGNUM *s, *c, *cprime, *p, *pprime, *denom;
@@ -305,7 +261,7 @@ crack_message(struct rsa *rsa, char *enc)
 
 	    BN_mod_mul(p, pprime, denom, rsa->n, ctx) == 0 ||
 	    (dec = BN_bn2hex(p)) == NULL ||
-	    (res = decode_blob(dec)) == NULL)
+	    (res = decode_blob(rsa, dec)) == NULL)
 		goto fail;
 
 	BN_CTX_end(ctx);
@@ -322,7 +278,8 @@ fail:
 int
 main(int argc, char **argv)
 {
-	struct rsa rsa;
+	BIGNUM *e;
+	RSA *rsa;
 	char *enc, *dec, *dec2;
 
 	if (argc == 1) {
@@ -330,13 +287,17 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (rsa_init(&rsa) == 0)
+	if ((e = BN_new()) == NULL ||
+	    BN_dec2bn(&e, E) == 0 ||
+
+	    (rsa = RSA_new()) == NULL ||
+	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0)
 		err(1, NULL);
 
 	while (argc > 1) {
-		if ((enc = encrypt_message(&rsa, argv[1])) == NULL ||
-		    (dec = decrypt_message(&rsa, enc)) == NULL ||
-		    (dec2 = crack_message(&rsa, enc)) == NULL)
+		if ((enc = encrypt_message(rsa, argv[1])) == NULL ||
+		    (dec = decrypt_message(rsa, enc)) == NULL ||
+		    (dec2 = crack_message(rsa, enc)) == NULL)
 			err(1, NULL);
 
 		if (strcmp(dec, dec2) != 0)
@@ -344,8 +305,8 @@ main(int argc, char **argv)
 
 		puts(dec2);
 
-		free(enc);	
-		free(dec);	
+		free(enc);
+		free(dec);
 		free(dec2);
 
 		argc--;
