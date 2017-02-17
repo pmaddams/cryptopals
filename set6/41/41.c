@@ -89,6 +89,7 @@ encrypt_message(RSA *rsa, char *buf)
 	if ((enc = malloc(rsa_size)) == NULL ||
 
 	    RSA_public_encrypt(rsa_size, (uint8_t *) &msg, enc, rsa, RSA_NO_PADDING) == 0 ||
+
 	    (bn = BN_new()) == NULL ||
 	    BN_bin2bn(enc, rsa_size, bn) == 0 ||
 	    (res = BN_bn2hex(bn)) == NULL)
@@ -200,7 +201,7 @@ decode_blob(RSA *rsa, char *dec)
 	    (bn = BN_new()) == NULL ||
 	    BN_hex2bn(&bn, dec) == 0 ||
 	    BN_bn2bin(bn, buf) == 0)
-		err(1, NULL);
+		goto fail;
 
 	memcpy(&msg, buf, sizeof(msg));
 	if ((res = strdup(msg.buf)) == NULL)
