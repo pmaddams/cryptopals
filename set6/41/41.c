@@ -83,7 +83,8 @@ encrypt_msg(RSA *rsa, char *buf)
 	BIGNUM *bn;
 
 	time(&msg.timestamp);
-	msg.buf = buf;
+	if ((msg.buf = strdup(buf)) == NULL)
+		goto fail;
 
 	rsa_size = RSA_size(rsa);
 	if ((enc = malloc(rsa_size)) == NULL ||
