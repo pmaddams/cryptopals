@@ -20,6 +20,7 @@ md4_mac(uint8_t *buf, size_t len)
 		keylen = arc4random_uniform(BLKSIZ);
 		if ((key = malloc(keylen)) == NULL)
 			goto fail;
+		arc4random_buf(key, keylen);
 	}
 
 	if ((res = malloc(DIGEST)) == NULL)
