@@ -18,9 +18,11 @@
 #define HASHSIZE	101
 #define TIMEOUT		999
 
+#define MSGSIZE		128
+
 struct msg {
 	time_t timestamp;
-	char *buf;
+	char buf[MSGSIZE];
 };
 
 struct entry {
@@ -83,8 +85,7 @@ encrypt_msg(RSA *rsa, char *buf)
 	BIGNUM *bn;
 
 	time(&msg.timestamp);
-	if ((msg.buf = strdup(buf)) == NULL)
-		goto fail;
+	strlcpy(msg.buf, buf, MSGSIZE);
 
 	rsa_size = RSA_size(rsa);
 	if ((enc = malloc(rsa_size)) == NULL ||
