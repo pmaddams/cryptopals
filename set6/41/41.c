@@ -115,8 +115,7 @@ check_msg(char *enc)
 	static struct entry *tab[HASHSIZE];
 	struct entry *entry, *prev, *next;
 
-	if (time(&cur) == -1)
-		goto fail;
+	time(&cur);
 
 	SHA256Init(&ctx);
 	SHA256Update(&ctx, enc, strlen(enc));
