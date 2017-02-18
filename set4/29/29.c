@@ -20,7 +20,7 @@ sha1_mac(uint8_t *buf, size_t len)
 	SHA1_CTX ctx;
 
 	if (key == NULL) {
-		keylen = arc4random_uniform(BLKSIZ);
+		keylen = arc4random_uniform(BLKSIZ)+1;
 		if ((key = malloc(keylen)) == NULL)
 			goto fail;
 		arc4random_buf(key, keylen);
@@ -129,7 +129,7 @@ main(void)
 	if ((mac = sha1_mac(message, strlen(message))) == NULL)
 		err(1, NULL);
 
-	for (guess = 0; guess < BLKSIZ; guess++) {
+	for (guess = 1; guess <= BLKSIZ; guess++) {
 		if ((forge = sha1_forge_mac(mac, guess, message, append)) == NULL ||
 		    (buf = make_attack(guess, message, append, &len)) == NULL ||
 		    (check = sha1_mac(buf, len)) == NULL)
@@ -139,7 +139,7 @@ main(void)
 		free(forge);
 		free(check);
 	}
-	if (guess == BLKSIZ)
+	if (guess > BLKSIZ)
 		errx(1, "forgery failed");
 
 	putx(forge, SHA1_DIGEST_LENGTH);
