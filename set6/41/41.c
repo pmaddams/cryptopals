@@ -15,10 +15,10 @@
 #define E		"3"
 #define BITS		2048
 
+#define MSGSIZE		128
+
 #define HASHSIZE	101
 #define TIMEOUT		999
-
-#define MSGSIZE		128
 
 struct msg {
 	time_t timestamp;
