@@ -15,7 +15,7 @@
 
 #include "37.h"
 
-BIGNUM *modulus, *generator, *multiplier, *verifier,
+BIGNUM *generator, *modulus, *multiplier, *verifier,
     *private_key, *public_key, *client_pubkey,
     *scrambler, *shared_s;
 
@@ -43,10 +43,10 @@ fail:
 }
 
 int
-init_params(BIGNUM **modp, BIGNUM **genp, BIGNUM **mulp)
+init_params(BIGNUM **genp, BIGNUM **modp, BIGNUM **mulp)
 {
-	return BN_hex2bn(modp, N) &&
-	    BN_hex2bn(genp, G) &&
+	return BN_hex2bn(genp, G) &&
+	    BN_hex2bn(modp, N) &&
 	    BN_hex2bn(mulp, K);
 }
 
@@ -260,7 +260,7 @@ main(void)
 	char *buf, *p;
 	size_t i;
 
-	if (init_params(&modulus, &generator, &multiplier) == 0 ||
+	if (init_params(&generator, &modulus, &multiplier) == 0 ||
 	    (salt = make_salt()) == NULL ||
 	    (verifier = make_verifier(salt)) == NULL ||
 	    (private_key = make_private_key()) == NULL ||

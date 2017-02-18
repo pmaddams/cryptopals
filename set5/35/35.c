@@ -99,27 +99,27 @@ fail:
 }
 
 int
-mitm(struct party *m, BIGNUM *g, struct party *p1, struct party *p2)
+mitm(struct party *party, BIGNUM *g, struct party *p1, struct party *p2)
 {
-	BN_init(&m->shared);
+	BN_init(&party->shared);
 
 	if (BN_is_one(g)) {
-		if (BN_one(&m->shared) == 0)
+		if (BN_one(&party->shared) == 0)
 			goto fail;
 	} else if (BN_cmp(g, p) == 0) {
-		if (BN_zero(&m->shared) == 0)
+		if (BN_zero(&party->shared) == 0)
 			goto fail;
 	} else {
 		if (p1 == NULL || p2 == NULL)
 			goto fail;
 
 		if (BN_cmp(&p1->public, BN_value_one()) == 0 ||
-		    BN_cmp(&p2->public, BN_value_one()) == 0) {
-			if (BN_one(&m->shared) == 0)
+		    BN_cmp(&p1->public, BN_value_one()) == 0) {
+			if (BN_one(&party->shared) == 0)
 				goto fail;
 		} else
-			if (BN_copy(&m->shared, p) == NULL ||
-			    BN_sub(&m->shared, &m->shared, BN_value_one()) == 0)
+			if (BN_copy(&party->shared, p) == NULL ||
+			    BN_sub(&party->shared, &party->shared, BN_value_one()) == 0)
 				goto fail;
 	}
 

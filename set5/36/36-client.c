@@ -14,7 +14,7 @@
 
 #include "36.h"
 
-BIGNUM *modulus, *generator, *multiplier,
+BIGNUM *generator, *modulus, *multiplier,
     *private_key, *public_key, *server_pubkey,
     *scrambler, *shared_s;
 
@@ -102,7 +102,7 @@ main(void)
 	char *buf, *p;
 	size_t i;
 
-	if (init_params(&modulus, &generator, &multiplier) == 0 ||
+	if (init_params(&generator, &modulus, &multiplier) == 0 ||
 	    (private_key = make_private_key()) == NULL ||
 	    (public_key = make_public_key(generator, private_key, modulus)) == NULL)
 		err(1, NULL);

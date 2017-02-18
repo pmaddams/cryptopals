@@ -17,7 +17,7 @@
 #define USERNAME "admin@secure.net"
 #define PASSWORD "batman"
 
-BIGNUM *modulus, *generator, *multiplier, *verifier,
+BIGNUM *generator, *modulus, *multiplier, *verifier,
     *private_key, *public_key, *client_pubkey,
     *scrambler, *shared_s;
 
@@ -143,7 +143,7 @@ main(void)
 	char *buf, *p;
 	size_t i;
 
-	if (init_params(&modulus, &generator, &multiplier) == 0 ||
+	if (init_params(&generator, &modulus, &multiplier) == 0 ||
 	    (salt = make_salt()) == NULL ||
 	    (verifier = make_verifier(salt)) == NULL ||
 	    (private_key = make_private_key()) == NULL ||

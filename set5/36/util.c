@@ -16,10 +16,10 @@
 #define BLKSIZ 64
 
 int
-init_params(BIGNUM **modp, BIGNUM **genp, BIGNUM **mulp)
+init_params(BIGNUM **genp, BIGNUM **modp, BIGNUM **mulp)
 {
-	return BN_hex2bn(modp, N) &&
-	    BN_hex2bn(genp, G) &&
+	return BN_hex2bn(genp, G) &&
+	    BN_hex2bn(modp, N) &&
 	    BN_hex2bn(mulp, K);
 }
 

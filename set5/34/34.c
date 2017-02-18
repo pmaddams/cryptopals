@@ -99,9 +99,9 @@ fail:
 }
 
 int
-mitm(struct party *m)
+mitm(struct party *party)
 {
-	return BN_bin2bn("", 0, &m->shared) != NULL;
+	return BN_bin2bn("", 0, &party->shared) != NULL;
 }
 
 int

@@ -17,7 +17,7 @@
 
 #define DATABASE "DATA"
 
-BIGNUM *modulus, *generator, *multiplier,
+BIGNUM *generator, *modulus, *multiplier,
     *private_key, *public_key, *client_pubkey,
     *scrambler;
 
@@ -172,7 +172,7 @@ main(void)
 	char *buf, *buf2, *p;
 	size_t i;
 
-	if (init_params(&modulus, &generator) == 0 ||
+	if (init_params(&generator, &modulus) == 0 ||
 	    (salt = make_salt()) == NULL ||
 	    (private_key = make_private_key()) == NULL ||
 	    (public_key = make_public_key(generator, private_key, modulus)) == NULL ||
