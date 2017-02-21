@@ -1,6 +1,7 @@
 #include <sys/types.h>
 
 #include <err.h>
+#include <sha2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,24 +11,30 @@
 
 #include "42.h"
 
+void
+putx(uint8_t *buf, size_t len)
+{
+	while (len--)
+		printf("%02hhx", *buf++);
+	putchar('\n');
+}
+
 uint8_t *
 rsa_sign(RSA *rsa, uint8_t *buf, size_t len)
 {
-	uint8_t *tmp, *res, *asn;
-	size_t rsa_size, asnlen;
+	SHA2_CTX ctx;
+	uint8_t *res, hash[SHA256_DIGEST_LENGTH];
+	size_t rsa_size;
+
+	SHA256Init(&ctx);
+	SHA256Update(&ctx, buf, len);
+	SHA256Final(hash, &ctx);
 
 	rsa_size = RSA_size(rsa);
-	if ((tmp = malloc(rsa_size)) == NULL ||
-	    (res = malloc(rsa_size)) == NULL ||
+	if ((res = malloc(rsa_size)) == NULL ||
 
-	    (asn = make_asn1(buf, len, &asnlen)) == NULL ||
-
-	    RSA_padding_add_PKCS1_type_1(tmp, rsa_size, asn, asnlen) == 0 ||
-	    RSA_private_encrypt(rsa_size, tmp, res, rsa, RSA_PKCS1_PADDING) == 0)
+	    RSA_private_encrypt(SHA256_DIGEST_LENGTH, hash, res, rsa, RSA_PKCS1_PADDING) == 0)
 		goto fail;
-
-	free(tmp);
-	free(asn);
 
 	return res;
 fail:
@@ -47,7 +54,7 @@ rsa_verify_strong(RSA *rsa, uint8_t *buf, size_t len, uint8_t *sig)
 int
 rsa_verify_weak(RSA *rsa, uint8_t *buf, size_t len, uint8_t *sig)
 {
-	uint8_t *dec, *asn, *p1, *p2;
+	uint8_t *dec, *asn, *p;
 	size_t rsa_size, asnlen;
 
 	rsa_size = RSA_size(rsa);
@@ -55,15 +62,8 @@ rsa_verify_weak(RSA *rsa, uint8_t *buf, size_t len, uint8_t *sig)
 
 	    RSA_public_decrypt(rsa_size, sig, dec, rsa, RSA_PKCS1_PADDING) == 0 ||
 
-	    (asn = make_asn1(buf, len, &asnlen)) == NULL)
-		goto fail;
-
-	for (p1 = &dec[0]; *p1++ != '\x00';)
-		continue;
-	for (p2 = &asn[1]; *p2++ != '\x00';)
-		continue;
-
-	if (memcmp(p1, p2, asnlen) != 0)
+	    (asn = make_asn1(buf, len, &asnlen)) == NULL ||
+	    memmem(asn, asnlen, dec, SHA256_DIGEST_LENGTH) == NULL)
 		goto fail;
 
 	free(dec);
@@ -79,7 +79,7 @@ main(void)
 {
 	RSA *rsa;
 	BIGNUM *e;
-	uint8_t *sig;
+	uint8_t *sig, *sig2;
 
 	if ((rsa = RSA_new()) == NULL ||
 	    (e = BN_new()) == NULL ||
@@ -90,8 +90,6 @@ main(void)
 
 	    (sig = rsa_sign(rsa, DATA, strlen(DATA))) == NULL)
 		err(1, NULL);
-
-	printf("%d\n", rsa_verify_weak(rsa, DATA, strlen(DATA), sig));
 
 	exit(0);
 }

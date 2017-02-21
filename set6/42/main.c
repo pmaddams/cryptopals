@@ -22,18 +22,15 @@ putx(uint8_t *buf, size_t len)
 uint8_t *
 rsa_sign(RSA *rsa, uint8_t *buf, size_t len)
 {
-	SHA2_CTX ctx;
-	uint8_t *res, hash[SHA256_DIGEST_LENGTH];
-	size_t rsa_size;
-
-	SHA256Init(&ctx);
-	SHA256Update(&ctx, buf, len);
-	SHA256Final(hash, &ctx);
+	uint8_t *res, *asn;
+	size_t rsa_size, asnlen;
 
 	rsa_size = RSA_size(rsa);
 	if ((res = malloc(rsa_size)) == NULL ||
 
-	    RSA_private_encrypt(SHA256_DIGEST_LENGTH, hash, res, rsa, RSA_PKCS1_PADDING) == 0)
+	    (asn = make_asn1(buf, len, &asnlen)) == NULL ||
+
+	    RSA_private_encrypt(asnlen, asn, res, rsa, RSA_PKCS1_PADDING) == 0)
 		goto fail;
 
 	return res;
@@ -54,7 +51,7 @@ rsa_verify_strong(RSA *rsa, uint8_t *buf, size_t len, uint8_t *sig)
 int
 rsa_verify_weak(RSA *rsa, uint8_t *buf, size_t len, uint8_t *sig)
 {
-	uint8_t *dec, *asn, *p;
+	uint8_t *dec, *asn;
 	size_t rsa_size, asnlen;
 
 	rsa_size = RSA_size(rsa);
@@ -63,7 +60,7 @@ rsa_verify_weak(RSA *rsa, uint8_t *buf, size_t len, uint8_t *sig)
 	    RSA_public_decrypt(rsa_size, sig, dec, rsa, RSA_PKCS1_PADDING) == 0 ||
 
 	    (asn = make_asn1(buf, len, &asnlen)) == NULL ||
-	    memmem(asn, asnlen, dec, SHA256_DIGEST_LENGTH) == NULL)
+	    memcmp(dec, asn, asnlen) != 0)
 		goto fail;
 
 	free(dec);
@@ -90,6 +87,8 @@ main(void)
 
 	    (sig = rsa_sign(rsa, DATA, strlen(DATA))) == NULL)
 		err(1, NULL);
+
+	puts(rsa_verify_weak(rsa, DATA, strlen(DATA), sig) ? "success" : "failure");
 
 	exit(0);
 }
