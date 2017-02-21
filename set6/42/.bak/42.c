@@ -1,7 +1,8 @@
 #include <sys/types.h>
 
 #include <err.h>
-#include <sha2.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <openssl/asn1.h>
@@ -15,14 +16,15 @@
 #define E	"3"
 #define BITS	1024
 
-char *
-rsa_sign(RSA *rsa, char *buf, size_t len)
+uint8_t *
+rsa_asn1(RSA *rsa, uint8_t *buf, size_t len)
 {
 	X509_SIG sig;
 	X509_ALGOR algor;
 	ASN1_TYPE parameter;
 	ASN1_OCTET_STRING digest;
 	ssize_t rsa_size, siglen;
+	uint8_t *res, *p;
 
 	sig.algor = &algor;
 	if ((sig.algor->algorithm = OBJ_nid2obj(NID_sha256)) == NULL)
@@ -38,18 +40,22 @@ rsa_sign(RSA *rsa, char *buf, size_t len)
 
 	rsa_size = RSA_size(rsa);
 	if ((siglen = i2d_X509_SIG(&sig, NULL)) <= 0 ||
-	    siglen + RSA_PKCS1_PADDING_SIZE > rsa_size)
+	    siglen + RSA_PKCS1_PADDING_SIZE > rsa_size ||
+
+	    (res = malloc(rsa_size)) == NULL)
 		goto fail;
 
-	warnx("signature length %d", siglen);
-	warnx("padding length %d", RSA_PKCS1_PADDING_SIZE);
-	warnx("rsa size %d", RSA_size(rsa));
+	p = res;
+	if (i2d_X509_SIG(&sig, &p) < siglen)
+		goto fail;
+
+	return res;
 fail:
 	return NULL;
 }
 
 char *
-rsa_forge(RSA *rsa, char *buf, size_t len)
+rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 {
 }
 
@@ -72,7 +78,5 @@ main(void)
 	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0)
 		err(1, NULL);
 
-	rsa_sign(rsa, DATA, strlen(DATA));
-
-	return 0;
+	exit(0);
 }
