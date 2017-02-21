@@ -39,7 +39,7 @@ main(void)
 	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0)
 		err(1, NULL);
 
-	asn1_data(DATA, strlen(DATA), NULL);
+	asn1_sign(DATA, strlen(DATA), NULL);
 
 	exit(0);
 }

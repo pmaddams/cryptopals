@@ -1,6 +1,3 @@
-#include <sys/types.h>
-
-#include <sha2.h>
 #include <stdlib.h>
 
 #include <openssl/asn1.h>
@@ -10,21 +7,23 @@
 
 #include "42.h"
 
-uint8_t *
-asn1_data(uint8_t *inbuf, size_t inlen, size_t *outlenp)
+void
+putx(uint8_t *buf, size_t len)
 {
-	SHA2_CTX ctx;
-	uint8_t *res, *p,
-	    hash[SHA256_DIGEST_LENGTH];
+	while (len--)
+		printf("%02x", *buf++);
+	putchar('\n');
+}
+
+uint8_t *
+asn1_sign(uint8_t *inbuf, size_t inlen, size_t *outlenp)
+{
 	X509_SIG sig;
 	X509_ALGOR algor;
 	ASN1_TYPE parameter;
 	ASN1_OCTET_STRING digest;
 	ssize_t outlen;
-
-	SHA256Init(&ctx);
-	SHA256Update(&ctx, inbuf, inlen);
-	SHA256Final(hash, &ctx);
+	uint8_t *res, *p;
 
 	sig.algor = &algor;
 	if ((sig.algor->algorithm = OBJ_nid2obj(NID_sha256)) == NULL)
@@ -35,8 +34,8 @@ asn1_data(uint8_t *inbuf, size_t inlen, size_t *outlenp)
 	sig.algor->parameter = &parameter;
 
 	sig.digest = &digest;
-	sig.digest->data = hash;
-	sig.digest->length = SHA256_DIGEST_LENGTH;
+	sig.digest->data = inbuf;
+	sig.digest->length = inlen;
 
 	if ((outlen = i2d_X509_SIG(&sig, NULL)) <= 0 ||
 	    (res = malloc(outlen)) == NULL)
