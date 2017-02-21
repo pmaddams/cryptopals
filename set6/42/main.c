@@ -21,7 +21,12 @@ rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 }
 
 int
-rsa_verify(RSA *rsa, char *sig)
+rsa_verify_strong(RSA *rsa, char *sig)
+{
+}
+
+int
+rsa_verify_weak(RSA *rsa, char *sig)
 {
 }
 
