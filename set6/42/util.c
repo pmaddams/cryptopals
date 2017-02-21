@@ -11,7 +11,7 @@
 #include "42.h"
 
 uint8_t *
-asn1_data(uint8_t *inbuf, size_t inlen, size_t *outlenp)
+make_asn1(uint8_t *inbuf, size_t inlen, size_t *outlenp)
 {
 	SHA2_CTX ctx;
 	uint8_t *res, *p,

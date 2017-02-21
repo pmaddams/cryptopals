@@ -30,16 +30,18 @@ main(void)
 {
 	RSA *rsa;
 	BIGNUM *e;
+	uint8_t *asn1;
+	size_t len;
 
 	if ((rsa = RSA_new()) == NULL ||
 	    (e = BN_new()) == NULL ||
 
 	    BN_dec2bn(&e, E) == 0 ||
 
-	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0)
-		err(1, NULL);
+	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0 ||
 
-	asn1_data(DATA, strlen(DATA), NULL);
+	    (asn1 = make_asn1(DATA, strlen(DATA), &len)) == NULL)
+		err(1, NULL);
 
 	exit(0);
 }
