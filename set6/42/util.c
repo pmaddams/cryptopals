@@ -1,20 +1,11 @@
-#include <sys/types.h>
-
-#include <err.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <openssl/asn1.h>
 #include <openssl/bn.h>
 #include <openssl/objects.h>
-#include <openssl/rsa.h>
 #include <openssl/x509.h>
 
-#define DATA	"hi mom"
-
-#define E	"3"
-#define BITS	1024
+#include "42.h"
 
 void
 putx(uint8_t *buf, size_t len)
@@ -62,36 +53,39 @@ fail:
 	return NULL;
 }
 
-char *
-rsa_sign(RSA *rsa, uint8_t *buf, size_t len)
-{
-}
-
-char *
-rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
-{
-}
-
 int
-rsa_verify(RSA *rsa, char *sig)
+cubert(BIGNUM *res, BIGNUM *bn, BN_CTX *ctx)
 {
-}
+	BIGNUM *out, *two, *three, *t1, *t2;
 
-int
-main(void)
-{
-	RSA *rsa;
-	BIGNUM *e;
+	if ((out = BN_CTX_get(ctx)) == NULL ||
+	    (two = BN_CTX_get(ctx)) == NULL ||
+	    (three = BN_CTX_get(ctx)) == NULL ||
+	    (t1 = BN_CTX_get(ctx)) == NULL ||
+	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
-	if ((rsa = RSA_new()) == NULL ||
-	    (e = BN_new()) == NULL ||
+	    BN_copy(out, bn) == NULL ||
+	    BN_dec2bn(&two, "2") == 0 ||
+	    BN_dec2bn(&three, "3") == 0)
+		goto fail;
 
-	    BN_dec2bn(&e, E) == 0 ||
+	for (;;) {
+		if (BN_exp(t1, out, two, ctx) == 0 ||
+		    BN_div(t1, NULL, bn, t1, ctx) == 0 ||
 
-	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0)
-		err(1, NULL);
+		    BN_mul(t2, out, two, ctx) == 0 ||
 
-	asn1_sign(DATA, strlen(DATA), NULL);
+		    BN_add(t1, t1, t2) == 0 ||
+		    BN_div(t1, NULL, t1, three, ctx) == 0)
+			goto fail;
 
-	exit(0);
+		if (BN_cmp(out, t1) == 0)
+			break;
+		if (BN_copy(out, t1) == NULL)
+			goto fail;
+	}
+
+	return BN_copy(res, out) != NULL;
+fail:
+	return 0;
 }
