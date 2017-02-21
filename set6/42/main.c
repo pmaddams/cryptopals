@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include <openssl/bn.h>
+#include <openssl/objects.h>
 #include <openssl/rsa.h>
 
 #include "42.h"
@@ -46,6 +47,14 @@ rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 int
 rsa_verify_strong(RSA *rsa, uint8_t *buf, size_t len, uint8_t *sig)
 {
+	SHA2_CTX ctx;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
+
+	SHA256Init(&ctx);
+	SHA256Update(&ctx, buf, len);
+	SHA256Final(hash, &ctx);
+
+	return RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, sig, RSA_size(rsa), rsa);
 }
 
 int
@@ -74,9 +83,12 @@ fail:
 int
 main(void)
 {
+	size_t len;
 	RSA *rsa;
 	BIGNUM *e;
-	uint8_t *sig, *sig2;
+	uint8_t *sig;
+
+	len = strlen(DATA);
 
 	if ((rsa = RSA_new()) == NULL ||
 	    (e = BN_new()) == NULL ||
@@ -85,10 +97,11 @@ main(void)
 
 	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0 ||
 
-	    (sig = rsa_sign(rsa, DATA, strlen(DATA))) == NULL)
+	    (sig = rsa_sign(rsa, DATA, len)) == NULL)
 		err(1, NULL);
 
-	puts(rsa_verify_weak(rsa, DATA, strlen(DATA), sig) ? "success" : "failure");
+	puts(rsa_verify_weak(rsa, DATA, len, sig) ? "success" : "failure");
+	puts(rsa_verify_strong(rsa, DATA, len, sig) ? "success" : "failure");
 
 	exit(0);
 }
