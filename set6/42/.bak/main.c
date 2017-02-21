@@ -79,14 +79,19 @@ main(void)
 {
 	RSA *rsa;
 	BIGNUM *e;
+	uint8_t *sig;
 
 	if ((rsa = RSA_new()) == NULL ||
 	    (e = BN_new()) == NULL ||
 
 	    BN_dec2bn(&e, E) == 0 ||
 
-	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0)
+	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0 ||
+
+	    (sig = rsa_sign(rsa, DATA, strlen(DATA))) == NULL)
 		err(1, NULL);
+
+	printf("%d\n", rsa_verify_weak(rsa, DATA, strlen(DATA), sig));
 
 	exit(0);
 }
