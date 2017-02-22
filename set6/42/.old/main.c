@@ -42,25 +42,6 @@ fail:
 uint8_t *
 rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 {
-	uint8_t *asn, *tmp;
-	size_t rsa_size, asnlen;
-	
-	if ((asn = make_asn1(buf, len, &asnlen)) == NULL)
-		goto fail;
-
-	rsa_size = RSA_size(rsa);
-	if ((tmp = malloc(rsa_size)) == NULL)
-		goto fail;
-
-	memset(tmp, 0, rsa_size);
-	tmp[1] = '\x01';
-	tmp[2] = '\xff';
-	memcpy(&tmp[4], asn, asnlen);
-
-	putx(tmp, rsa_size);
-
-fail:
-	return NULL;
 }
 
 int
@@ -119,7 +100,8 @@ main(void)
 	    (sig = rsa_sign(rsa, DATA, len)) == NULL)
 		err(1, NULL);
 
-	rsa_forge(rsa, DATA, len);
+	puts(rsa_verify_weak(rsa, DATA, len, sig) ? "success" : "failure");
+	puts(rsa_verify_strong(rsa, DATA, len, sig) ? "success" : "failure");
 
 	exit(0);
 }
