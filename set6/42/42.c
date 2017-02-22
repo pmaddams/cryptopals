@@ -171,6 +171,7 @@ rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 		goto fail;
 
 	free(tmp);
+	free(asn);
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
 
