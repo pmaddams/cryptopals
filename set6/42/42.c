@@ -20,28 +20,28 @@
 uint8_t *
 make_asn1(uint8_t *inbuf, size_t inlen, size_t *outlenp)
 {
+	X509_ALGOR algor;
+	ASN1_TYPE parameter;
 	SHA2_CTX ctx;
 	uint8_t *res, *p,
 	    hash[SHA256_DIGEST_LENGTH];
-	ASN1_TYPE parameter;
-	X509_ALGOR algor;
 	ASN1_OCTET_STRING digest;
 	X509_SIG sig;
 	ssize_t outlen;
+
+	if ((algor.algorithm = OBJ_nid2obj(NID_sha256)) == NULL)
+		goto fail;
+
+	parameter.type = V_ASN1_NULL;
+	parameter.value.ptr = NULL;
+	algor.parameter = &parameter;
 
 	SHA256Init(&ctx);
 	SHA256Update(&ctx, inbuf, inlen);
 	SHA256Final(hash, &ctx);
 
-	parameter.type = V_ASN1_NULL;
-	parameter.value.ptr = NULL;
-
-	if ((algor.algorithm = OBJ_nid2obj(NID_sha256)) == NULL)
-		goto fail;
-	algor.parameter = &parameter;
-
-	digest.data = hash;
 	digest.length = SHA256_DIGEST_LENGTH;
+	digest.data = hash;
 
 	sig.algor = &algor;
 	sig.digest = &digest;
@@ -102,15 +102,18 @@ fail:
 uint8_t *
 rsa_sign(RSA *rsa, uint8_t *buf, size_t len)
 {
-	size_t rsa_size, asnlen;
-	uint8_t *res, *asn;
+	uint8_t *res, hash[SHA256_DIGEST_LENGTH];
+	SHA2_CTX ctx;
+	int siglen;
 
-	rsa_size = RSA_size(rsa);
-	if ((res = malloc(rsa_size)) == NULL ||
+	if ((res = malloc(RSA_size(rsa))) == NULL)
+		goto fail;
 
-	    (asn = make_asn1(buf, len, &asnlen)) == NULL ||
+	SHA256Init(&ctx);
+	SHA256Update(&ctx, buf, len);
+	SHA256Final(hash, &ctx);
 
-	    RSA_private_encrypt(asnlen, asn, res, rsa, RSA_PKCS1_PADDING) == 0)
+	if (RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, res, &siglen, rsa) == 0)
 		goto fail;
 
 	return res;
