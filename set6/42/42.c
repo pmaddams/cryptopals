@@ -196,8 +196,8 @@ rsa_verify_strong(RSA *rsa, uint8_t *buf, size_t len, uint8_t *sig)
 int
 rsa_verify_weak(RSA *rsa, uint8_t *buf, size_t len, uint8_t *sig)
 {
-	uint8_t *dec, *asn;
 	size_t rsa_size, asnlen;
+	uint8_t *dec, *asn;
 
 	rsa_size = RSA_size(rsa);
 	if ((dec = malloc(rsa_size)) == NULL ||
