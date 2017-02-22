@@ -42,14 +42,17 @@ fail:
 uint8_t *
 rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 {
-	uint8_t *asn, *tmp;
+	uint8_t *asn, *tmp, *res;
 	size_t rsa_size, asnlen;
-	
+	BN_CTX *ctx;
+	BIGNUM *in, *bn, *out;
+
 	if ((asn = make_asn1(buf, len, &asnlen)) == NULL)
 		goto fail;
 
 	rsa_size = RSA_size(rsa);
-	if ((tmp = malloc(rsa_size)) == NULL)
+	if ((tmp = malloc(rsa_size)) == NULL ||
+	    (res = malloc(rsa_size)) == NULL)
 		goto fail;
 
 	memset(tmp, 0, rsa_size);
@@ -59,6 +62,18 @@ rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 
 	putx(tmp, rsa_size);
 
+	ctx = BN_CTX_new();
+	in =  BN_CTX_get(ctx);
+	out =  BN_CTX_get(ctx);
+	bn =  BN_CTX_get(ctx);
+
+	BN_bin2bn(tmp, rsa_size, in);
+	cubert(out, in, ctx);
+	BN_exp(bn, out, rsa->e, ctx);
+
+	BN_bn2bin(bn, res);
+
+	putx(res, rsa_size);
 fail:
 	return NULL;
 }

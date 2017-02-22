@@ -60,20 +60,10 @@ rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 	tmp[2] = '\xff';
 	memcpy(&tmp[4], asn, asnlen);
 
-	putx(tmp, rsa_size);
-
 	ctx = BN_CTX_new();
 	in =  BN_CTX_get(ctx);
 	out =  BN_CTX_get(ctx);
 	bn =  BN_CTX_get(ctx);
-
-	BN_bin2bn(tmp, rsa_size, in);
-	cubert(out, in, ctx);
-	BN_exp(bn, out, rsa->e, ctx);
-
-	BN_bn2bin(bn, res);
-
-	putx(res, rsa_size);
 fail:
 	return NULL;
 }
