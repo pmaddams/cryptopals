@@ -163,7 +163,8 @@ rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 	}
 
 	memset(res, 0, rsa_size);
-	BN_bn2bin(t1, res+rsa_size-BN_num_bytes(t1));
+	if (BN_bn2bin(t1, res+rsa_size-BN_num_bytes(t1)) == 0)
+		goto fail;
 
 	free(tmp);
 	BN_CTX_end(ctx);
