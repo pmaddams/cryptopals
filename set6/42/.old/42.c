@@ -23,28 +23,27 @@ make_asn1(uint8_t *inbuf, size_t inlen, size_t *outlenp)
 	SHA2_CTX ctx;
 	uint8_t *res, *p,
 	    hash[SHA256_DIGEST_LENGTH];
-	ASN1_TYPE parameter;
-	X509_ALGOR algor;
-	ASN1_OCTET_STRING digest;
 	X509_SIG sig;
+	X509_ALGOR algor;
+	ASN1_TYPE parameter;
+	ASN1_OCTET_STRING digest;
 	ssize_t outlen;
 
 	SHA256Init(&ctx);
 	SHA256Update(&ctx, inbuf, inlen);
 	SHA256Final(hash, &ctx);
 
+	sig.algor = &algor;
+	if ((sig.algor->algorithm = OBJ_nid2obj(NID_sha256)) == NULL)
+		goto fail;
+
 	parameter.type = V_ASN1_NULL;
 	parameter.value.ptr = NULL;
+	sig.algor->parameter = &parameter;
 
-	if ((algor.algorithm = OBJ_nid2obj(NID_sha256)) == NULL)
-		goto fail;
-	algor.parameter = &parameter;
-
-	digest.data = hash;
-	digest.length = SHA256_DIGEST_LENGTH;
-
-	sig.algor = &algor;
 	sig.digest = &digest;
+	sig.digest->data = hash;
+	sig.digest->length = SHA256_DIGEST_LENGTH;
 
 	if ((outlen = i2d_X509_SIG(&sig, NULL)) <= 0 ||
 	    (res = malloc(outlen)) == NULL)
