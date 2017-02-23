@@ -114,7 +114,7 @@ mitm(struct party *party, BIGNUM *g, struct party *p1, struct party *p2)
 			goto fail;
 
 		if (BN_cmp(&p1->public, BN_value_one()) == 0 ||
-		    BN_cmp(&p1->public, BN_value_one()) == 0) {
+		    BN_cmp(&p2->public, BN_value_one()) == 0) {
 			if (BN_one(&party->shared) == 0)
 				goto fail;
 		} else
@@ -181,8 +181,8 @@ main(void)
 	BIGNUM *g;
 	struct party alice, bob, chuck;
 
-	if ((g = BN_new()) == NULL ||
-	    BN_hex2bn(&p, P) == 0)
+	if (BN_hex2bn(&p, P) == 0 ||
+	    (g = BN_new()) == NULL)
 		err(1, NULL);
 
 	if (BN_one(g) == 0 ||
