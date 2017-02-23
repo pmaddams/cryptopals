@@ -20,13 +20,27 @@ struct dsa {
 	BIGNUM *p;
 	BIGNUM *q;
 	BIGNUM *g;
-	BIGNUM *x;
-	BIGNUM *y;
+	BIGNUM *priv_key;
+	BIGNUM *pub_key;
 };
 
 int
 dsa_init(struct dsa *dsa)
 {
+	if ((dsa->p = BN_new()) == NULL ||
+	    (dsa->q = BN_new()) == NULL ||
+	    (dsa->g = BN_new()) == NULL ||
+	    (dsa->priv_key = BN_new()) == NULL ||
+	    (dsa->pub_key = BN_new()) == NULL ||
+
+	    BN_hex2bn(&dsa->p, P) == 0 ||
+	    BN_hex2bn(&dsa->q, Q) == 0 ||
+	    BN_hex2bn(&dsa->g, G) == 0)
+		goto fail;
+
+	return 1;
+fail:
+	return 0;
 }
 
 uint8_t *

@@ -1,3 +1,10 @@
+#include <sys/types.h>
+
+#include <err.h>
+#include <sha2.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <openssl/bn.h>
 
 #define P	"800000000000000089e1855218a0e7dac38136ffafa72eda7"	\
@@ -27,6 +34,8 @@ struct dsa {
 int
 dsa_init(struct dsa *dsa)
 {
+	uint8_t buf[160];
+
 	if ((dsa->p = BN_new()) == NULL ||
 	    (dsa->q = BN_new()) == NULL ||
 	    (dsa->g = BN_new()) == NULL ||
@@ -37,6 +46,11 @@ dsa_init(struct dsa *dsa)
 	    BN_hex2bn(&dsa->q, Q) == 0 ||
 	    BN_hex2bn(&dsa->g, G) == 0)
 		goto fail;
+
+	do
+		if (BN_rand_range(dsa->priv_key, dsa->q) == 0)
+			goto fail;
+	while (!BN_is_zero(dsa->priv_key));
 
 	return 1;
 fail:
