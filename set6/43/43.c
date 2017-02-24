@@ -31,11 +31,6 @@ struct dsa {
 	BIGNUM *y;
 };
 
-struct dsa_sig {
-	BIGNUM *r;
-	BIGNUM *s;
-};
-
 int
 dsa_init(struct dsa *dsa)
 {
