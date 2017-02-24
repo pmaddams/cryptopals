@@ -31,6 +31,11 @@ struct dsa {
 	BIGNUM *y;
 };
 
+struct dsa_sig {
+	BIGNUM *r;
+	BIGNUM *s;
+};
+
 int
 dsa_init(struct dsa *dsa)
 {
@@ -55,13 +60,13 @@ fail:
 	return 0;
 }
 
-uint8_t *
+struct dsa_sig *
 dsa_sign(struct dsa *dsa, uint8_t *buf, size_t len)
 {
 }
 
 int
-dsa_verify(struct dsa *dsa, uint8_t *buf, size_t len, uint8_t *sig)
+dsa_verify(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig)
 {
 }
 
