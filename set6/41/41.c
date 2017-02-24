@@ -13,6 +13,7 @@
 #define S		"2"
 
 #define E		"3"
+
 #define BITS		2048
 
 #define MSGSIZE		128

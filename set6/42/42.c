@@ -15,6 +15,7 @@
 #define DATA	"hi mom"
 
 #define E	"3"
+
 #define BITS	2048
 
 uint8_t *
@@ -128,6 +129,7 @@ rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 	uint8_t *res, *tmp, *asn;
 	BN_CTX *ctx;
 	BIGNUM *t1, *t2;
+	int cmp;
 
 	rsa_size = RSA_size(rsa);
 	if ((res = malloc(rsa_size)) == NULL ||
@@ -159,8 +161,10 @@ rsa_forge(RSA *rsa, uint8_t *buf, size_t len)
 		    BN_bn2bin(t2, tmp+1) == 0)
 			goto fail;
 
-		if (memcmp(tmp, res, RSA_PKCS1_PADDING_SIZE+asnlen) >= 0)
+		if ((cmp = memcmp(tmp, res, RSA_PKCS1_PADDING_SIZE+asnlen)) == 0)
 			break;
+		else if (cmp > 0)
+			goto fail;
 
 		if (BN_add(t1, t1, BN_value_one()) == 0)
 			goto fail;
