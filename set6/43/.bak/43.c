@@ -27,8 +27,8 @@ struct dsa {
 	BIGNUM *p;
 	BIGNUM *q;
 	BIGNUM *g;
-	BIGNUM *priv_key;
-	BIGNUM *pub_key;
+	BIGNUM *x;
+	BIGNUM *y;
 };
 
 struct dsa_sig {
@@ -51,9 +51,9 @@ dsa_init(struct dsa *dsa)
 		goto fail;
 
 	do
-		if (BN_rand_range(dsa->priv_key, dsa->q) == 0)
+		if (BN_rand_range(dsa->x, dsa->q) == 0)
 			goto fail;
-	while (!BN_is_zero(dsa->priv_key));
+	while (!BN_is_zero(dsa->x));
 
 	return 1;
 fail:
