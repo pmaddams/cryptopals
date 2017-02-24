@@ -1,7 +1,7 @@
 #include <sys/types.h>
 
 #include <err.h>
-#include <sha2.h>
+#include <sha1.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -27,20 +27,23 @@ struct dsa {
 	BIGNUM *p;
 	BIGNUM *q;
 	BIGNUM *g;
-	BIGNUM *priv_key;
-	BIGNUM *pub_key;
+	BIGNUM *x;
+	BIGNUM *y;
+};
+
+struct dsa_sig {
+	BIGNUM *r;
+	BIGNUM *s;
 };
 
 int
 dsa_init(struct dsa *dsa)
 {
-	uint8_t buf[160];
-
 	if ((dsa->p = BN_new()) == NULL ||
 	    (dsa->q = BN_new()) == NULL ||
 	    (dsa->g = BN_new()) == NULL ||
-	    (dsa->priv_key = BN_new()) == NULL ||
-	    (dsa->pub_key = BN_new()) == NULL ||
+	    (dsa->x = BN_new()) == NULL ||
+	    (dsa->y = BN_new()) == NULL ||
 
 	    BN_hex2bn(&dsa->p, P) == 0 ||
 	    BN_hex2bn(&dsa->q, Q) == 0 ||
@@ -48,9 +51,9 @@ dsa_init(struct dsa *dsa)
 		goto fail;
 
 	do
-		if (BN_rand_range(dsa->priv_key, dsa->q) == 0)
+		if (BN_rand_range(dsa->x, dsa->q) == 0)
 			goto fail;
-	while (!BN_is_zero(dsa->priv_key));
+	while (!BN_is_zero(dsa->x));
 
 	return 1;
 fail:
