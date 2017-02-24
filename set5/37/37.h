@@ -1,4 +1,5 @@
 #define USERNAME	"admin@secure.net"
+
 #define PORT		12345
 
 #define K		"3"
@@ -11,6 +12,7 @@
 			"c55d39a69163fa8fd24cf5f83755d23dca3ad961c62f356208552"	\
 			"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff"	\
 			"fffffffffffff"
+
 #define G		"2"
 
 #define BLKSIZ		64

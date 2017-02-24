@@ -8,6 +8,7 @@
 #define VERBOSE
 
 #define E	"3"
+
 #define BITS	2048
 
 #define DECRYPT	0
