@@ -8,6 +8,7 @@
 
 #include <openssl/bio.h>
 #include <openssl/bn.h>
+#include <openssl/dh.h>
 #include <openssl/evp.h>
 
 #define P	"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"	\
@@ -21,92 +22,93 @@
 
 #define G	"2"
 
-#define BLKSIZ	16
+#define KEYSIZE	16
 
 struct party {
-	BIGNUM private;
-	BIGNUM public;
-	BIGNUM shared;
-
-	uint8_t key[BLKSIZ];
-	uint8_t iv[BLKSIZ];
-
-	char *msg;
+	DH *dh;
+	uint8_t key[KEYSIZE];
+	uint8_t iv[KEYSIZE];
+	char *message;
 };
 
-BIGNUM *p, *g;
+int
+dh_init(struct party *party)
+{
+	DH *dh;
+	int items;
+
+	if ((dh = DH_new()) == NULL ||
+	    (dh->p = BN_new()) == NULL ||
+	    (dh->g = BN_new()) == NULL ||
+
+	    BN_hex2bn(&dh->p, P) == 0 ||
+	    BN_hex2bn(&dh->g, G) == 0 ||
+
+	    DH_check(dh, &items) == 0 ||
+	    DH_generate_key(dh) == 0)
+		goto fail;
+
+	party->dh = dh;
+
+	return 1;
+fail:
+	return 0;
+}
 
 int
-dh_params(struct party *party)
+dh_exchange(struct party *party, BIGNUM *pub_key)
 {
 	BN_CTX *bnctx;
-	uint8_t buf[BUFSIZ];
+	BIGNUM *secret;
+	size_t len;
+	uint8_t *buf,
+	    hash[SHA1_DIGEST_LENGTH];
+	SHA1_CTX sha1ctx;
 
 	if ((bnctx = BN_CTX_new()) == NULL)
 		goto fail;
+	BN_CTX_start(bnctx);
 
-	memset(party, 0, sizeof(*party));
-	arc4random_buf(buf, BUFSIZ);
-
-	if (BN_bin2bn(buf, BUFSIZ, &party->private) == 0 ||
-	    BN_mod_exp(&party->public, g, &party->private, p, bnctx) == 0)
+	if ((secret = BN_CTX_get(bnctx)) == NULL ||
+	    BN_mod_exp(secret, pub_key, party->dh->priv_key, party->dh->p, bnctx) == 0)
 		goto fail;
 
-	BN_CTX_free(bnctx);
-	return 1;
-fail:
-	return 0;
-}
-
-int
-send_key(struct party *party, BIGNUM *pubkey)
-{
-	BN_CTX *bnctx;
-
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    BN_mod_exp(&party->shared, pubkey, &party->private, p, bnctx) == 0)
-		goto fail;
-
-	BN_CTX_free(bnctx);
-	return 1;
-fail:
-	return 0;
-}
-
-int
-enc_params(struct party *party)
-{
-	size_t len;
-	uint8_t *buf, hash[SHA1_DIGEST_LENGTH];
-	SHA1_CTX sha1ctx;
-
-	len = BN_num_bytes(&party->shared);
+	len = BN_num_bytes(secret);
 	if ((buf = malloc(len)) == NULL)
 		goto fail;
 
-	BN_bn2bin(&party->shared, buf);
+	BN_bn2bin(secret, buf);
 
 	SHA1Init(&sha1ctx);
 	SHA1Update(&sha1ctx, buf, len);
 	SHA1Final(hash, &sha1ctx);
 
-	memcpy(party->key, hash, BLKSIZ);
-	arc4random_buf(party->iv, BLKSIZ);
+	memcpy(party->key, hash, KEYSIZE);
+	arc4random_buf(party->iv, KEYSIZE);
 
+	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
 	free(buf);
+
 	return 1;
 fail:
 	return 0;
 }
 
-int
+void
 mitm(struct party *party)
 {
-	return BN_bin2bn("", 0, &party->shared) != NULL;
+	SHA1_CTX ctx;
+	uint8_t hash[SHA1_DIGEST_LENGTH];
+
+	SHA1Init(&ctx);
+	SHA1Final(hash, &ctx);
+
+	memcpy(party->key, hash, KEYSIZE);
 }
 
 int
-send_msg(struct party *from, struct party *to, char *msg)
+send_message(struct party *from, struct party *to, char *message)
 {
 	BIO *mem, *enc, *dec, *bio_out;
 	FILE *memstream;
@@ -114,7 +116,7 @@ send_msg(struct party *from, struct party *to, char *msg)
 	size_t len;
 	ssize_t nr;
 
-	if ((mem = BIO_new_mem_buf(msg, strlen(msg))) == NULL ||
+	if ((mem = BIO_new_mem_buf(message, strlen(message))) == NULL ||
 	    (enc = BIO_new(BIO_f_cipher())) == NULL ||
 	    (dec = BIO_new(BIO_f_cipher())) == NULL ||
 	    (memstream = open_memstream(&buf, &len)) == NULL ||
@@ -135,7 +137,7 @@ send_msg(struct party *from, struct party *to, char *msg)
 	BIO_free_all(enc);
 	BIO_free_all(dec);
 
-	to->msg = buf;
+	to->message = buf;
 
 	return 1;
 fail:
@@ -143,12 +145,12 @@ fail:
 }
 
 void
-put_msg(struct party *party)
+put_message(struct party *party)
 {
-	if (party->msg) {
-		puts(party->msg);
-		free(party->msg);
-		party->msg = NULL;
+	if (party->message) {
+		puts(party->message);
+		free(party->message);
+		party->message = NULL;
 	}
 }
 
@@ -157,30 +159,25 @@ main(void)
 {
 	struct party alice, bob, chuck;
 
-	if (BN_hex2bn(&p, P) == 0 ||
-	    BN_hex2bn(&g, G) == 0 ||
-
-	    dh_params(&alice) == 0 ||
-	    dh_params(&bob) == 0 ||
-
-	    send_key(&alice, p) == 0 ||
-	    send_key(&bob, p) == 0 ||
-
-	    mitm(&chuck) == 0 ||
-
-	    enc_params(&alice) == 0 ||
-	    enc_params(&bob) == 0 ||
-	    enc_params(&chuck) == 0 ||
-
-	    send_msg(&alice, &chuck, "hello") == 0)
+	if (dh_init(&alice) == 0 ||
+	    dh_init(&bob) == 0 ||
+	    dh_init(&chuck) == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	mitm(&chuck);
 
-	if (send_msg(&bob, &chuck, "world") == 0)
+	if (dh_exchange(&alice, chuck.dh->p) == 0 ||
+	    dh_exchange(&bob, chuck.dh->p) == 0 ||
+
+	    send_message(&alice, &chuck, "hello") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
+
+	if (send_message(&bob, &chuck, "world") == 0)
+		err(1, NULL);
+
+	put_message(&chuck);
 
 	exit(0);
 }
