@@ -8,6 +8,7 @@
 
 #include <openssl/bio.h>
 #include <openssl/bn.h>
+#include <openssl/dh.h>
 #include <openssl/evp.h>
 
 #define P	"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024"	\
@@ -19,80 +20,79 @@
 		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff"	\
 		"fffffffffffff"
 
-#define BLKSIZ	16
+#define G	"2"
+
+#define KEYSIZE	16
 
 struct party {
-	BIGNUM private;
-	BIGNUM public;
-	BIGNUM shared;
-
-	uint8_t key[BLKSIZ];
-	uint8_t iv[BLKSIZ];
-
-	char *msg;
+	DH *dh;
+	uint8_t key[KEYSIZE];
+	uint8_t iv[KEYSIZE];
+	char *message;
 };
 
-BIGNUM *p;
-
 int
-dh_params(struct party *party, BIGNUM *g)
+dh_init(struct party *party)
 {
-	BN_CTX *bnctx;
-	uint8_t buf[BUFSIZ];
+	DH *dh;
 
-	if ((bnctx = BN_CTX_new()) == NULL)
+	if ((dh = DH_new()) == NULL ||
+	    (dh->p = BN_new()) == NULL ||
+	    (dh->g = BN_new()) == NULL ||
+
+	    BN_hex2bn(&dh->p, P) == 0)
 		goto fail;
 
-	memset(party, 0, sizeof(*party));
-	arc4random_buf(buf, BUFSIZ);
+	party->dh = dh;
 
-	if (BN_bin2bn(buf, BUFSIZ, &party->private) == 0 ||
-	    BN_mod_exp(&party->public, g, &party->private, p, bnctx) == 0)
-		goto fail;
-
-	BN_CTX_free(bnctx);
 	return 1;
 fail:
 	return 0;
+}
+
+int
+dh_inject(struct party *party, BIGNUM *g)
+{
+	return BN_copy(party->dh->g, g) &&
+
+	    DH_generate_key(party->dh);
 }
 
 int
 dh_exchange(struct party *p1, struct party *p2)
 {
 	BN_CTX *bnctx;
-
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    BN_mod_exp(&p1->shared, &p2->public, &p1->private, p, bnctx) == 0 ||
-	    BN_mod_exp(&p2->shared, &p1->public, &p2->private, p, bnctx) == 0)
-		goto fail;
-
-	BN_CTX_free(bnctx);
-	return 1;
-fail:
-	return 0;
-}
-
-int
-enc_params(struct party *party)
-{
+	BIGNUM *secret;
 	size_t len;
-	uint8_t *buf, hash[SHA1_DIGEST_LENGTH];
+	uint8_t *buf,
+	    hash[SHA1_DIGEST_LENGTH];
 	SHA1_CTX sha1ctx;
 
-	len = BN_num_bytes(&party->shared);
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(bnctx);
+
+	if ((secret = BN_CTX_get(bnctx)) == NULL ||
+	    BN_mod_exp(secret, p2->dh->pub_key, p1->dh->priv_key, p1->dh->p, bnctx) == 0)
+		goto fail;
+
+	len = BN_num_bytes(secret);
 	if ((buf = malloc(len)) == NULL)
 		goto fail;
 
-	BN_bn2bin(&party->shared, buf);
+	BN_bn2bin(secret, buf);
 
 	SHA1Init(&sha1ctx);
 	SHA1Update(&sha1ctx, buf, len);
 	SHA1Final(hash, &sha1ctx);
 
-	memcpy(party->key, hash, BLKSIZ);
-	arc4random_buf(party->iv, BLKSIZ);
+	memcpy(p1->key, hash, KEYSIZE);
+	arc4random_buf(p1->iv, KEYSIZE);
 
+	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
 	free(buf);
+
 	return 1;
 fail:
 	return 0;
@@ -101,27 +101,49 @@ fail:
 int
 mitm(struct party *party, BIGNUM *g, struct party *p1, struct party *p2)
 {
-	BN_init(&party->shared);
+	BIGNUM *secret;
+	size_t len;
+	uint8_t *buf,
+	    hash[SHA1_DIGEST_LENGTH];
+	SHA1_CTX ctx;
+
+	if ((secret = BN_new()) == NULL)
+		goto fail;
 
 	if (BN_is_one(g)) {
-		if (BN_one(&party->shared) == 0)
+		if (BN_one(secret) == 0)
 			goto fail;
-	} else if (BN_cmp(g, p) == 0) {
-		if (BN_zero(&party->shared) == 0)
+	} else if (BN_cmp(party->dh->p, g) == 0) {
+		if (BN_zero(secret) == 0)
 			goto fail;
 	} else {
 		if (p1 == NULL || p2 == NULL)
 			goto fail;
 
-		if (BN_cmp(&p1->public, BN_value_one()) == 0 ||
-		    BN_cmp(&p2->public, BN_value_one()) == 0) {
-			if (BN_one(&party->shared) == 0)
+		if (BN_cmp(p1->dh->pub_key, BN_value_one()) == 0 ||
+		    BN_cmp(p2->dh->pub_key, BN_value_one()) == 0) {
+			if (BN_one(secret) == 0)
 				goto fail;
 		} else
-			if (BN_copy(&party->shared, p) == NULL ||
-			    BN_sub(&party->shared, &party->shared, BN_value_one()) == 0)
+			if (BN_copy(secret, party->dh->p) == NULL ||
+			    BN_sub(secret, secret, BN_value_one()) == 0)
 				goto fail;
 	}
+
+	len = BN_num_bytes(secret);
+	if ((buf = malloc(len)) == NULL)
+		goto fail;
+
+	BN_bn2bin(secret, buf);
+
+	SHA1Init(&ctx);
+	SHA1Update(&ctx, buf, len);
+	SHA1Final(hash, &ctx);
+
+	memcpy(party->key, hash, KEYSIZE);
+
+	free(secret);
+	free(buf);
 
 	return 1;
 fail:
@@ -129,7 +151,7 @@ fail:
 }
 
 int
-send_msg(struct party *from, struct party *to, char *msg)
+send_message(struct party *from, struct party *to, char *message)
 {
 	BIO *mem, *enc, *dec, *bio_out;
 	FILE *memstream;
@@ -137,7 +159,7 @@ send_msg(struct party *from, struct party *to, char *msg)
 	size_t len;
 	ssize_t nr;
 
-	if ((mem = BIO_new_mem_buf(msg, strlen(msg))) == NULL ||
+	if ((mem = BIO_new_mem_buf(message, strlen(message))) == NULL ||
 	    (enc = BIO_new(BIO_f_cipher())) == NULL ||
 	    (dec = BIO_new(BIO_f_cipher())) == NULL ||
 	    (memstream = open_memstream(&buf, &len)) == NULL ||
@@ -158,7 +180,7 @@ send_msg(struct party *from, struct party *to, char *msg)
 	BIO_free_all(enc);
 	BIO_free_all(dec);
 
-	to->msg = buf;
+	to->message = buf;
 
 	return 1;
 fail:
@@ -166,87 +188,85 @@ fail:
 }
 
 void
-put_msg(struct party *party)
+put_message(struct party *party)
 {
-	if (party->msg) {
-		puts(party->msg);
-		free(party->msg);
-		party->msg = NULL;
+	if (party->message) {
+		puts(party->message);
+		free(party->message);
+		party->message = NULL;
 	}
 }
 
 int
 main(void)
 {
-	BIGNUM *g;
 	struct party alice, bob, chuck;
+	BIGNUM *g;
 
-	if (BN_hex2bn(&p, P) == 0 ||
-	    (g = BN_new()) == NULL)
-		err(1, NULL);
+	if (dh_init(&alice) == 0 ||
+	    dh_init(&bob) == 0 ||
+	    dh_init(&chuck) == 0 ||
 
-	if (BN_one(g) == 0 ||
-	    dh_params(&alice, g) == 0 ||
-	    dh_params(&bob, g) == 0 ||
-	    dh_exchange(&alice, &bob) == 0 ||
+	    (g = BN_new()) == NULL ||
+	    BN_one(g) == 0 ||
 
-	    mitm(&chuck, g, NULL, NULL) == 0 ||
-
-	    enc_params(&alice) == 0 ||
-	    enc_params(&bob) == 0 ||
-	    enc_params(&chuck) == 0 ||
-
-	    send_msg(&alice, &chuck, "c") == 0)
-		err(1, NULL);
-
-	put_msg(&chuck);
-
-	if (send_msg(&bob, &chuck, "r") == 0)
-		err(1, NULL);
-
-	put_msg(&chuck);
-
-	if (BN_copy(g, p) == NULL ||
-	    dh_params(&alice, g) == 0 ||
-	    dh_params(&bob, g) == 0 ||
-	    dh_exchange(&alice, &bob) == 0 ||
+	    dh_inject(&alice, g) == 0 ||
+	    dh_inject(&bob, g) == 0 ||
 
 	    mitm(&chuck, g, NULL, NULL) == 0 ||
 
-	    enc_params(&alice) == 0 ||
-	    enc_params(&bob) == 0 ||
-	    enc_params(&chuck) == 0 ||
+	    dh_exchange(&alice, &bob) == 0 ||
+	    dh_exchange(&bob, &alice) == 0 ||
 
-	    send_msg(&alice, &chuck, "y") == 0)
+	    send_message(&alice, &chuck, "c") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
-	if (send_msg(&bob, &chuck, "p") == 0)
+	if (send_message(&bob, &chuck, "r") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
+
+	if (BN_hex2bn(&g, P) == 0 ||
+
+	    dh_inject(&alice, g) == 0 ||
+	    dh_inject(&bob, g) == 0 ||
+
+	    mitm(&chuck, g, NULL, NULL) == 0 ||
+
+	    dh_exchange(&alice, &bob) == 0 ||
+	    dh_exchange(&bob, &alice) == 0 ||
+
+	    send_message(&alice, &chuck, "y") == 0)
+		err(1, NULL);
+
+	put_message(&chuck);
+
+	if (send_message(&bob, &chuck, "p") == 0)
+		err(1, NULL);
+
+	put_message(&chuck);
 
 	if (BN_sub(g, g, BN_value_one()) == 0 ||
-	    dh_params(&alice, g) == 0 ||
-	    dh_params(&bob, g) == 0 ||
-	    dh_exchange(&alice, &bob) == 0 ||
+
+	    dh_inject(&alice, g) == 0 ||
+	    dh_inject(&bob, g) == 0 ||
 
 	    mitm(&chuck, g, &alice, &bob) == 0 ||
 
-	    enc_params(&alice) == 0 ||
-	    enc_params(&bob) == 0 ||
-	    enc_params(&chuck) == 0 ||
+	    dh_exchange(&alice, &bob) == 0 ||
+	    dh_exchange(&bob, &alice) == 0 ||
 
-	    send_msg(&alice, &chuck, "t") == 0)
+	    send_message(&alice, &chuck, "t") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
-	if (send_msg(&bob, &chuck, "o") == 0)
+	if (send_message(&bob, &chuck, "o") == 0)
 		err(1, NULL);
 
-	put_msg(&chuck);
+	put_message(&chuck);
 
 	exit(0);
 }
