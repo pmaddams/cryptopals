@@ -71,7 +71,7 @@ main(void)
 	char key[BLKSIZ], *inbuf, *outbuf;
 	size_t inlen, outlen;
 	FILE *in, *out;
-	int realmode, guessmode;
+	int ismode, guessmode;
 
 	arc4random_buf(key, BLKSIZ);
 
@@ -83,7 +83,7 @@ main(void)
 	if ((inbuf = extend(inbuf, &inlen)) == NULL ||
 	    (in = fmemopen(inbuf, inlen, "r")) == NULL ||
 	    (out = open_memstream(&outbuf, &outlen)) == NULL ||
-	    (encrypt(in, out, key, &realmode)) == 0)
+	    (encrypt(in, out, key, &ismode)) == 0)
 		err(1, NULL);
 
 	free(inbuf);
@@ -92,7 +92,7 @@ main(void)
 
 	guessmode = memcmp(outbuf+BLKSIZ, outbuf+BLKSIZ*2, BLKSIZ) == 0 ? ECB : CBC;
 
-	puts(realmode == guessmode ? "success" : "failure");
+	puts(ismode == guessmode ? "success" : "failure");
 
 	exit(0);
 }
