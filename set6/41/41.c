@@ -113,7 +113,7 @@ check_msg(char *enc)
 	SHA2_CTX ctx;
 	uint8_t hash[SHA256_DIGEST_LENGTH];
 	size_t h;
-	static struct entry *tab[HASHSIZE];
+	static struct entry *hashtab[HASHSIZE];
 	struct entry *entry, *prev, *next;
 
 	time(&cur);
@@ -124,12 +124,12 @@ check_msg(char *enc)
 
 	h = *(size_t *) hash % HASHSIZE;
 
-	for (prev = NULL, entry = tab[h]; entry != NULL;)
+	for (prev = NULL, entry = hashtab[h]; entry != NULL;)
 		if (cur - entry->timestamp > TIMEOUT) {
 			next = entry->next;
 
 			if (prev == NULL)
-				tab[h] = next;
+				hashtab[h] = next;
 			else
 				prev->next = next;
 
@@ -150,8 +150,8 @@ check_msg(char *enc)
 
 	entry->timestamp = cur;
 	memcpy(entry->hash, hash, SHA256_DIGEST_LENGTH);
-	entry->next = tab[h];
-	tab[h] = entry;
+	entry->next = hashtab[h];
+	hashtab[h] = entry;
 
 	return 1;
 fail:
