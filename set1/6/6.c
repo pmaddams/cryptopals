@@ -57,13 +57,13 @@ size_t
 crack_keylen(uint8_t *buf, size_t len)
 {
 	size_t guess, found, max;
-	float score, best;
+	float cur, best;
 
 	max = MIN(len/(NBLOCK+1), MAXLEN);
 
 	for (best = 8., found = guess = MINLEN; guess <= max; guess++)
-		if ((score = keydist(buf, len, guess)) < best) {
-			best = score;
+		if ((cur = keydist(buf, len, guess)) < best) {
+			best = cur;
 			found = guess;
 		}
 
@@ -78,7 +78,7 @@ xor(uint8_t *buf, size_t len, uint8_t c)
 }
 
 float
-score_buf(uint8_t *buf, size_t len)
+score(uint8_t *buf, size_t len)
 {
 	float res;
 	uint8_t c;
@@ -106,7 +106,7 @@ crack_key(uint8_t *buf, size_t len, size_t keylen)
 {
 	size_t i, j, tmplen;
 	char *tmp, *cp, *key;
-	float score, best;
+	float cur, best;
 	int c;
 
 	len -= len % keylen;
@@ -124,8 +124,8 @@ crack_key(uint8_t *buf, size_t len, size_t keylen)
 		for (best = 0., c = 0; c <= UINT8_MAX; c++) {
 			memcpy(cp, tmp, tmplen);
 			xor(cp, tmplen, c);
-			if ((score = score_buf(cp, tmplen)) > best) {
-				best = score;
+			if ((cur = score(cp, tmplen)) > best) {
+				best = cur;
 				key[i] = c;
 			}
 		}

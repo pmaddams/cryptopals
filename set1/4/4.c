@@ -44,7 +44,7 @@ xor(uint8_t *buf, size_t len, uint8_t c)
 }
 
 float
-score_buf(uint8_t *buf, size_t len)
+score(uint8_t *buf, size_t len)
 {
 	float res;
 	uint8_t c;
@@ -70,7 +70,7 @@ score_buf(uint8_t *buf, size_t len)
 int
 main(void)
 {
-	float score, best;
+	float cur, best;
 	char *buf, *lbuf, *cp, *found;
 	size_t len;
 	uint8_t c;
@@ -98,8 +98,8 @@ main(void)
 		for (c = 0;; c++) {
 			memcpy(cp, buf, len);
 			xor(cp, len, c);
-			if ((score = score_buf(cp, len)) > best) {
-				best = score;
+			if ((cur = score(cp, len)) > best) {
+				best = cur;
 				free(found);
 				if ((found = strdup(cp)) == NULL)
 					err(1, NULL);
