@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tab.h"
+#include "freq.h"
 
 int
 gethex(void)
@@ -26,14 +26,14 @@ gethex(void)
 }
 
 void
-xor(uint8_t *buf, uint8_t c, size_t len)
+xor(uint8_t *buf, size_t len, uint8_t c)
 {
 	while (len--)
 		*buf++ ^= c;
 }
 
 float
-score(uint8_t *buf, size_t len)
+score_buf(uint8_t *buf, size_t len)
 {
 	float res;
 	uint8_t c;
@@ -41,13 +41,13 @@ score(uint8_t *buf, size_t len)
 	for (res = 0.; len--;)
 		switch (c = *buf++) {
 		case ' ':
-			res += tab[0];
+			res += freq[0];
 			break;
 		case 'A'...'Z':
 			c = c - 'A' + 'a';
 			/* FALLTHROUGH */
 		case 'a'...'z':
-			res += tab[1 + c - 'a'];
+			res += freq[1 + c - 'a'];
 			break;
 		default:
 			break;
@@ -63,7 +63,7 @@ main(void)
 	char *buf, *cp;
 	size_t len;
 	int c, found;
-	float scr, best;
+	float score, best;
 
 	if ((memstream = open_memstream(&buf, &len)) == NULL)
 		err(1, NULL);
@@ -77,9 +77,9 @@ main(void)
 
 	for (best = 0., c = 0; c <= UINT8_MAX; c++) {
 		memcpy(cp, buf, len);
-		xor(cp, c, len);
-		if ((scr = score(cp, len)) > best) {
-			best = scr;
+		xor(cp, len, c);
+		if ((score = score_buf(cp, len)) > best) {
+			best = score;
 			found = c;
 		}
 	}
@@ -87,8 +87,8 @@ main(void)
 	if (best == 0.)
 		errx(1, "no match found");
 
-	xor(buf, found, len);
+	xor(buf, len, found);
 	puts(buf);
-
+ 
 	exit(0);
 }

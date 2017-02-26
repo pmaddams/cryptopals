@@ -10,11 +10,11 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#include "tab.h"
+#include "freq.h"
 
-#define MINKEY	6
-#define MAXKEY	40
-#define NBLK	4
+#define MINLEN 6
+#define MAXLEN 40
+#define NBLOCK 4
 
 int
 dist(uint8_t *b1, uint8_t *b2, size_t len)
@@ -39,16 +39,16 @@ keydist(uint8_t *buf, size_t len, size_t guess)
 	int i, sum;
 	uint8_t tmp[guess];
 
-	if (guess*(NBLK+1) >= len)
+	if (guess*(NBLOCK+1) >= len)
 		goto fail;
 
-	for (sum = i = 0; i < NBLK; i++) {
+	for (sum = i = 0; i < NBLOCK; i++) {
 		memcpy(tmp, buf+(i+1)*guess, guess);
 		buf += i*guess;
 		sum += dist(buf, tmp, guess);
 	}
 
-	return (float) sum / (guess*NBLK);
+	return (float) sum / (guess*NBLOCK);
 fail:
 	return 8.;
 }
@@ -57,13 +57,13 @@ size_t
 crack_keylen(uint8_t *buf, size_t len)
 {
 	size_t guess, found, max;
-	float scr, best;
+	float score, best;
 
-	max = MIN(len/(NBLK+1), MAXKEY);
+	max = MIN(len/(NBLOCK+1), MAXLEN);
 
-	for (best = 8., found = guess = MINKEY; guess <= max; guess++)
-		if ((scr = keydist(buf, len, guess)) < best) {
-			best = scr;
+	for (best = 8., found = guess = MINLEN; guess <= max; guess++)
+		if ((score = keydist(buf, len, guess)) < best) {
+			best = score;
 			found = guess;
 		}
 
@@ -71,14 +71,14 @@ crack_keylen(uint8_t *buf, size_t len)
 }
 
 void
-xor(uint8_t *buf, uint8_t c, size_t len)
+xor(uint8_t *buf, size_t len, uint8_t c)
 {
 	while (len--)
 		*buf++ ^= c;
 }
 
 float
-score(uint8_t *buf, size_t len)
+score_buf(uint8_t *buf, size_t len)
 {
 	float res;
 	uint8_t c;
@@ -86,13 +86,13 @@ score(uint8_t *buf, size_t len)
 	for (res = 0.; len--;)
 		switch (c = *buf++) {
 		case ' ':
-			res += tab[0];
+			res += freq[0];
 			break;
 		case 'A'...'Z':
 			c = c - 'A' + 'a';
 			/* FALLTHROUGH */
 		case 'a'...'z':
-			res += tab[1 + c - 'a'];
+			res += freq[1 + c - 'a'];
 			break;
 		default:
 			break;
@@ -106,7 +106,7 @@ crack_key(uint8_t *buf, size_t len, size_t keylen)
 {
 	size_t i, j, tmplen;
 	char *tmp, *cp, *key;
-	float scr, best;
+	float score, best;
 	int c;
 
 	len -= len % keylen;
@@ -123,9 +123,9 @@ crack_key(uint8_t *buf, size_t len, size_t keylen)
 
 		for (best = 0., c = 0; c <= UINT8_MAX; c++) {
 			memcpy(cp, tmp, tmplen);
-			xor(cp, c, tmplen);
-			if ((scr = score(cp, tmplen)) > best) {
-				best = scr;
+			xor(cp, tmplen, c);
+			if ((score = score_buf(cp, tmplen)) > best) {
+				best = score;
 				key[i] = c;
 			}
 		}

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BLKSIZ 16
+#define BLKSIZE 16
 
 char *
 xtoa(char *s, size_t *lenp)
@@ -36,7 +36,7 @@ main(void)
 {
 	char *buf, *lbuf, *found;
 	size_t i, j, len, foundln;
-	int scr, best;
+	int score, best;
 
 	best = 0;
 	lbuf = found = NULL;
@@ -54,13 +54,13 @@ main(void)
 
 		xtoa(buf, &len);
 
-		for (scr = 0, i = 0; i+BLKSIZ*2 <= len; i += BLKSIZ)
-			for (j = i+BLKSIZ; j+BLKSIZ <= len; j += BLKSIZ)
-				if (memcmp(buf+i, buf+j, BLKSIZ) == 0)
-					scr++;
+		for (score = 0, i = 0; i+BLKSIZE*2 <= len; i += BLKSIZE)
+			for (j = i+BLKSIZE; j+BLKSIZE <= len; j += BLKSIZE)
+				if (memcmp(buf+i, buf+j, BLKSIZE) == 0)
+					score++;
 
-		if (scr > best) {
-			best = scr;
+		if (score > best) {
+			best = score;
 			if ((found = realloc(found, len)) == NULL)
 				err(1, NULL);
 			memcpy(found, buf, len);
