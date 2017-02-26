@@ -15,12 +15,41 @@
 
 #define BLKSIZ 64
 
-int
-init_params(BIGNUM **modp, BIGNUM **genp, BIGNUM **mulp)
+struct srp *
+srp_new(void)
 {
-	return BN_hex2bn(modp, N) &&
-	    BN_hex2bn(genp, G) &&
-	    BN_hex2bn(mulp, K);
+	struct srp *srp;
+
+	if ((srp = malloc(sizeof(*srp))) == NULL ||
+	    (srp->n = BN_new()) == NULL ||
+	    (srp->g = BN_new()) == NULL ||
+	    (srp->k = BN_new()) == NULL ||
+	    (srp->u = BN_new()) == NULL ||
+	    (srp->v = BN_new()) == NULL ||
+	    (srp->priv_key = BN_new()) == NULL ||
+	    (srp->pub_key = BN_new()) == NULL ||
+
+	    BN_hex2bn(&srp->n, N) == 0 ||
+	    BN_hex2bn(&srp->g, G) == 0 ||
+	    BN_hex2bn(&srp->k, K) == 0)
+		goto fail;
+
+	return srp;
+fail:
+	return NULL;
+}
+
+int
+srp_priv_key(struct srp *srp)
+{
+	do
+		if (BN_rand_range(srp->priv_key, srp->n) == 0)
+			goto fail;
+	while (BN_is_zero(srp->priv_key));
+
+	return 1;
+fail:
+	return 0;
 }
 
 BIGNUM *

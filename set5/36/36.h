@@ -29,7 +29,6 @@ struct srp {
 
 struct state {
 	struct srp *srp;
-	int connfd;
 	char *username;
 	char *password;
 	char *salt;

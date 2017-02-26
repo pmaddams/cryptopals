@@ -14,14 +14,6 @@
 
 #include "36.h"
 
-/*
-BIGNUM *modulus, *generator, *multiplier,
-    *private_key, *public_key, *server_pubkey,
-    *scrambler, *shared_s;
-
-char *username, *password, *salt, *shared_k, *hmac;
-*/
-
 int
 lo_connect(in_port_t port)
 {
@@ -40,6 +32,15 @@ lo_connect(in_port_t port)
 	return fd;
 fail:
 	return -1;
+}
+
+int
+client_init(struct state *client)
+{
+	struct srp *srp;
+
+	if ((srp = srp_new()) == NULL)
+		goto fail;
 }
 
 BIGNUM *
