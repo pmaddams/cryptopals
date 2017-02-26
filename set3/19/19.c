@@ -108,7 +108,7 @@ xor(uint8_t *buf, uint8_t c, size_t len)
 }
 
 float
-score_buf(uint8_t *buf, size_t len)
+score(uint8_t *buf, size_t len)
 {
 	float res;
 	uint8_t c;
@@ -136,7 +136,7 @@ crack_byte(size_t i)
 {
 	size_t j;
 	uint8_t buf[NBUF], cp[NBUF], c, found;
-	float score, best;
+	float cur, best;
 
 	for (j = 0; j < NBUF; j++)
 		buf[j] = enc[j].buf[i];
@@ -144,8 +144,8 @@ crack_byte(size_t i)
 	for (best = 0., found = c = 0;; c++) {
 		memcpy(cp, buf, NBUF);
 		xor(cp, c, NBUF);
-		if ((score = score_buf(cp, NBUF)) > best) {
-			best = score;
+		if ((cur = score(cp, NBUF)) > best) {
+			best = cur;
 			found = c;
 		}
 		if (c == UINT8_MAX)
