@@ -65,7 +65,7 @@ mt_crypt(uint8_t *in, size_t inlen, uint16_t seed)
 	}
 
 	outlen = ((inlen-1)/BLKSIZ+1)*BLKSIZ;
-	if ((out = malloc(outlen)) == NULL)
+	if ((out = malloc(outlen+1)) == NULL)
 		goto fail;
 
 	mt_init(&mt, seed);

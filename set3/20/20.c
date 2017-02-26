@@ -10,7 +10,7 @@
 #include <openssl/evp.h>
 
 #include "data.h"
-#include "tab.h"
+#include "freq.h"
 
 #define BLKSIZ 16
 
@@ -108,7 +108,7 @@ xor(uint8_t *buf, uint8_t c, size_t len)
 }
 
 float
-score(uint8_t *buf, size_t len)
+score_buf(uint8_t *buf, size_t len)
 {
 	float res;
 	uint8_t c;
@@ -116,13 +116,13 @@ score(uint8_t *buf, size_t len)
 	for (res = 0.; len--;)
 		switch (c = *buf++) {
 		case ' ':
-			res += tab[0];
+			res += freq[0];
 			break;
 		case 'A'...'Z':
 			c = c - 'A' + 'a';
 			/* FALLTHROUGH */
 		case 'a'...'z':
-			res += tab[1 + c - 'a'];
+			res += freq[1 + c - 'a'];
 			break;
 		default:
 			break;
@@ -136,7 +136,7 @@ crack_byte(size_t i)
 {
 	size_t j;
 	uint8_t buf[NBUF], cp[NBUF], c, found;
-	float scr, best;
+	float score, best;
 
 	for (j = 0; j < NBUF; j++)
 		buf[j] = enc[j].buf[i];
@@ -144,8 +144,8 @@ crack_byte(size_t i)
 	for (best = 0., found = c = 0;; c++) {
 		memcpy(cp, buf, NBUF);
 		xor(cp, c, NBUF);
-		if ((scr = score(cp, NBUF)) > best) {
-			best = scr;
+		if ((score = score_buf(cp, NBUF)) > best) {
+			best = score;
 			found = c;
 		}
 		if (c == UINT8_MAX)
