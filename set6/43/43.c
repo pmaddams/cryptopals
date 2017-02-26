@@ -42,8 +42,8 @@ dsa_init(struct dsa *dsa)
 	if ((dsa->p = BN_new()) == NULL ||
 	    (dsa->q = BN_new()) == NULL ||
 	    (dsa->g = BN_new()) == NULL ||
-	    (dsa->x = BN_new()) == NULL ||
-	    (dsa->y = BN_new()) == NULL ||
+	    (dsa->priv_key = BN_new()) == NULL ||
+	    (dsa->pub_key = BN_new()) == NULL ||
 
 	    BN_hex2bn(&dsa->p, P) == 0 ||
 	    BN_hex2bn(&dsa->q, Q) == 0 ||
@@ -53,7 +53,7 @@ dsa_init(struct dsa *dsa)
 	do
 		if (BN_rand_range(dsa->priv_key, dsa->q) == 0)
 			goto fail;
-	while (!BN_is_zero(dsa->priv_key));
+	while (BN_is_zero(dsa->priv_key));
 
 	return 1;
 fail:
