@@ -32,7 +32,7 @@ struct state {
 	char *username;
 	char *password;
 	char *salt;
-	uint8_t key[KEYSIZE];
+	uint8_t enc_key[KEYSIZE];
 };
 
 char *atox(uint8_t *, size_t);

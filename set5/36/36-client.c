@@ -35,7 +35,7 @@ fail:
 }
 
 int
-srp_generate_public_key(struct srp *srp)
+srp_generate_pub_key(struct srp *srp)
 {
 	BN_CTX *ctx;
 
@@ -55,8 +55,8 @@ client_init(struct state *client)
 	struct srp *srp;
 
 	if ((srp = srp_new()) == NULL ||
-	    srp_generate_private_key(srp) == 0 ||
-	    srp_generate_public_key(srp) == 0)
+	    srp_generate_priv_key(srp) == 0 ||
+	    srp_generate_pub_key(srp) == 0)
 		goto fail;
 
 	client->srp = srp;
@@ -67,7 +67,7 @@ fail:
 }
 
 int
-client_generate_key(struct state *client, BIGNUM *server_pub_key)
+client_generate_enc_key(struct state *client, BIGNUM *server_pub_key)
 {
 	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;

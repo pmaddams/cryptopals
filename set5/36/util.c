@@ -40,7 +40,7 @@ fail:
 }
 
 int
-srp_generate_private_key(struct srp *srp)
+srp_generate_priv_key(struct srp *srp)
 {
 	do
 		if (BN_rand_range(srp->priv_key, srp->n) == 0)
