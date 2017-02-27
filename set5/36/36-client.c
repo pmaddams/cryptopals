@@ -191,7 +191,9 @@ main(void)
 	BIGNUM *server_pub_key;
 
 	if (client_init(&client) == 0 ||
+
 	    (connfd = lo_connect(PORT)) == -1 ||
+
 	    (server_pub_key = BN_new()) == NULL)
 		err(1, NULL);
 
@@ -204,9 +206,7 @@ main(void)
 		err(1, NULL);
 
 	if (send_username_and_client_pub_key(connfd, &client) == 0 ||
-
 	    get_salt_and_server_pub_key(connfd, &client, &server_pub_key) == 0 ||
-
 	    client_generate_enc_key(&client, server_pub_key) == 0)
 		err(1, NULL);
 

@@ -259,11 +259,8 @@ main(void)
 		close(listenfd);
 
 		if (get_username_and_client_pub_key(connfd, &server, &client_pub_key) == 0 ||
-
 		    send_salt_and_server_pub_key(connfd, &server) == 0 ||
-
 		    server_generate_enc_key(&server, client_pub_key) == 0 ||
-
 		    server_verify_hmac(connfd, &server) == 0)
 			err(1, NULL);
 
