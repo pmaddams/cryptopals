@@ -175,7 +175,7 @@ client_verify_hmac(int connfd, struct state *client)
 	    (buf = srecv(connfd)) == 0)
 		goto fail;
 
-	res = strcmp(hmac, buf) == 0;
+	res = strcmp(buf, "OK") == 0;
 
 	free(buf);
 	return res;

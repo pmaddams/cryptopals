@@ -239,8 +239,11 @@ main(void)
 	server.username = USERNAME;
 	server.password = PASSWORD;
 	if ((server.salt = generate_salt()) == NULL ||
+
 	    server_finish_init(&server) == 0 ||
+
 	    (listenfd = lo_listen(PORT)) == 0 ||
+
 	    (client_pub_key = BN_new()) == NULL)
 		err(1, NULL);
 
@@ -256,8 +259,11 @@ main(void)
 		close(listenfd);
 
 		if (get_username_and_client_pub_key(connfd, &server, &client_pub_key) == 0 ||
+
 		    send_salt_and_server_pub_key(connfd, &server) == 0 ||
+
 		    server_generate_enc_key(&server, client_pub_key) == 0 ||
+
 		    server_verify_hmac(connfd, &server) == 0)
 			err(1, NULL);
 
