@@ -17,12 +17,6 @@
 #define USERNAME "admin@secure.net"
 #define PASSWORD "batman"
 
-BIGNUM *modulus, *generator, *multiplier, *verifier,
-    *private_key, *public_key, *client_pubkey,
-    *scrambler, *shared_s;
-
-char *salt, *shared_k, *hmac;
-
 int
 lo_listen(in_port_t port)
 {
@@ -44,8 +38,24 @@ fail:
 	return -1;
 }
 
+int
+server_start_init(struct state *server)
+{
+	struct srp *srp;
+
+	if ((srp = srp_new()) == NULL ||
+	    srp_generate_priv_key(srp) == 0)
+		goto fail;
+
+	server->srp = srp;
+
+	return 1;
+fail:
+	return 0;
+}
+
 char *
-make_salt(void)
+generate_salt(void)
 {
 	uint32_t num;
 
@@ -53,8 +63,8 @@ make_salt(void)
 	return atox((uint8_t *) &num, sizeof(num));
 }
 
-BIGNUM *
-make_verifier(char *salt)
+int
+generate_verifier(struct state *server)
 {
 	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
@@ -63,27 +73,29 @@ make_verifier(char *salt)
 
 	if ((bnctx = BN_CTX_new()) == NULL)
 		goto fail;
+	BN_CTX_start(bnctx);
 
 	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, salt, strlen(salt));
-	SHA256Update(&sha2ctx, PASSWORD, strlen(PASSWORD));
+	SHA256Update(&sha2ctx, server->salt, strlen(server->salt));
+	SHA256Update(&sha2ctx, server->password, strlen(server->password));
 	SHA256Final(hash, &sha2ctx);
 
-	if ((verifier = BN_new()) == NULL ||
-	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
-	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
+	if ((x = BN_CTX_get(bnctx)) == NULL ||
+	    BN_bin2bn(hash, SHA256_DIGEST_LENGTH, x) == NULL ||
+	    BN_mod_exp(server->srp->v, server->srp->g, x, server->srp->n, bnctx) == 0)
 		goto fail;
 
+	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
 	free(x);
 
-	return verifier;
+	return 1;
 fail:
-	return NULL;
+	return 0;
 }
 
-BIGNUM *
-make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
+int
+srp_generate_server_pub_key(struct srp *srp)
 {
 	BN_CTX *bnctx;
 	BIGNUM *t1, *t2;
@@ -92,52 +104,121 @@ make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM 
 		goto fail;
 	BN_CTX_start(bnctx);
 
-	if ((public_key = BN_new()) == NULL ||
-	    (t1 = BN_CTX_get(bnctx)) == NULL ||
+	if ((t1 = BN_CTX_get(bnctx)) == NULL ||
 	    (t2 = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mul(t1, multiplier, verifier, bnctx) == 0 ||
-	    BN_mod_exp(t2, generator, private_key, modulus, bnctx) == 0 ||
-	    BN_add(public_key, t1, t2) == 0)
+	    BN_mul(t1, srp->k, srp->v, bnctx) == 0 ||
+	    BN_mod_exp(t2, srp->g, srp->priv_key, srp->n, bnctx) == 0 ||
+	    BN_add(srp->pub_key, t1, t2) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
 
-	return public_key;
+	return 1;
 fail:
-	return NULL;
+	return 0;
 }
 
-BIGNUM *
-make_shared_s(BIGNUM *client_pubkey, BIGNUM *verifier, BIGNUM *scrambler, BIGNUM *private_key, BIGNUM *modulus)
+int
+server_finish_init(struct state *server)
+{
+	return generate_verifier(server) && srp_generate_server_pub_key(server->srp);
+}
+
+int
+server_generate_enc_key(struct state *server, BIGNUM *client_pub_key)
 {
 	BN_CTX *bnctx;
-	BIGNUM *tmp;
+	BIGNUM *secret;
+	size_t len;
+	uint8_t *buf,
+	    hash[SHA256_DIGEST_LENGTH];
+	SHA2_CTX sha2ctx;
 
-	if ((bnctx = BN_CTX_new()) == NULL)
+	if (generate_scrambler(server->srp->u, client_pub_key, server->srp->pub_key) == 0 ||
+
+	    (bnctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(bnctx);
 
-	if ((shared_s = BN_new()) == NULL ||
-	    (tmp = BN_CTX_get(bnctx)) == NULL ||
+	if ((secret = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mod_exp(tmp, verifier, scrambler, modulus, bnctx) == 0 ||
-	    BN_mul(tmp, client_pubkey, tmp, bnctx) == 0 ||
-	    BN_mod_exp(shared_s, tmp, private_key, modulus, bnctx) == 0)
+	    BN_mod_exp(secret, server->srp->v, server->srp->u, server->srp->n, bnctx) == 0 ||
+	    BN_mul(secret, client_pub_key, secret, bnctx) == 0 ||
+	    BN_mod_exp(secret, secret, server->srp->priv_key, server->srp->n, bnctx) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
 
-	return shared_s;
+	len = BN_num_bytes(secret);
+	if ((buf = malloc(len)) == NULL ||
+
+	    BN_bn2bin(secret, buf) == 0)
+		goto fail;
+
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, buf, len);
+	SHA256Final(hash, &sha2ctx);
+
+	memcpy(server->enc_key, hash, KEYSIZE);
+
+	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
+	free(buf);
+
+	return 1;
 fail:
-	return NULL;
+	return 0;
+}
+
+int
+get_username_and_client_pub_key()
+{
+
+}
+
+int
+send_salt_and_server_pub_key()
+{
+
 }
 
 int
 main(void)
 {
+	struct state server;
+	int listenfd, connfd;
+	BIGNUM *client_pub_key;
+	pid_t pid;
+
+	if (server_start_init(&server) == 0)
+		err(1, NULL);
+
+	server.username = USERNAME;
+	server.password = PASSWORD;
+	if ((server.salt = generate_salt()) == NULL ||
+	    server_finish_init(&server) == 0 ||
+	    (listenfd = lo_listen(PORT)) == 0 ||
+	    (client_pub_key = BN_new()) == NULL)
+		err(1, NULL);
+
+	for (;;) {
+		if ((connfd = accept(listenfd, NULL, NULL)) == -1 ||
+		    (pid = fork()) == -1)
+			err(1, NULL);
+
+		if (pid != 0) {
+			close(connfd);
+			continue;
+		}
+		close(listenfd);
+
+		
+	}
+
+	/*
 	int listenfd, connfd;
 	pid_t pid;
 	char *buf, *p;
@@ -196,6 +277,7 @@ main(void)
 
 		break;
 	}
+	*/
 
 	exit(0);
 }

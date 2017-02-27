@@ -166,8 +166,7 @@ fail:
 int
 client_verify_hmac(int connfd, struct state *client)
 {
-	char hmac[SHA256_DIGEST_STRING_LENGTH],
-	    *buf;
+	char *buf, hmac[SHA256_DIGEST_STRING_LENGTH];
 	int res;
 
 	generate_hmac(client, hmac);
