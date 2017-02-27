@@ -13,8 +13,6 @@
 
 #define TMPSIZ 8192
 
-#define BLKSIZ 64
-
 struct srp *
 srp_new(void)
 {
@@ -127,8 +125,8 @@ done:
 	return dst;
 }
 
-BIGNUM *
-generate_scrambler(BIGNUM *client_pub_key, BIGNUM *server_pub_key)
+int
+generate_scrambler(BIGNUM *res, BIGNUM *client_pub_key, BIGNUM *server_pub_key)
 {
 	SHA2_CTX sha2ctx;
 	size_t len;
@@ -136,17 +134,17 @@ generate_scrambler(BIGNUM *client_pub_key, BIGNUM *server_pub_key)
 
 	SHA256Init(&sha2ctx);
 
-	len = BN_num_bytes(client_pubkey);
+	len = BN_num_bytes(client_pub_key);
 	if ((buf = malloc(len)) == NULL ||
-	    BN_bn2bin(client_pubkey, buf) == 0)
+	    BN_bn2bin(client_pub_key, buf) == 0)
 		goto fail;
 
 	SHA256Update(&sha2ctx, buf, len);
 	free(buf);
 
-	len = BN_num_bytes(server_pubkey);
+	len = BN_num_bytes(server_pub_key);
 	if ((buf = malloc(len)) == NULL ||
-	    BN_bn2bin(server_pubkey, buf) == 0)
+	    BN_bn2bin(server_pub_key, buf) == 0)
 		goto fail;
 
 	SHA256Update(&sha2ctx, buf, len);
@@ -154,36 +152,35 @@ generate_scrambler(BIGNUM *client_pub_key, BIGNUM *server_pub_key)
 
 	SHA256Final(hash, &sha2ctx);
 
-	return BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL);
+	return BN_bin2bn(hash, SHA256_DIGEST_LENGTH, res) != NULL;
 fail:
-	return NULL;
+	return 0;
 }
 
-char *
-hmac(char *shared_k, char *salt)
+void
+generate_hmac(struct state *state, char *res)
 {
-	char ipad[BLKSIZ], opad[BLKSIZ],
+	char ipad[SHA256_BLOCK_LENGTH],
+	    opad[SHA256_BLOCK_LENGTH],
 	    hash[SHA256_DIGEST_LENGTH];
 	size_t i, len;
 	SHA2_CTX sha2ctx;
 
-	memset(ipad, '\x5c', BLKSIZ);
-	memset(opad, '\x36', BLKSIZ);
+	memset(ipad, '\x5c', SHA256_BLOCK_LENGTH);
+	memset(opad, '\x36', SHA256_BLOCK_LENGTH);
 
-	len = strlen(shared_k);
-	for (i = 0; i < len; i++) {
-		ipad[i] ^= shared_k[i];
-		opad[i] ^= shared_k[i];
+	for (i = 0; i < KEYSIZE; i++) {
+		ipad[i] ^= state->enc_key[i];
+		opad[i] ^= state->enc_key[i];
 	}
 
 	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, ipad, BLKSIZ);
-	SHA256Update(&sha2ctx, salt, strlen(salt));
+	SHA256Update(&sha2ctx, ipad, SHA256_BLOCK_LENGTH);
+	SHA256Update(&sha2ctx, state->salt, strlen(state->salt));
 	SHA256Final(hash, &sha2ctx);
 
 	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, opad, BLKSIZ);
+	SHA256Update(&sha2ctx, opad, SHA256_BLOCK_LENGTH);
 	SHA256Update(&sha2ctx, hash, SHA256_DIGEST_LENGTH);
-
-	return SHA256End(&sha2ctx, NULL);
+	SHA256End(&sha2ctx, res);
 }

@@ -35,7 +35,7 @@ fail:
 }
 
 int
-srp_generate_pub_key(struct srp *srp)
+srp_generate_client_pub_key(struct srp *srp)
 {
 	BN_CTX *ctx;
 
@@ -56,7 +56,7 @@ client_init(struct state *client)
 
 	if ((srp = srp_new()) == NULL ||
 	    srp_generate_priv_key(srp) == 0 ||
-	    srp_generate_pub_key(srp) == 0)
+	    srp_generate_client_pub_key(srp) == 0)
 		goto fail;
 
 	client->srp = srp;
@@ -76,10 +76,9 @@ client_generate_enc_key(struct state *client, BIGNUM *server_pub_key)
 	size_t len;
 	char *buf;
 
-	if (generate_scrambler(client->srp->u, client->srp->pub_key, server_pub_key) == 0)
-		goto fail;
+	if (generate_scrambler(client->srp->u, client->srp->pub_key, server_pub_key) == 0 ||
 
-	if ((bnctx = BN_CTX_new()) == NULL)
+	    (bnctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(bnctx);
 
@@ -123,7 +122,7 @@ fail:
 }
 
 int
-send_username_and_pub_key(int connfd, struct state *client)
+send_username_and_client_pub_key(int connfd, struct state *client)
 {
 	char *buf;
 
@@ -138,7 +137,7 @@ fail:
 }
 
 int
-get_salt_and_pub_key(int connfd, struct state *client, BIGNUM **bp)
+get_salt_and_server_pub_key(int connfd, struct state *client, BIGNUM **bp)
 {
 	char *buf, *p;
 	ssize_t i;
@@ -205,9 +204,9 @@ main(void)
 	if ((client.password = input()) == NULL)
 		err(1, NULL);
 
-	if (send_username_and_pub_key(connfd, &client) == 0 ||
+	if (send_username_and_client_pub_key(connfd, &client) == 0 ||
 
-	    get_salt_and_pub_key(connfd, &client, &server_pub_key) == 0 ||
+	    get_salt_and_server_pub_key(connfd, &client, &server_pub_key) == 0 ||
 
 	    client_generate_enc_key(&client, server_pub_key) == 0)
 		err(1, NULL);

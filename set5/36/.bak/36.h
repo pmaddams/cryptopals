@@ -36,13 +36,12 @@ struct state {
 };
 
 char *atox(uint8_t *, size_t);
-int init_params(BIGNUM **, BIGNUM **, BIGNUM **);
+void generate_hmac(struct state *, char *);
+int generate_scrambler(BIGNUM *, BIGNUM *, BIGNUM *);
 char *input(void);
-char *make_hmac(char *, char *);
-BIGNUM *make_private_key(void);
-BIGNUM *make_scrambler(BIGNUM *, BIGNUM *);
-char *make_shared_k(BIGNUM *);
 void print(char *);
+int srp_generate_priv_key(struct srp *);
+struct srp *srp_new(void);
 char *srecv(int);
 int ssend(int, char *);
 int ssendf(int, char *, ...);
