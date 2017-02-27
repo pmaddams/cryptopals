@@ -87,7 +87,6 @@ generate_verifier(struct state *server)
 
 	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
-	free(x);
 
 	return 1;
 fail:
@@ -148,9 +147,6 @@ server_generate_enc_key(struct state *server, BIGNUM *client_pub_key)
 	    BN_mul(secret, client_pub_key, secret, bnctx) == 0 ||
 	    BN_mod_exp(secret, secret, server->srp->priv_key, server->srp->n, bnctx) == 0)
 		goto fail;
-
-	BN_CTX_end(bnctx);
-	BN_CTX_free(bnctx);
 
 	len = BN_num_bytes(secret);
 	if ((buf = malloc(len)) == NULL ||

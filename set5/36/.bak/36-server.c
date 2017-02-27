@@ -174,15 +174,59 @@ fail:
 }
 
 int
-get_username_and_client_pub_key()
+get_username_and_client_pub_key(int connfd, struct state *server, BIGNUM **bp)
 {
+	char *buf, *p;
+	size_t i;
 
+	if ((p = buf = srecv(connfd)) == NULL ||
+	    (i = strcspn(p, " ")) > strlen(p)-2)
+		goto fail;
+
+	p[i] = '\0';
+	if (strcmp(p, server->username) != 0)
+		goto fail;
+
+	p += i+1;
+	if (BN_hex2bn(bp, p) == 0)
+		goto fail;
+
+	free(buf);
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
-send_salt_and_server_pub_key()
+send_salt_and_server_pub_key(int connfd, struct state *server)
 {
+	char *buf;
 
+	if ((buf = BN_bn2hex(server->srp->pub_key)) == NULL ||
+	    ssendf(connfd, "%s %s", server->salt, buf) == 0)
+
+	free(buf);
+	return 1;
+fail:
+	return 0;
+}
+
+int
+server_verify_hmac(int connfd, struct state *server)
+{
+	char *buf, hmac[SHA256_DIGEST_STRING_LENGTH];
+
+	generate_hmac(server, hmac);
+
+	if ((buf = srecv(connfd)) == NULL ||
+	    ssend(connfd, strcmp(buf, hmac) == 0 ? "OK" : "NO") == 0)
+		goto fail;
+
+	free(buf);
+	return 1;
+fail:
+	return 0;
 }
 
 int
@@ -215,69 +259,12 @@ main(void)
 		}
 		close(listenfd);
 
-		
+		if (get_username_and_client_pub_key(connfd, &server, &client_pub_key) == 0 ||
+		    send_salt_and_server_pub_key(connfd, &server) == 0 ||
+		    server_generate_enc_key(&server, client_pub_key) == 0 ||
+		    server_verify_hmac(connfd, &server) == 0)
+			err(1, NULL);
+
+		exit(0);
 	}
-
-	/*
-	int listenfd, connfd;
-	pid_t pid;
-	char *buf, *p;
-	size_t i;
-
-	if (init_params(&modulus, &generator, &multiplier) == 0 ||
-	    (salt = make_salt()) == NULL ||
-	    (verifier = make_verifier(salt)) == NULL ||
-	    (private_key = make_private_key()) == NULL ||
-	    (public_key = make_public_key(multiplier, verifier, generator, private_key, modulus)) == NULL ||
-	    (listenfd = lo_listen(PORT)) == -1)
-		err(1, NULL);
-
-	for (;;) {
-		if ((connfd = accept(listenfd, NULL, NULL)) == -1 ||
-		    (pid = fork()) == -1)
-			err(1, NULL);
-
-		if (pid != 0) {
-			close(connfd);
-			continue;
-		}
-		close(listenfd);
-
-		if ((buf = srecv(connfd)) == NULL)
-			err(1, NULL);
-
-		p = buf;
-		if ((i = strcspn(p, " ")) > strlen(p)-2)
-			errx(1, "invalid username");
-		p[i] = '\0';
-		if (strcmp(p, USERNAME) != 0)
-			errx(1, "invalid username");
-
-		p += i+1;
-		if ((client_pubkey = BN_new()) == NULL ||
-		    BN_hex2bn(&client_pubkey, p) == 0)
-			err(1, NULL);
-
-		free(buf);
-
-		if ((buf = BN_bn2hex(public_key)) == NULL ||
-		    ssendf(connfd, "%s %s", salt, buf) == 0)
-			err(1, NULL);
-
-		free(buf);
-
-		if ((scrambler = make_scrambler(client_pubkey, public_key)) == NULL ||
-		    (shared_s = make_shared_s(client_pubkey, verifier, scrambler, private_key, modulus)) == NULL ||
-		    (shared_k = make_shared_k(shared_s)) == NULL ||
-		    (hmac = make_hmac(shared_k, salt)) == NULL ||
-
-		    (buf = srecv(connfd)) == NULL ||
-		    ssend(connfd, strcmp(buf, hmac) == 0 ? "OK" : "NO") == 0)
-			err(1, NULL);
-
-		break;
-	}
-	*/
-
-	exit(0);
 }
