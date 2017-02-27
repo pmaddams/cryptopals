@@ -40,7 +40,7 @@ fail:
 }
 
 int
-srp_priv_key(struct srp *srp)
+srp_generate_priv_key(struct srp *srp)
 {
 	do
 		if (BN_rand_range(srp->priv_key, srp->n) == 0)
@@ -50,16 +50,6 @@ srp_priv_key(struct srp *srp)
 	return 1;
 fail:
 	return 0;
-}
-
-BIGNUM *
-make_private_key(void)
-{
-	char buf[BUFSIZ];
-
-	arc4random_buf(buf, BUFSIZ);
-
-	return BN_bin2bn(buf, BUFSIZ, NULL);
 }
 
 char *
@@ -138,7 +128,7 @@ done:
 }
 
 BIGNUM *
-make_scrambler(BIGNUM *client_pubkey, BIGNUM *server_pubkey)
+generate_scrambler(BIGNUM *client_pub_key, BIGNUM *server_pub_key)
 {
 	SHA2_CTX sha2ctx;
 	size_t len;
@@ -170,25 +160,7 @@ fail:
 }
 
 char *
-make_shared_k(BIGNUM *shared_s)
-{
-	size_t len;
-	char *buf, *res;
-
-	len = BN_num_bytes(shared_s);
-	if ((buf = malloc(len)) == NULL ||
-	    BN_bn2bin(shared_s, buf) == 0 ||
-	    (res = SHA256Data(buf, len, NULL)) == NULL)
-		goto fail;
-
-	free(buf);
-	return res;
-fail:
-	return NULL;
-}
-
-char *
-make_hmac(char *shared_k, char *salt)
+hmac(char *shared_k, char *salt)
 {
 	char ipad[BLKSIZ], opad[BLKSIZ],
 	    hash[SHA256_DIGEST_LENGTH];

@@ -35,67 +35,88 @@ fail:
 }
 
 int
+srp_generate_pub_key(struct srp *srp)
+{
+	BN_CTX *ctx;
+
+	if ((ctx = BN_CTX_new()) == NULL ||
+	    BN_mod_exp(srp->pub_key, srp->g, srp->priv_key, srp->n, ctx) == 0)
+		goto fail;
+
+	BN_CTX_free(ctx);
+	return 1;
+fail:
+	return 0;
+}
+
+int
 client_init(struct state *client)
 {
 	struct srp *srp;
 
-	if ((srp = srp_new()) == NULL)
-		goto fail;
-}
-
-BIGNUM *
-make_public_key(BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
-{
-	BN_CTX *bnctx;
-
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    (public_key = BN_new()) == NULL ||
-	    BN_mod_exp(public_key, generator, private_key, modulus, bnctx) == 0)
+	if ((srp = srp_new()) == NULL ||
+	    srp_generate_priv_key(srp) == 0 ||
+	    srp_generate_pub_key(srp) == 0)
 		goto fail;
 
-	BN_CTX_free(bnctx);
-	return public_key;
+	client->srp = srp;
+
+	return 1;
 fail:
-	return NULL;
+	return 0;
 }
 
-BIGNUM *
-make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *multiplier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *scrambler, BIGNUM *modulus)
+int
+client_generate_enc_key(struct state *client, BIGNUM *server_pub_key)
 {
 	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
 	char hash[SHA256_DIGEST_LENGTH];
-	BIGNUM *x, *t1, *t2;
+	BIGNUM *secret, *x, *t1, *t2;
+	size_t len;
+	char *buf;
 
 	if ((bnctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(bnctx);
 
 	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, salt, strlen(salt));
-	SHA256Update(&sha2ctx, password, strlen(password));
+	SHA256Update(&sha2ctx, client->salt, strlen(client->salt));
+	SHA256Update(&sha2ctx, client->password, strlen(client->password));
 	SHA256Final(hash, &sha2ctx);
 
-	if ((shared_s = BN_new()) == NULL ||
+	if ((secret = BN_new()) == NULL ||
 	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
 	    (t1 = BN_CTX_get(bnctx)) == NULL ||
 	    (t2 = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mod_exp(t1, generator, x, modulus, bnctx) == 0 ||
-	    BN_mul(t1, multiplier, t1, bnctx) == 0 ||
-	    BN_sub(t1, server_pubkey, t1) == 0 ||
-	    BN_mul(t2, scrambler, x, bnctx) == 0 ||
-	    BN_add(t2, private_key, t2) == 0 ||
-	    BN_mod_exp(shared_s, t1, t2, modulus, bnctx) == 0)
+	    BN_mod_exp(t1, client->srp->g, x, client->srp->n, bnctx) == 0 ||
+	    BN_mul(t1, client->srp->k, t1, bnctx) == 0 ||
+	    BN_sub(t1, server_pub_key, t1) == 0 ||
+	    BN_mul(t2, client->srp->u, x, bnctx) == 0 ||
+	    BN_add(t2, client->srp->priv_key, t2) == 0 ||
+	    BN_mod_exp(secret, t1, t2, client->srp->n, bnctx) == 0)
 		goto fail;
+
+	len = BN_num_bytes(secret);
+	if ((buf = malloc(len)) == NULL ||
+
+	    BN_bn2bin(secret, buf) == 0)
+		goto fail;
+
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, buf, len);
+	SHA256Final(hash, &sha2ctx);
+
+	memcpy(client->key, hash, KEYSIZE);
 
 	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
-	free(x);
+	free(buf);
 
-	return shared_s;
+	return 1;
 fail:
-	return NULL;
+	return 0;
 }
 
 int
