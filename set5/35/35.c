@@ -20,8 +20,6 @@
 		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff"	\
 		"fffffffffffff"
 
-#define G	"2"
-
 #define KEYSIZE	16
 
 struct party {
