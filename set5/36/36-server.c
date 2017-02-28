@@ -149,7 +149,6 @@ get_username_and_client_pub_key(int connfd, struct state *server, BIGNUM **bp)
 		goto fail;
 
 	free(buf);
-
 	return 1;
 fail:
 	return 0;

@@ -102,7 +102,6 @@ get_salt_and_server_pub_key(int connfd, struct state *client, BIGNUM **bp)
 		goto fail;
 
 	free(buf);
-
 	return 1;
 fail:
 	return 0;
