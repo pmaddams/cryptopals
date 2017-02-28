@@ -15,10 +15,6 @@
 
 #include "37.h"
 
-BIGNUM *modulus;
-
-char *salt, *shared_k, *hmac;
-
 int
 lo_connect(in_port_t port)
 {
@@ -39,97 +35,123 @@ fail:
 	return -1;
 }
 
-char *
-make_shared_k(void)
+int
+client_init(struct state *client)
 {
-	if (!shared_k)
-		shared_k = SHA256Data("", 0, NULL);
+	SHA2_CTX ctx;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
 
-	return shared_k;
-}
+	if ((client->srp = srp_new()) == NULL)
+		goto fail;
 
-char *
-make_hmac(char *shared_k, char *salt)
-{
-	char ipad[BLKSIZ], opad[BLKSIZ],
-	    hash[SHA256_DIGEST_LENGTH];
-	size_t i, len;
-	SHA2_CTX sha2ctx;
+	client->salt = NULL;
 
-	if (!hmac) {
-		memset(ipad, '\x5c', BLKSIZ);
-		memset(opad, '\x36', BLKSIZ);
-	
-		len = strlen(shared_k);
-		for (i = 0; i < len; i++) {
-			ipad[i] ^= shared_k[i];
-			opad[i] ^= shared_k[i];
-		}
-	
-		SHA256Init(&sha2ctx);
-		SHA256Update(&sha2ctx, ipad, BLKSIZ);
-		SHA256Update(&sha2ctx, salt, strlen(salt));
-		SHA256Final(hash, &sha2ctx);
-	
-		SHA256Init(&sha2ctx);
-		SHA256Update(&sha2ctx, opad, BLKSIZ);
-		SHA256Update(&sha2ctx, hash, SHA256_DIGEST_LENGTH);
-	
-		hmac = SHA256End(&sha2ctx, NULL);
-	}
+	SHA256Init(&ctx);
+	SHA256Final(hash, &ctx);
 
-	return hmac;
+	memcpy(client->enc_key, hash, KEYSIZE);
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
-crack_srp(uint32_t factor)
+client_forge_pub_key(struct state *client, uint32_t factor)
 {
-	BN_CTX *bnctx;
-	BIGNUM *fake_key, *x;
-	char *buf;
-	int connfd, res;
-	size_t i;
+	BN_CTX *ctx;
+	BIGNUM *x;
 
 	factor = htobe32(factor);
 
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    (fake_key = BN_new()) == NULL ||
-	    (x = BN_bin2bn((uint8_t *) &factor, sizeof(factor), NULL)) == NULL ||
-	    BN_mul(fake_key, modulus, x, bnctx) == 0)
+	if ((ctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(ctx);
+
+	if ((x = BN_CTX_get(ctx)) == NULL ||
+	    BN_bin2bn((uint8_t *) &factor, sizeof(factor), x) == NULL ||
+	    BN_mul(client->srp->pub_key, client->srp->n, x, ctx) == 0)
 		goto fail;
 
-	if ((buf = BN_bn2hex(fake_key)) == NULL ||
+	BN_CTX_end(ctx);
+	BN_CTX_free(ctx);
 
-	    (connfd = lo_connect(PORT)) == -1 ||
-	    ssendf(connfd, "%s %s", USERNAME, buf) == 0)
+	return 1;
+fail:
+	return 0;
+}
+
+int
+send_username_and_client_pub_key(int connfd, struct state *client)
+{
+	char *buf;
+
+	if ((buf = BN_bn2hex(client->srp->pub_key)) == NULL ||
+	    ssendf(connfd, "%s %s", client->username, buf) == 0)
 		goto fail;
 
 	free(buf);
+	return 1;
+fail:
+	return 0;
+}
 
-	if ((salt = srecv(connfd)) == NULL)
+int
+get_salt(int connfd, struct state *client)
+{
+	char *buf;
+	ssize_t i;
+
+	if ((buf = srecv(connfd)) == NULL ||
+
+	    (i = strcspn(buf, " ")) > strlen(buf)-2)
 		goto fail;
+	buf[i] = '\0';
 
-	if ((i = strcspn(salt, " ")) > strlen(salt)-2)
-		goto fail;
-	salt[i] = '\0';
+	free(client->salt);
+	client->salt = buf;
 
-	if ((shared_k = make_shared_k()) == NULL ||
-	    (hmac = make_hmac(shared_k, salt)) == NULL ||
+	free(buf);
+	return 1;
+fail:
+	return 0;
+}
 
-	    ssend(connfd, hmac) == 0 ||
-	    (buf = srecv(connfd)) == NULL)
+int
+client_verify_hmac(int connfd, struct state *client)
+{
+	char *buf, hmac[SHA256_DIGEST_STRING_LENGTH];
+	int res;
+
+	generate_hmac(hmac, client);
+
+	if (ssend(connfd, hmac) == 0 ||
+	    (buf = srecv(connfd)) == 0)
 		goto fail;
 
 	res = strcmp(buf, "OK") == 0;
 
-	BN_CTX_free(bnctx);
-	BN_free(fake_key);
-	BN_free(x);
-	close(connfd);
-	free(salt);
 	free(buf);
-
 	return res;
+fail:
+	return 0;
+}
+
+int
+crack_srp(struct state *client, uint32_t factor)
+{
+	int connfd;
+
+	if (client_forge_pub_key(client, factor) == 0 ||
+
+	    (connfd = lo_connect(PORT)) == 0 ||
+
+	    send_username_and_client_pub_key(connfd, client) == 0 ||
+	    get_salt(connfd, client) == 0 ||
+	    client_verify_hmac(connfd, client) == 0)
+		goto fail;
+
+	return 1;
 fail:
 	return 0;
 }
@@ -137,13 +159,14 @@ fail:
 int
 main(void)
 {
+	struct state client;
 	uint32_t factor;
 
-	if (BN_hex2bn(&modulus, N) == 0)
+	if (client_init(&client) == 0)
 		err(1, NULL);
 
 	for (factor = 0; factor < 3; factor++)
-		puts(crack_srp(factor) ? "success" : "failure");
+		puts(crack_srp(&client, factor) ? "success" : "failure");
 
 	exit(0);
 }

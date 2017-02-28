@@ -213,7 +213,7 @@ server_verify_hmac(int connfd, struct state *server)
 {
 	char *buf, hmac[SHA256_DIGEST_STRING_LENGTH];
 
-	generate_hmac(server, hmac);
+	generate_hmac(hmac, server);
 
 	if ((buf = srecv(connfd)) == NULL ||
 	    ssend(connfd, strcmp(buf, hmac) == 0 ? "OK" : "NO") == 0)

@@ -169,7 +169,7 @@ client_verify_hmac(int connfd, struct state *client)
 	char *buf, hmac[SHA256_DIGEST_STRING_LENGTH];
 	int res;
 
-	generate_hmac(client, hmac);
+	generate_hmac(hmac, client);
 
 	if (ssend(connfd, hmac) == 0 ||
 	    (buf = srecv(connfd)) == 0)

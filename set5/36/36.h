@@ -36,12 +36,12 @@ struct state {
 };
 
 char *atox(uint8_t *, size_t);
-void generate_hmac(struct state *, char *);
+void generate_hmac(char *, struct state *);
 int generate_scrambler(BIGNUM *, BIGNUM *, BIGNUM *);
 char *input(void);
 void print(char *);
+char *srecv(int);
 int srp_generate_priv_key(struct srp *);
 struct srp *srp_new(void);
-char *srecv(int);
 int ssend(int, char *);
 int ssendf(int, char *, ...);

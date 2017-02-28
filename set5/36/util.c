@@ -158,7 +158,7 @@ fail:
 }
 
 void
-generate_hmac(struct state *state, char *res)
+generate_hmac(char *res, struct state *state)
 {
 	char ipad[SHA256_BLOCK_LENGTH],
 	    opad[SHA256_BLOCK_LENGTH],
