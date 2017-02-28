@@ -48,6 +48,7 @@ dh_init(struct party *party)
 		goto fail;
 
 	party->dh = dh;
+	party->message = NULL;
 
 	return 1;
 fail:
