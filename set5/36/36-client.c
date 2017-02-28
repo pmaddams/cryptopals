@@ -191,9 +191,7 @@ main(void)
 	BIGNUM *server_pub_key;
 
 	if (client_init(&client) == 0 ||
-
 	    (connfd = lo_connect(PORT)) == -1 ||
-
 	    (server_pub_key = BN_new()) == NULL)
 		err(1, NULL);
 

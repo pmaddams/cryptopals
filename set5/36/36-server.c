@@ -238,9 +238,7 @@ main(void)
 	pid_t pid;
 
 	if (server_init(&server) == 0 ||
-
 	    (listenfd = lo_listen(PORT)) == 0 ||
-
 	    (client_pub_key = BN_new()) == NULL)
 		err(1, NULL);
 
