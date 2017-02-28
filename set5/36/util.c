@@ -13,41 +13,19 @@
 
 #define TMPSIZ 8192
 
-struct srp *
-srp_new(void)
+char *
+atox(uint8_t *src, size_t srclen)
 {
-	struct srp *srp;
+	size_t i, j;
+	char *dst;
 
-	if ((srp = malloc(sizeof(*srp))) == NULL ||
-	    (srp->n = BN_new()) == NULL ||
-	    (srp->g = BN_new()) == NULL ||
-	    (srp->k = BN_new()) == NULL ||
-	    (srp->u = BN_new()) == NULL ||
-	    (srp->v = BN_new()) == NULL ||
-	    (srp->priv_key = BN_new()) == NULL ||
-	    (srp->pub_key = BN_new()) == NULL ||
+	if ((dst = malloc(srclen*2+1)) == NULL)
+		goto done;
 
-	    BN_hex2bn(&srp->n, N) == 0 ||
-	    BN_hex2bn(&srp->g, G) == 0 ||
-	    BN_hex2bn(&srp->k, K) == 0)
-		goto fail;
-
-	return srp;
-fail:
-	return NULL;
-}
-
-int
-srp_generate_priv_key(struct srp *srp)
-{
-	do
-		if (BN_rand_range(srp->priv_key, srp->n) == 0)
-			goto fail;
-	while (BN_is_zero(srp->priv_key));
-
-	return 1;
-fail:
-	return 0;
+	for (i = j = 0; i < srclen; i++, j += 2)
+		snprintf(dst+j, 3, "%02x", src[i]);
+done:
+	return dst;
 }
 
 char *
@@ -110,19 +88,41 @@ fail:
 	return NULL;
 }
 
-char *
-atox(uint8_t *src, size_t srclen)
+struct srp *
+srp_new(void)
 {
-	size_t i, j;
-	char *dst;
+	struct srp *srp;
 
-	if ((dst = malloc(srclen*2+1)) == NULL)
-		goto done;
+	if ((srp = malloc(sizeof(*srp))) == NULL ||
+	    (srp->n = BN_new()) == NULL ||
+	    (srp->g = BN_new()) == NULL ||
+	    (srp->k = BN_new()) == NULL ||
+	    (srp->u = BN_new()) == NULL ||
+	    (srp->v = BN_new()) == NULL ||
+	    (srp->priv_key = BN_new()) == NULL ||
+	    (srp->pub_key = BN_new()) == NULL ||
 
-	for (i = j = 0; i < srclen; i++, j += 2)
-		snprintf(dst+j, 3, "%02x", src[i]);
-done:
-	return dst;
+	    BN_hex2bn(&srp->n, N) == 0 ||
+	    BN_hex2bn(&srp->g, G) == 0 ||
+	    BN_hex2bn(&srp->k, K) == 0)
+		goto fail;
+
+	return srp;
+fail:
+	return NULL;
+}
+
+int
+srp_generate_priv_key(struct srp *srp)
+{
+	do
+		if (BN_rand_range(srp->priv_key, srp->n) == 0)
+			goto fail;
+	while (BN_is_zero(srp->priv_key));
+
+	return 1;
+fail:
+	return 0;
 }
 
 int

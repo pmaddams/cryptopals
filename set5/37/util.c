@@ -10,28 +10,19 @@
 
 #define TMPSIZ 8192
 
-struct srp *
-srp_new(void)
+char *
+atox(uint8_t *buf, size_t len)
 {
-	struct srp *srp;
+	size_t i, j;
+	char *res;
 
-	if ((srp = malloc(sizeof(*srp))) == NULL ||
-	    (srp->n = BN_new()) == NULL ||
-	    (srp->g = BN_new()) == NULL ||
-	    (srp->k = BN_new()) == NULL ||
-	    (srp->u = BN_new()) == NULL ||
-	    (srp->v = BN_new()) == NULL ||
-	    (srp->priv_key = BN_new()) == NULL ||
-	    (srp->pub_key = BN_new()) == NULL ||
+	if ((res = malloc(len*2+1)) == NULL)
+		goto done;
 
-	    BN_hex2bn(&srp->n, N) == 0 ||
-	    BN_hex2bn(&srp->g, G) == 0 ||
-	    BN_hex2bn(&srp->k, K) == 0)
-		goto fail;
-
-	return srp;
-fail:
-	return NULL;
+	for (i = j = 0; i < len; i++, j += 2)
+		snprintf(res+j, 3, "%02x", buf[i]);
+done:
+	return res;
 }
 
 int
@@ -70,6 +61,30 @@ srecv(int fd)
 	buf[nr] = '\0';
 
 	return strdup(buf);
+fail:
+	return NULL;
+}
+
+struct srp *
+srp_new(void)
+{
+	struct srp *srp;
+
+	if ((srp = malloc(sizeof(*srp))) == NULL ||
+	    (srp->n = BN_new()) == NULL ||
+	    (srp->g = BN_new()) == NULL ||
+	    (srp->k = BN_new()) == NULL ||
+	    (srp->u = BN_new()) == NULL ||
+	    (srp->v = BN_new()) == NULL ||
+	    (srp->priv_key = BN_new()) == NULL ||
+	    (srp->pub_key = BN_new()) == NULL ||
+
+	    BN_hex2bn(&srp->n, N) == 0 ||
+	    BN_hex2bn(&srp->g, G) == 0 ||
+	    BN_hex2bn(&srp->k, K) == 0)
+		goto fail;
+
+	return srp;
 fail:
 	return NULL;
 }

@@ -36,6 +36,7 @@ struct state {
 	uint8_t enc_key[KEYSIZE];
 };
 
+char *atox(uint8_t *, size_t);
 void generate_hmac(char *, struct state *);
 char *srecv(int);
 struct srp *srp_new(void);

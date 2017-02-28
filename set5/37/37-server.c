@@ -36,21 +36,6 @@ fail:
 	return -1;
 }
 
-char *
-atox(uint8_t *buf, size_t len)
-{
-	size_t i, j;
-	char *res;
-
-	if ((res = malloc(len*2+1)) == NULL)
-		goto done;
-
-	for (i = j = 0; i < len; i++, j += 2)
-		snprintf(res+j, 3, "%02x", buf[i]);
-done:
-	return res;
-}
-
 int
 generate_salt(struct state *server)
 {
