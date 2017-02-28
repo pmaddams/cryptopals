@@ -67,6 +67,48 @@ fail:
 }
 
 int
+send_username_and_client_pub_key(int connfd, struct state *client)
+{
+	char *buf;
+
+	if ((buf = BN_bn2hex(client->srp->pub_key)) == NULL ||
+	    ssendf(connfd, "%s %s", client->username, buf) == 0)
+		goto fail;
+
+	free(buf);
+	return 1;
+fail:
+	return 0;
+}
+
+int
+get_salt_and_server_pub_key(int connfd, struct state *client, BIGNUM **bp)
+{
+	char *buf, *p;
+	ssize_t i;
+
+	if ((p = buf = srecv(connfd)) == NULL)
+		goto fail;
+
+	if ((i = strcspn(p, " ")) > strlen(p)-2)
+		goto fail;
+	p[i] = '\0';
+
+	if ((client->salt = strdup(p)) == NULL)
+		goto fail;
+
+	p += i+1;
+	if (BN_hex2bn(bp, p) == 0)
+		goto fail;
+
+	free(buf);
+
+	return 1;
+fail:
+	return 0;
+}
+
+int
 client_generate_enc_key(struct state *client, BIGNUM *server_pub_key)
 {
 	BN_CTX *bnctx;
@@ -114,48 +156,6 @@ client_generate_enc_key(struct state *client, BIGNUM *server_pub_key)
 
 	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
-	free(buf);
-
-	return 1;
-fail:
-	return 0;
-}
-
-int
-send_username_and_client_pub_key(int connfd, struct state *client)
-{
-	char *buf;
-
-	if ((buf = BN_bn2hex(client->srp->pub_key)) == NULL ||
-	    ssendf(connfd, "%s %s", client->username, buf) == 0)
-		goto fail;
-
-	free(buf);
-	return 1;
-fail:
-	return 0;
-}
-
-int
-get_salt_and_server_pub_key(int connfd, struct state *client, BIGNUM **bp)
-{
-	char *buf, *p;
-	ssize_t i;
-
-	if ((p = buf = srecv(connfd)) == NULL)
-		goto fail;
-
-	if ((i = strcspn(p, " ")) > strlen(p)-2)
-		goto fail;
-	p[i] = '\0';
-
-	if ((client->salt = strdup(p)) == NULL)
-		goto fail;
-
-	p += i+1;
-	if (BN_hex2bn(bp, p) == 0)
-		goto fail;
-
 	free(buf);
 
 	return 1;

@@ -38,13 +38,14 @@ fail:
 	return -1;
 }
 
-char *
-generate_salt(void)
+int
+generate_salt(struct state *server)
 {
 	uint32_t num;
 
 	num = arc4random();
-	return atox((uint8_t *) &num, sizeof(num));
+
+	return (server->salt = atox((uint8_t *) &num, sizeof(num))) != NULL;
 }
 
 int
@@ -116,14 +117,52 @@ server_init(struct state *server)
 
 	server->username = USERNAME;
 	server->password = PASSWORD;
-	if ((server->salt = generate_salt()) == NULL ||
-
+	if (generate_salt(server) == 0 ||
 	    generate_verifier(server) == 0 ||
 
 	    srp_generate_priv_key(server->srp) == 0 ||
 	    srp_generate_server_pub_key(server->srp) == 0)
 		goto fail;
 
+	return 1;
+fail:
+	return 0;
+}
+
+int
+get_username_and_client_pub_key(int connfd, struct state *server, BIGNUM **bp)
+{
+	char *buf, *p;
+	size_t i;
+
+	if ((p = buf = srecv(connfd)) == NULL ||
+	    (i = strcspn(p, " ")) > strlen(p)-2)
+		goto fail;
+
+	p[i] = '\0';
+	if (strcmp(p, server->username) != 0)
+		goto fail;
+
+	p += i+1;
+	if (BN_hex2bn(bp, p) == 0)
+		goto fail;
+
+	free(buf);
+
+	return 1;
+fail:
+	return 0;
+}
+
+int
+send_salt_and_server_pub_key(int connfd, struct state *server)
+{
+	char *buf;
+
+	if ((buf = BN_bn2hex(server->srp->pub_key)) == NULL ||
+	    ssendf(connfd, "%s %s", server->salt, buf) == 0)
+
+	free(buf);
 	return 1;
 fail:
 	return 0;
@@ -168,45 +207,6 @@ server_generate_enc_key(struct state *server, BIGNUM *client_pub_key)
 	BN_CTX_free(bnctx);
 	free(buf);
 
-	return 1;
-fail:
-	return 0;
-}
-
-int
-get_username_and_client_pub_key(int connfd, struct state *server, BIGNUM **bp)
-{
-	char *buf, *p;
-	size_t i;
-
-	if ((p = buf = srecv(connfd)) == NULL ||
-	    (i = strcspn(p, " ")) > strlen(p)-2)
-		goto fail;
-
-	p[i] = '\0';
-	if (strcmp(p, server->username) != 0)
-		goto fail;
-
-	p += i+1;
-	if (BN_hex2bn(bp, p) == 0)
-		goto fail;
-
-	free(buf);
-
-	return 1;
-fail:
-	return 0;
-}
-
-int
-send_salt_and_server_pub_key(int connfd, struct state *server)
-{
-	char *buf;
-
-	if ((buf = BN_bn2hex(server->srp->pub_key)) == NULL ||
-	    ssendf(connfd, "%s %s", server->salt, buf) == 0)
-
-	free(buf);
 	return 1;
 fail:
 	return 0;
