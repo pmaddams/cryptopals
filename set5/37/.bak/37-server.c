@@ -223,35 +223,6 @@ fail:
 	return NULL;
 }
 
-char *
-make_hmac(char *shared_k, char *salt)
-{
-	char ipad[BLKSIZ], opad[BLKSIZ],
-	    hash[SHA256_DIGEST_LENGTH];
-	size_t i, len;
-	SHA2_CTX sha2ctx;
-
-	memset(ipad, '\x5c', BLKSIZ);
-	memset(opad, '\x36', BLKSIZ);
-
-	len = strlen(shared_k);
-	for (i = 0; i < len; i++) {
-		ipad[i] ^= shared_k[i];
-		opad[i] ^= shared_k[i];
-	}
-
-	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, ipad, BLKSIZ);
-	SHA256Update(&sha2ctx, salt, strlen(salt));
-	SHA256Final(hash, &sha2ctx);
-
-	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, opad, BLKSIZ);
-	SHA256Update(&sha2ctx, hash, SHA256_DIGEST_LENGTH);
-
-	return SHA256End(&sha2ctx, NULL);
-}
-
 int
 main(void)
 {

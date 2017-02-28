@@ -15,12 +15,6 @@
 
 #include "37.h"
 
-BIGNUM *modulus, *generator, *multiplier, *verifier,
-    *private_key, *public_key, *client_pubkey,
-    *scrambler, *shared_s;
-
-char *salt, *shared_k, *hmac;
-
 int
 lo_listen(in_port_t port)
 {
@@ -42,31 +36,23 @@ fail:
 	return -1;
 }
 
-int
-init_params(BIGNUM **modp, BIGNUM **genp, BIGNUM **mulp)
-{
-	return BN_hex2bn(modp, N) &&
-	    BN_hex2bn(genp, G) &&
-	    BN_hex2bn(mulp, K);
-}
-
 char *
-atox(uint8_t *src, size_t srclen)
+atox(uint8_t *buf, size_t len)
 {
 	size_t i, j;
-	char *dst;
+	char *res;
 
-	if ((dst = malloc(srclen*2+1)) == NULL)
+	if ((res = malloc(len*2+1)) == NULL)
 		goto done;
 
-	for (i = j = 0; i < srclen; i++, j += 2)
-		snprintf(dst+j, 3, "%02x", src[i]);
+	for (i = j = 0; i < len; i++, j += 2)
+		snprintf(res+j, 3, "%02x", buf[i]);
 done:
-	return dst;
+	return res;
 }
 
 char *
-make_salt(void)
+generate_salt(void)
 {
 	uint32_t num;
 
@@ -74,50 +60,51 @@ make_salt(void)
 	return atox((uint8_t *) &num, sizeof(num));
 }
 
-BIGNUM *
-make_verifier(char *salt)
+int
+generate_verifier(struct state *server)
 {
 	BN_CTX *bnctx;
-	uint8_t password[BUFSIZ],
-	    hash[SHA256_DIGEST_LENGTH];
 	SHA2_CTX sha2ctx;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
 	BIGNUM *x;
 
 	if ((bnctx = BN_CTX_new()) == NULL)
 		goto fail;
-
-	arc4random_buf(password, BUFSIZ);
+	BN_CTX_start(bnctx);
 
 	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, salt, strlen(salt));
-	SHA256Update(&sha2ctx, password, BUFSIZ);
+	SHA256Update(&sha2ctx, server->salt, strlen(server->salt));
+	SHA256Update(&sha2ctx, server->password, strlen(server->password));
 	SHA256Final(hash, &sha2ctx);
 
-	if ((verifier = BN_new()) == NULL ||
-	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
-	    BN_mod_exp(verifier, generator, x, modulus, bnctx) == 0)
+	if ((x = BN_CTX_get(bnctx)) == NULL ||
+	    BN_bin2bn(hash, SHA256_DIGEST_LENGTH, x) == NULL ||
+	    BN_mod_exp(server->srp->v, server->srp->g, x, server->srp->n, bnctx) == 0)
 		goto fail;
 
+	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
-	free(x);
 
-	return verifier;
+	return 1;
 fail:
-	return NULL;
+	return 0;
 }
 
-BIGNUM *
-make_private_key(void)
+int
+srp_generate_server_priv_key(struct srp *srp)
 {
-	char buf[BUFSIZ];
+	do
+		if (BN_rand_range(srp->priv_key, srp->n) == 0)
+			goto fail;
+	while (BN_is_zero(srp->priv_key));
 
-	arc4random_buf(buf, BUFSIZ);
-
-	return BN_bin2bn(buf, BUFSIZ, NULL);
+	return 1;
+fail:
+	return 0;
 }
 
-BIGNUM *
-make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
+int
+srp_generate_server_pub_key(struct srp *srp)
 {
 	BN_CTX *bnctx;
 	BIGNUM *t1, *t2;
@@ -126,23 +113,50 @@ make_public_key(BIGNUM *multiplier, BIGNUM *verifier, BIGNUM *generator, BIGNUM 
 		goto fail;
 	BN_CTX_start(bnctx);
 
-	if ((public_key = BN_new()) == NULL ||
-	    (t1 = BN_CTX_get(bnctx)) == NULL ||
+	if ((t1 = BN_CTX_get(bnctx)) == NULL ||
 	    (t2 = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mul(t1, multiplier, verifier, bnctx) == 0 ||
-	    BN_mod_exp(t2, generator, private_key, modulus, bnctx) == 0 ||
-	    BN_add(public_key, t1, t2) == 0)
+	    BN_mul(t1, srp->k, srp->v, bnctx) == 0 ||
+	    BN_mod_exp(t2, srp->g, srp->priv_key, srp->n, bnctx) == 0 ||
+	    BN_add(srp->pub_key, t1, t2) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
 
-	return public_key;
+	return 1;
 fail:
-	return NULL;
+	return 0;
 }
 
+int
+server_init(struct state *server)
+{
+	struct srp *srp;
+
+	if ((srp = srp_new()) == NULL)
+		goto fail;
+
+	server->username = USERNAME;
+
+	if ((server->password = malloc(KEYSIZE)) == NULL)
+		goto fail;
+	arc4random_buf(server->password, KEYSIZE);
+
+	if ((server->salt = generate_salt()) == NULL ||
+
+	    generate_verifier(server) == 0 ||
+
+	    srp_generate_server_priv_key(server->srp) == 0 ||
+	    srp_generate_server_pub_key(server->srp) == 0)
+		goto fail;
+
+	return 1;
+fail:
+	return 0;
+}
+
+/*
 BIGNUM *
 make_scrambler(BIGNUM *client_pubkey, BIGNUM *server_pubkey)
 {
@@ -286,4 +300,11 @@ main(void)
 	}
 
 	exit(0);
+}
+*/
+
+int
+main(void)
+{
+	return 0;
 }

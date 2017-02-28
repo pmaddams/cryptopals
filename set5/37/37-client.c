@@ -44,6 +44,7 @@ client_init(struct state *client)
 	if ((client->srp = srp_new()) == NULL)
 		goto fail;
 
+	client->username = USERNAME;
 	client->salt = NULL;
 
 	SHA256Init(&ctx);
