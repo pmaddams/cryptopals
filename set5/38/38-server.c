@@ -14,6 +14,8 @@
 
 #include "38.h"
 
+#define DATABASE "DATA"
+
 int
 lo_listen(in_port_t port)
 {
@@ -103,7 +105,7 @@ fail:
 }
 
 int
-generate_verifier(struct state *server)
+generate_verifier(struct state *server, char *password)
 {
 	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
@@ -116,7 +118,7 @@ generate_verifier(struct state *server)
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, server->salt, strlen(server->salt));
-	SHA256Update(&sha2ctx, server->password, strlen(server->password));
+	SHA256Update(&sha2ctx, password, strlen(password));
 	SHA256Final(hash, &sha2ctx);
 
 	if ((x = BN_CTX_get(bnctx)) == NULL ||
@@ -177,17 +179,14 @@ fail:
 int
 crack_password(struct state *server, BIGNUM *client_pub_key, char *client_hmac, char *path)
 {
-	int res;
 	FILE *fp;
 	char *buf, *lbuf,
 	    hmac[SHA256_DIGEST_STRING_LENGTH];
 	size_t len;
 
-	res = 0;
-
 	if (generate_scrambler(server->srp->u, client_pub_key, server->srp->pub_key) == 0 ||
 	    (fp = fopen(path, "r")) == NULL)
-		goto done;
+		goto fail;
 
 	lbuf = NULL;
 	while (buf = fgetln(fp, &len)) {
@@ -195,28 +194,31 @@ crack_password(struct state *server, BIGNUM *client_pub_key, char *client_hmac, 
 			buf[len-1] = '\0';
 		else {
 			if ((lbuf = malloc(len+1)) == NULL)
-				goto done;
+				goto fail;
 			memcpy(lbuf, buf, len);
 			lbuf[len] = '\0';
 			buf = lbuf;
 		}
-		server->password = buf;
 
-		if (generate_verifier(server) == 0 ||
+		if (generate_verifier(server, buf) == 0 ||
 		    server_generate_enc_key(server, client_pub_key) == 0)
-			goto done;
+			goto fail;
 
 		generate_hmac(hmac, server);
 		if (strcmp(hmac, client_hmac) == 0) {
-			if ((server->password = strdup(server->password)) == NULL)
-				goto done;
+			if ((server->password = strdup(buf)) == NULL)
+				goto fail;
 
-			res = 1;
 			break;
 		}
 	}
-done:
-	return res;
+
+	fclose(fp);
+	free(lbuf);
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
@@ -225,6 +227,7 @@ main(void)
 	struct state server;
 	int listenfd, connfd;
 	BIGNUM *client_pub_key;
+	char *client_hmac;
 	pid_t pid;
 
 	if (server_init(&server) == 0 ||
@@ -244,7 +247,11 @@ main(void)
 		close(listenfd);
 
 		if (get_client_pub_key(connfd, &server, &client_pub_key) == 0 ||
-		    send_salt_and_server_pub_key(connfd, &server) == 0)
+		    send_salt_and_server_pub_key(connfd, &server) == 0 ||
+
+		    (client_hmac = srecv(connfd)) == 0 ||
+		    crack_password(&server, client_pub_key, client_hmac, DATABASE) == 0 ||
+		    ssendf(connfd, "your password was %s", server.password) == 0)
 			err(1, NULL);
 
 		exit(0);

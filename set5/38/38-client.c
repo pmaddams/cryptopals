@@ -148,7 +148,6 @@ int
 client_verify_hmac(int connfd, struct state *client)
 {
 	char *buf, hmac[SHA256_DIGEST_STRING_LENGTH];
-	int res;
 
 	generate_hmac(hmac, client);
 
@@ -156,10 +155,10 @@ client_verify_hmac(int connfd, struct state *client)
 	    (buf = srecv(connfd)) == 0)
 		goto fail;
 
-	res = strcmp(buf, "OK") == 0;
+	puts(buf);
 
 	free(buf);
-	return res;
+	return 1;
 fail:
 	return 0;
 }
@@ -186,10 +185,9 @@ main(void)
 
 	if (send_username_and_client_pub_key(connfd, &client) == 0 ||
 	    get_salt_and_server_pub_key(connfd, &client, &server_pub_key) == 0 ||
-	    client_generate_enc_key(&client, server_pub_key) == 0)
+	    client_generate_enc_key(&client, server_pub_key) == 0 ||
+	    client_verify_hmac(connfd, &client) == 0)
 		err(1, NULL);
-
-	puts(client_verify_hmac(connfd, &client) ? "success" : "failure");
 
 	exit(0);
 }

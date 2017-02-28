@@ -22,6 +22,7 @@ struct srp {
 	BIGNUM *g;
 	BIGNUM *k;
 	BIGNUM *u;
+	BIGNUM *v;
 	BIGNUM *priv_key;
 	BIGNUM *pub_key;
 };
