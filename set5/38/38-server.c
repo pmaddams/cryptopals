@@ -103,8 +103,120 @@ fail:
 }
 
 int
-crack_password(int connfd, struct state *server, char *path)
+generate_verifier(struct state *server)
 {
+	BN_CTX *bnctx;
+	SHA2_CTX sha2ctx;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
+	BIGNUM *x;
+
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(bnctx);
+
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, server->salt, strlen(server->salt));
+	SHA256Update(&sha2ctx, server->password, strlen(server->password));
+	SHA256Final(hash, &sha2ctx);
+
+	if ((x = BN_CTX_get(bnctx)) == NULL ||
+	    BN_bin2bn(hash, SHA256_DIGEST_LENGTH, x) == NULL ||
+	    BN_mod_exp(server->srp->v, server->srp->g, x, server->srp->n, bnctx) == 0)
+		goto fail;
+
+	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
+
+	return 1;
+fail:
+	return 0;
+}
+
+int
+server_generate_enc_key(struct state *server, BIGNUM *client_pub_key)
+{
+	BN_CTX *bnctx;
+	BIGNUM *secret;
+	size_t len;
+	uint8_t *buf,
+	    hash[SHA256_DIGEST_LENGTH];
+	SHA2_CTX sha2ctx;
+
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(bnctx);
+
+	if ((secret = BN_CTX_get(bnctx)) == NULL ||
+
+	    BN_mod_exp(secret, server->srp->v, server->srp->u, server->srp->n, bnctx) == 0 ||
+	    BN_mul(secret, client_pub_key, secret, bnctx) == 0 ||
+	    BN_mod_exp(secret, secret, server->srp->priv_key, server->srp->n, bnctx) == 0)
+		goto fail;
+
+	len = BN_num_bytes(secret);
+	if ((buf = malloc(len)) == NULL ||
+
+	    BN_bn2bin(secret, buf) == 0)
+		goto fail;
+
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, buf, len);
+	SHA256Final(hash, &sha2ctx);
+
+	memcpy(server->enc_key, hash, KEYSIZE);
+
+	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
+	free(buf);
+
+	return 1;
+fail:
+	return 0;
+}
+
+int
+crack_password(struct state *server, BIGNUM *client_pub_key, char *client_hmac, char *path)
+{
+	int res;
+	FILE *fp;
+	char *buf, *lbuf,
+	    hmac[SHA256_DIGEST_STRING_LENGTH];
+	size_t len;
+
+	res = 0;
+
+	if (generate_scrambler(server->srp->u, client_pub_key, server->srp->pub_key) == 0 ||
+	    (fp = fopen(path, "r")) == NULL)
+		goto done;
+
+	lbuf = NULL;
+	while (buf = fgetln(fp, &len)) {
+		if (buf[len-1] == '\n')
+			buf[len-1] = '\0';
+		else {
+			if ((lbuf = malloc(len+1)) == NULL)
+				goto done;
+			memcpy(lbuf, buf, len);
+			lbuf[len] = '\0';
+			buf = lbuf;
+		}
+		server->password = buf;
+
+		if (generate_verifier(server) == 0 ||
+		    server_generate_enc_key(server, client_pub_key) == 0)
+			goto done;
+
+		generate_hmac(hmac, server);
+		if (strcmp(hmac, client_hmac) == 0) {
+			if ((server->password = strdup(server->password)) == NULL)
+				goto done;
+
+			res = 1;
+			break;
+		}
+	}
+done:
+	return res;
 }
 
 int

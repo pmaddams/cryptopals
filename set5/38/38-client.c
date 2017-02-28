@@ -99,7 +99,7 @@ client_generate_enc_key(struct state *client, BIGNUM *server_pub_key)
 	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
 	char hash[SHA256_DIGEST_LENGTH];
-	BIGNUM *secret, *x, *t1, *t2;
+	BIGNUM *secret, *x, *tmp;
 	size_t len;
 	char *buf;
 
@@ -116,15 +116,11 @@ client_generate_enc_key(struct state *client, BIGNUM *server_pub_key)
 
 	if ((secret = BN_new()) == NULL ||
 	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
-	    (t1 = BN_CTX_get(bnctx)) == NULL ||
-	    (t2 = BN_CTX_get(bnctx)) == NULL ||
+	    (tmp = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mod_exp(t1, client->srp->g, x, client->srp->n, bnctx) == 0 ||
-	    BN_mul(t1, client->srp->k, t1, bnctx) == 0 ||
-	    BN_sub(t1, server_pub_key, t1) == 0 ||
-	    BN_mul(t2, client->srp->u, x, bnctx) == 0 ||
-	    BN_add(t2, client->srp->priv_key, t2) == 0 ||
-	    BN_mod_exp(secret, t1, t2, client->srp->n, bnctx) == 0)
+	    BN_mul(tmp, client->srp->u, x, bnctx) == 0 ||
+	    BN_add(tmp, client->srp->priv_key, tmp) == 0 ||
+	    BN_mod_exp(secret, server_pub_key, tmp, client->srp->n, bnctx) == 0)
 		goto fail;
 
 	len = BN_num_bytes(secret);

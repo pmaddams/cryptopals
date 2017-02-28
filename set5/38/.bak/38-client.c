@@ -14,12 +14,6 @@
 
 #include "38.h"
 
-BIGNUM *modulus, *generator,
-    *private_key, *public_key, *server_pubkey,
-    *scrambler, *shared_s;
-
-char *username, *password, *salt, *shared_k, *hmac;
-
 int
 lo_connect(in_port_t port)
 {
@@ -40,101 +34,162 @@ fail:
 	return -1;
 }
 
-BIGNUM *
-make_shared_s(char *salt, char *password, BIGNUM *server_pubkey, BIGNUM *private_key, BIGNUM *scrambler, BIGNUM *modulus)
+int
+client_init(struct state *client)
+{
+	struct srp *srp;
+
+	if ((srp = srp_new()) == NULL ||
+	    srp_generate_priv_key(srp) == 0 ||
+	    srp_generate_pub_key(srp) == 0)
+		goto fail;
+
+	client->srp = srp;
+
+	return 1;
+fail:
+	return 0;
+}
+
+int
+send_username_and_client_pub_key(int connfd, struct state *client)
+{
+	char *buf;
+
+	if ((buf = BN_bn2hex(client->srp->pub_key)) == NULL ||
+	    ssendf(connfd, "%s %s", client->username, buf) == 0)
+		goto fail;
+
+	free(buf);
+	return 1;
+fail:
+	return 0;
+}
+
+int
+get_salt_and_server_pub_key(int connfd, struct state *client, BIGNUM **bp)
+{
+	char *buf, *p;
+	ssize_t i;
+
+	if ((p = buf = srecv(connfd)) == NULL)
+		goto fail;
+
+	if ((i = strcspn(p, " ")) > strlen(p)-2)
+		goto fail;
+	p[i] = '\0';
+
+	if ((client->salt = strdup(p)) == NULL)
+		goto fail;
+
+	p += i+1;
+	if (BN_hex2bn(bp, p) == 0)
+		goto fail;
+
+	free(buf);
+
+	return 1;
+fail:
+	return 0;
+}
+
+int
+client_generate_enc_key(struct state *client, BIGNUM *server_pub_key)
 {
 	BN_CTX *bnctx;
 	SHA2_CTX sha2ctx;
 	char hash[SHA256_DIGEST_LENGTH];
-	BIGNUM *x, *tmp;
+	BIGNUM *secret, *x, *tmp;
+	size_t len;
+	char *buf;
 
-	if ((bnctx = BN_CTX_new()) == NULL)
+	if (generate_scrambler(client->srp->u, client->srp->pub_key, server_pub_key) == 0 ||
+
+	    (bnctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(bnctx);
 
 	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, salt, strlen(salt));
-	SHA256Update(&sha2ctx, password, strlen(password));
+	SHA256Update(&sha2ctx, client->salt, strlen(client->salt));
+	SHA256Update(&sha2ctx, client->password, strlen(client->password));
 	SHA256Final(hash, &sha2ctx);
 
-	if ((shared_s = BN_new()) == NULL ||
+	if ((secret = BN_new()) == NULL ||
 	    (x = BN_bin2bn(hash, SHA256_DIGEST_LENGTH, NULL)) == NULL ||
 	    (tmp = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mul(tmp, scrambler, x, bnctx) == 0 ||
-	    BN_add(tmp, private_key, tmp) == 0 ||
-	    BN_mod_exp(shared_s, server_pubkey, tmp, modulus, bnctx) == 0)
+	    BN_mul(tmp, client->srp->u, x, bnctx) == 0 ||
+	    BN_add(tmp, client->srp->priv_key, tmp) == 0 ||
+	    BN_mod_exp(secret, server_pub_key, tmp, client->srp->n, bnctx) == 0)
 		goto fail;
+
+	len = BN_num_bytes(secret);
+	if ((buf = malloc(len)) == NULL ||
+
+	    BN_bn2bin(secret, buf) == 0)
+		goto fail;
+
+	SHA256Init(&sha2ctx);
+	SHA256Update(&sha2ctx, buf, len);
+	SHA256Final(hash, &sha2ctx);
+
+	memcpy(client->enc_key, hash, KEYSIZE);
 
 	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
+	free(buf);
 
-	free(x);
-	return shared_s;
+	return 1;
 fail:
-	return NULL;
+	return 0;
+}
+
+int
+client_verify_hmac(int connfd, struct state *client)
+{
+	char *buf, hmac[SHA256_DIGEST_STRING_LENGTH];
+	int res;
+
+	generate_hmac(hmac, client);
+
+	if (ssend(connfd, hmac) == 0 ||
+	    (buf = srecv(connfd)) == 0)
+		goto fail;
+
+	res = strcmp(buf, "OK") == 0;
+
+	free(buf);
+	return res;
+fail:
+	return 0;
 }
 
 int
 main(void)
 {
+	struct state client;
 	int connfd;
-	char *buf, *p;
-	size_t i;
+	BIGNUM *server_pub_key;
 
-	if (init_params(&modulus, &generator) == 0 ||
-	    (private_key = make_private_key()) == NULL ||
-	    (public_key = make_public_key(generator, private_key, modulus)) == NULL)
+	if (client_init(&client) == 0 ||
+	    (connfd = lo_connect(PORT)) == -1 ||
+	    (server_pub_key = BN_new()) == NULL)
 		err(1, NULL);
 
 	print("username: ");
-	if ((username = input()) == NULL ||
-	    (buf = BN_bn2hex(public_key)) == NULL ||
-
-	    (connfd = lo_connect(PORT)) == -1 ||
-	    ssendf(connfd, "%s %s", username, buf) == 0)
+	if ((client.username = input()) == NULL)
 		err(1, NULL);
-
-	free(buf);
-
-	if ((buf = srecv(connfd)) == NULL)
-		err(1, NULL);
-
-	p = buf;
-	if ((i = strcspn(p, " ")) > strlen(p)-2)
-		errx(1, "invalid salt");
-	p[i] = '\0';
-
-	if ((salt = strdup(p)) == NULL)
-		err(1, NULL);
-
-	p += i+1;
-	if ((i = strcspn(p, " ")) > strlen(p)-2)
-		errx(1, "invalid key");
-	p[i] = '\0';
-
-	if ((server_pubkey = BN_new()) == NULL ||
-	    BN_hex2bn(&server_pubkey, p) == 0)
-		err(1, NULL);
-
-	p += i+1;
-	if ((scrambler = BN_new()) == NULL ||
-	   BN_hex2bn(&scrambler, p) == 0)
-		err(1, NULL);
-
-	free(buf);
 
 	print("password: ");
-	if ((password = input()) == NULL ||
-	    (shared_s = make_shared_s(salt, password, server_pubkey, private_key, scrambler, modulus)) == NULL ||
-	    (shared_k = make_shared_k(shared_s)) == NULL ||
-	    (hmac = make_hmac(shared_k, salt)) == NULL ||
-
-	    ssend(connfd, hmac) == 0 ||
-	    (buf = srecv(connfd)) == NULL)
+	if ((client.password = input()) == NULL)
 		err(1, NULL);
 
-	puts(buf);
+	if (send_username_and_client_pub_key(connfd, &client) == 0 ||
+	    get_salt_and_server_pub_key(connfd, &client, &server_pub_key) == 0 ||
+	    client_generate_enc_key(&client, server_pub_key) == 0)
+		err(1, NULL);
+
+	puts(client_verify_hmac(connfd, &client) ? "success" : "failure");
 
 	exit(0);
 }

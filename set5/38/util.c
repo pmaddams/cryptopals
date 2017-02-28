@@ -23,6 +23,7 @@ srp_new(void)
 	    (srp->g = BN_new()) == NULL ||
 	    (srp->k = BN_new()) == NULL ||
 	    (srp->u = BN_new()) == NULL ||
+	    (srp->v = BN_new()) == NULL ||
 	    (srp->priv_key = BN_new()) == NULL ||
 	    (srp->pub_key = BN_new()) == NULL ||
 
