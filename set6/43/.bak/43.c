@@ -39,11 +39,7 @@ struct dsa_sig {
 int
 dsa_init(struct dsa *dsa)
 {
-	BN_CTX *ctx;
-
-	if ((ctx = BN_CTX_new()) == NULL ||
-
-	    (dsa->p = BN_new()) == NULL ||
+	if ((dsa->p = BN_new()) == NULL ||
 	    (dsa->q = BN_new()) == NULL ||
 	    (dsa->g = BN_new()) == NULL ||
 	    (dsa->priv_key = BN_new()) == NULL ||
@@ -58,9 +54,6 @@ dsa_init(struct dsa *dsa)
 		if (BN_rand_range(dsa->priv_key, dsa->q) == 0)
 			goto fail;
 	while (BN_is_zero(dsa->priv_key));
-
-	if (BN_mod_exp(dsa->pub_key, dsa->g, dsa->priv_key, dsa->p, ctx) == 0)
-		goto fail;
 
 	return 1;
 fail:
@@ -80,10 +73,4 @@ dsa_verify(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig)
 int
 main(void)
 {
-	struct dsa dsa;
-
-	if (dsa_init(&dsa) == 0)
-		err(1, NULL);
-
-	exit(0);
 }
