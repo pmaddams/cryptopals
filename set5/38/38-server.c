@@ -184,7 +184,10 @@ crack_password(struct state *server, BIGNUM *client_pub_key, char *client_hmac, 
 	    hmac[SHA256_DIGEST_STRING_LENGTH];
 	size_t len;
 
+	server->password = NULL;
+
 	if (generate_scrambler(server->srp->u, client_pub_key, server->srp->pub_key) == 0 ||
+
 	    (fp = fopen(path, "r")) == NULL)
 		goto fail;
 
@@ -216,7 +219,7 @@ crack_password(struct state *server, BIGNUM *client_pub_key, char *client_hmac, 
 	fclose(fp);
 	free(lbuf);
 
-	return 1;
+	return server->password != NULL;
 fail:
 	return 0;
 }
