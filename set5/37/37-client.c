@@ -112,7 +112,6 @@ get_salt(int connfd, struct state *client)
 	free(client->salt);
 	client->salt = buf;
 
-	free(buf);
 	return 1;
 fail:
 	return 0;

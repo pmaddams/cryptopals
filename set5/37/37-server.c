@@ -75,7 +75,7 @@ generate_verifier(struct state *server)
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, server->salt, strlen(server->salt));
-	SHA256Update(&sha2ctx, server->password, strlen(server->password));
+	SHA256Update(&sha2ctx, server->password, KEYSIZE);
 	SHA256Final(hash, &sha2ctx);
 
 	if ((x = BN_CTX_get(bnctx)) == NULL ||
