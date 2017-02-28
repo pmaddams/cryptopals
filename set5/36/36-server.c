@@ -117,6 +117,7 @@ server_init(struct state *server)
 
 	server->username = USERNAME;
 	server->password = PASSWORD;
+
 	if (generate_salt(server) == 0 ||
 	    generate_verifier(server) == 0 ||
 

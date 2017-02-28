@@ -13,41 +13,56 @@
 
 #define TMPSIZ 8192
 
-#define BLKSIZ 64
-
-int
-init_params(BIGNUM **modp, BIGNUM **genp)
+struct srp *
+srp_new(void)
 {
-	return BN_hex2bn(modp, N) &&
-	    BN_hex2bn(genp, G);
-}
+	struct srp *srp;
 
-BIGNUM *
-make_private_key(void)
-{
-	char buf[BUFSIZ];
+	if ((srp = malloc(sizeof(*srp))) == NULL ||
+	    (srp->n = BN_new()) == NULL ||
+	    (srp->g = BN_new()) == NULL ||
+	    (srp->k = BN_new()) == NULL ||
+	    (srp->u = BN_new()) == NULL ||
+	    (srp->priv_key = BN_new()) == NULL ||
+	    (srp->pub_key = BN_new()) == NULL ||
 
-	arc4random_buf(buf, BUFSIZ);
-
-	return BN_bin2bn(buf, BUFSIZ, NULL);
-}
-
-BIGNUM *
-make_public_key(BIGNUM *generator, BIGNUM *private_key, BIGNUM *modulus)
-{
-	BN_CTX *bnctx;
-	BIGNUM *res;
-
-	if ((bnctx = BN_CTX_new()) == NULL ||
-	    (res = BN_new()) == NULL ||
-	    BN_mod_exp(res, generator, private_key, modulus, bnctx) == 0)
+	    BN_hex2bn(&srp->n, N) == 0 ||
+	    BN_hex2bn(&srp->g, G) == 0 ||
+	    BN_hex2bn(&srp->k, K) == 0)
 		goto fail;
 
-	BN_CTX_free(bnctx);
-
-	return res;
+	return srp;
 fail:
 	return NULL;
+}
+
+int
+srp_generate_priv_key(struct srp *srp)
+{
+	do
+		if (BN_rand_range(srp->priv_key, srp->n) == 0)
+			goto fail;
+	while (BN_is_zero(srp->priv_key));
+
+	return 1;
+fail:
+	return 0;
+}
+
+int
+srp_generate_pub_key(struct srp *srp)
+{
+	BN_CTX *ctx;
+
+	if ((ctx = BN_CTX_new()) == NULL ||
+	    BN_mod_exp(srp->pub_key, srp->g, srp->priv_key, srp->n, ctx) == 0)
+		goto fail;
+
+	BN_CTX_free(ctx);
+
+	return 1;
+fail:
+	return 0;
 }
 
 char *
@@ -125,49 +140,62 @@ done:
 	return dst;
 }
 
-char *
-make_shared_k(BIGNUM *shared_s)
+int
+generate_scrambler(BIGNUM *res, BIGNUM *client_pub_key, BIGNUM *server_pub_key)
 {
+	SHA2_CTX sha2ctx;
 	size_t len;
-	char *buf, *res;
+	char *buf, hash[SHA256_DIGEST_LENGTH];
 
-	len = BN_num_bytes(shared_s);
+	SHA256Init(&sha2ctx);
+
+	len = BN_num_bytes(client_pub_key);
 	if ((buf = malloc(len)) == NULL ||
-	    BN_bn2bin(shared_s, buf) == 0 ||
-	    (res = SHA256Data(buf, len, NULL)) == NULL)
+	    BN_bn2bin(client_pub_key, buf) == 0)
 		goto fail;
 
+	SHA256Update(&sha2ctx, buf, len);
 	free(buf);
-	return res;
+
+	len = BN_num_bytes(server_pub_key);
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(server_pub_key, buf) == 0)
+		goto fail;
+
+	SHA256Update(&sha2ctx, buf, len);
+	free(buf);
+
+	SHA256Final(hash, &sha2ctx);
+
+	return BN_bin2bn(hash, SHA256_DIGEST_LENGTH, res) != NULL;
 fail:
-	return NULL;
+	return 0;
 }
 
-char *
-make_hmac(char *shared_k, char *salt)
+void
+generate_hmac(char *res, struct state *state)
 {
-	char ipad[BLKSIZ], opad[BLKSIZ],
+	char ipad[SHA256_BLOCK_LENGTH],
+	    opad[SHA256_BLOCK_LENGTH],
 	    hash[SHA256_DIGEST_LENGTH];
 	size_t i, len;
 	SHA2_CTX sha2ctx;
 
-	memset(ipad, '\x5c', BLKSIZ);
-	memset(opad, '\x36', BLKSIZ);
+	memset(ipad, '\x5c', SHA256_BLOCK_LENGTH);
+	memset(opad, '\x36', SHA256_BLOCK_LENGTH);
 
-	len = strlen(shared_k);
-	for (i = 0; i < len; i++) {
-		ipad[i] ^= shared_k[i];
-		opad[i] ^= shared_k[i];
+	for (i = 0; i < KEYSIZE; i++) {
+		ipad[i] ^= state->enc_key[i];
+		opad[i] ^= state->enc_key[i];
 	}
 
 	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, ipad, BLKSIZ);
-	SHA256Update(&sha2ctx, salt, strlen(salt));
+	SHA256Update(&sha2ctx, ipad, SHA256_BLOCK_LENGTH);
+	SHA256Update(&sha2ctx, state->salt, strlen(state->salt));
 	SHA256Final(hash, &sha2ctx);
 
 	SHA256Init(&sha2ctx);
-	SHA256Update(&sha2ctx, opad, BLKSIZ);
+	SHA256Update(&sha2ctx, opad, SHA256_BLOCK_LENGTH);
 	SHA256Update(&sha2ctx, hash, SHA256_DIGEST_LENGTH);
-
-	return SHA256End(&sha2ctx, NULL);
+	SHA256End(&sha2ctx, res);
 }
