@@ -133,13 +133,10 @@ fail:
 int
 server_init(struct state *server)
 {
-	struct srp *srp;
-
-	if ((srp = srp_new()) == NULL)
+	if ((server->srp = srp_new()) == NULL)
 		goto fail;
 
 	server->username = USERNAME;
-
 	if ((server->password = malloc(KEYSIZE)) == NULL)
 		goto fail;
 	arc4random_buf(server->password, KEYSIZE);
@@ -205,17 +202,19 @@ generate_scrambler(struct state *server, BIGNUM *client_pub_key)
 	SHA256Init(&sha2ctx);
 
 	len = BN_num_bytes(client_pub_key);
-	if ((buf = malloc(len)) == NULL ||
-	    BN_bn2bin(client_pub_key, buf) == 0)
+	if ((buf = malloc(len)) == NULL)
 		goto fail;
+
+	BN_bn2bin(client_pub_key, buf);
 
 	SHA256Update(&sha2ctx, buf, len);
 	free(buf);
 
 	len = BN_num_bytes(server->srp->pub_key);
-	if ((buf = malloc(len)) == NULL ||
-	    BN_bn2bin(server->srp->pub_key, buf) == 0)
+	if ((buf = malloc(len)) == NULL)
 		goto fail;
+
+	BN_bn2bin(server->srp->pub_key, buf);
 
 	SHA256Update(&sha2ctx, buf, len);
 	free(buf);
@@ -251,10 +250,10 @@ server_generate_enc_key(struct state *server, BIGNUM *client_pub_key)
 		goto fail;
 
 	len = BN_num_bytes(secret);
-	if ((buf = malloc(len)) == NULL ||
-
-	    BN_bn2bin(secret, buf) == 0)
+	if ((buf = malloc(len)) == NULL)
 		goto fail;
+
+	BN_bn2bin(secret, buf);
 
 	SHA256Init(&sha2ctx);
 	SHA256Update(&sha2ctx, buf, len);
