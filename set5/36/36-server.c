@@ -38,22 +38,6 @@ fail:
 	return -1;
 }
 
-int
-server_start_init(struct state *server)
-{
-	struct srp *srp;
-
-	if ((srp = srp_new()) == NULL ||
-	    srp_generate_priv_key(srp) == 0)
-		goto fail;
-
-	server->srp = srp;
-
-	return 1;
-fail:
-	return 0;
-}
-
 char *
 generate_salt(void)
 {
@@ -120,9 +104,29 @@ fail:
 }
 
 int
-server_finish_init(struct state *server)
+server_init(struct state *server)
 {
-	return generate_verifier(server) && srp_generate_server_pub_key(server->srp);
+	struct srp *srp;
+
+	if ((srp = srp_new()) == NULL ||
+	    srp_generate_priv_key(srp) == 0)
+		goto fail;
+
+	server->srp = srp;
+
+	server->username = USERNAME;
+	server->password = PASSWORD;
+	if ((server->salt = generate_salt()) == NULL ||
+
+	    generate_verifier(server) == 0 ||
+
+	    srp_generate_priv_key(server->srp) == 0 ||
+	    srp_generate_server_pub_key(server->srp) == 0)
+		goto fail;
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
@@ -233,14 +237,7 @@ main(void)
 	BIGNUM *client_pub_key;
 	pid_t pid;
 
-	if (server_start_init(&server) == 0)
-		err(1, NULL);
-
-	server.username = USERNAME;
-	server.password = PASSWORD;
-	if ((server.salt = generate_salt()) == NULL ||
-
-	    server_finish_init(&server) == 0 ||
+	if (server_init(&server) == 0 ||
 
 	    (listenfd = lo_listen(PORT)) == 0 ||
 
