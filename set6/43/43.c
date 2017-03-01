@@ -104,7 +104,6 @@ dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len)
 	if (BN_bin2bn(hash, SHA1_DIGEST_LENGTH, sig->s) == NULL ||
 	    BN_mod_mul(tmp, dsa->priv_key, sig->r, dsa->q, bnctx) == 0 ||
 	    BN_add(sig->s, sig->s, tmp) == 0 ||
-	    BN_nnmod(sig->s, sig->s, dsa->q, bnctx) == 0 ||
 	    BN_mod_inverse(k, k, dsa->q, bnctx) == 0 ||
 	    BN_mod_mul(sig->s, sig->s, k, dsa->q, bnctx) == 0)
 		goto fail;
@@ -153,7 +152,8 @@ dsa_sig_verify(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig)
 
 	    BN_mod_exp(v, dsa->g, u1, dsa->p, bnctx) == 0 ||    
 	    BN_mod_exp(tmp, dsa->pub_key, u2, dsa->p, bnctx) == 0 ||    
-	    BN_mod_mul(v, v, tmp, dsa->q, bnctx) == 0)
+	    BN_mod_mul(v, v, tmp, dsa->p, bnctx) == 0 ||
+	    BN_nnmod(v, v, dsa->q, bnctx) == 0)
 		goto fail;
 
 	cmp = BN_cmp(v, sig->r);
@@ -183,10 +183,9 @@ main(void)
 	if (dsa_init(&dsa) == 0)
 		err(1, NULL);
 
-	if ((sig = dsa_sig_create(&dsa, "hello", 5)) == NULL)
+	if ((sig = dsa_sig_create(&dsa, "hello", 5)) == NULL ||
+	    dsa_sig_verify(&dsa, "hello", 5, sig) == 0)
 		err(1, NULL);
-
-	printf("%d\n", dsa_sig_verify(&dsa, "hello", 5, sig));
 
 	exit(0);
 }
