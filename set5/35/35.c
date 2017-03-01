@@ -141,7 +141,7 @@ mitm(struct party *party, BIGNUM *g, struct party *p1, struct party *p2)
 
 	memcpy(party->key, hash, KEYSIZE);
 
-	free(secret);
+	BN_free(secret);
 	free(buf);
 
 	return 1;
