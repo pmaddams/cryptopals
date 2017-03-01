@@ -37,6 +37,51 @@ struct dsa_sig {
 };
 
 int
+invmod(BIGNUM *res, BIGNUM *bn, BIGNUM *modulus, BN_CTX *ctx)
+{
+	BIGNUM *out, *remainder, *quotient, *x1, *x2, *t1, *t2;
+
+	if (BN_is_zero(bn) || BN_is_zero(modulus))
+		goto fail;
+	if (BN_is_one(bn) || BN_is_one(modulus))
+		return BN_copy(res, BN_value_one()) != NULL;
+
+	if ((out = BN_CTX_get(ctx)) == NULL ||
+	    (remainder = BN_CTX_get(ctx)) == NULL ||
+	    (quotient = BN_CTX_get(ctx)) == NULL ||
+	    (x1 = BN_CTX_get(ctx)) == NULL ||
+	    (x2 = BN_CTX_get(ctx)) == NULL ||
+	    (t1 = BN_CTX_get(ctx)) == NULL ||
+	    (t2 = BN_CTX_get(ctx)) == NULL ||
+
+	    BN_copy(out, bn) == NULL ||
+	    BN_copy(remainder, modulus) == NULL ||
+	    BN_one(x1) == 0 ||
+	    BN_zero(x2) == 0)
+		goto fail;
+
+	while (!BN_is_zero(remainder)) {
+		if (BN_div(quotient, t1, out, remainder, ctx) == 0 ||
+		    BN_copy(out, remainder) == NULL ||
+		    BN_copy(remainder, t1) == NULL ||
+
+		    BN_copy(t1, x2) == NULL ||
+		    BN_mul(t2, quotient, x2, ctx) == 0 ||
+		    BN_sub(x2, x1, t2) == 0 ||
+		    BN_copy(x1, t1) == NULL)
+			goto fail;
+	}
+
+	if (!BN_is_one(out) ||
+	    BN_nnmod(out, x1, modulus, ctx) == 0)
+		goto fail;
+
+	return BN_copy(res, out) != NULL;
+fail:
+	return 0;
+}
+
+int
 dsa_init(struct dsa *dsa)
 {
 	BN_CTX *ctx;
@@ -104,9 +149,8 @@ dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len)
 	if (BN_bin2bn(hash, SHA1_DIGEST_LENGTH, sig->s) == NULL ||
 	    BN_mod_mul(tmp, dsa->priv_key, sig->r, dsa->q, bnctx) == 0 ||
 	    BN_add(sig->s, sig->s, tmp) == 0 ||
-	    BN_nnmod(sig->s, sig->s, dsa->q, bnctx) == 0 ||
-	    BN_mod_inverse(k, k, dsa->q, bnctx) == 0 ||
-	    BN_mod_mul(sig->s, sig->s, k, dsa->q, bnctx) == 0)
+	    invmod(k, k, dsa->q, bnctx) == 0 ||
+	    BN_mod_mul(sig->s, k, sig->s, dsa->q, bnctx) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);
@@ -139,7 +183,7 @@ dsa_sig_verify(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig)
 	    (v = BN_CTX_get(bnctx)) == NULL ||
 	    (tmp = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mod_inverse(w, sig->s, dsa->q, bnctx) == 0)
+	    invmod(w, sig->s, dsa->q, bnctx) == 0)
 		goto fail;
 
 	SHA1Init(&sha1ctx);
@@ -185,8 +229,6 @@ main(void)
 
 	if ((sig = dsa_sig_create(&dsa, "hello", 5)) == NULL)
 		err(1, NULL);
-
-	printf("%d\n", dsa_sig_verify(&dsa, "hello", 5, sig));
 
 	exit(0);
 }
