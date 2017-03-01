@@ -115,15 +115,11 @@ fail:
 struct dsa_sig *
 dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len)
 {
-	SHA1_CTX sha1ctx;
-	uint8_t hash[SHA1_DIGEST_LENGTH];
 	BN_CTX *bnctx;
 	BIGNUM *k, *tmp;
 	struct dsa_sig *sig;
-
-	SHA1Init(&sha1ctx);
-	SHA1Update(&sha1ctx, buf, len);
-	SHA1Final(hash, &sha1ctx);
+	SHA1_CTX sha1ctx;
+	uint8_t hash[SHA1_DIGEST_LENGTH];
 
 	if ((bnctx = BN_CTX_new()) == NULL)
 		goto fail;
@@ -143,9 +139,14 @@ dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len)
 	while (BN_is_zero(k));
 
 	if (BN_mod_exp(sig->r, dsa->g, k, dsa->p, bnctx) == 0 ||
-	    BN_nnmod(sig->r, sig->r, dsa->q, bnctx) == 0 ||
+	    BN_nnmod(sig->r, sig->r, dsa->q, bnctx) == 0)
+		goto fail;
 
-	    BN_bin2bn(hash, SHA1_DIGEST_LENGTH, sig->s) == NULL ||
+	SHA1Init(&sha1ctx);
+	SHA1Update(&sha1ctx, buf, len);
+	SHA1Final(hash, &sha1ctx);
+
+	if (BN_bin2bn(hash, SHA1_DIGEST_LENGTH, sig->s) == NULL ||
 	    BN_mod_mul(tmp, dsa->priv_key, sig->r, dsa->q, bnctx) == 0 ||
 	    BN_add(sig->s, sig->s, tmp) == 0 ||
 	    invmod(k, k, dsa->q, bnctx) == 0 ||
@@ -163,6 +164,50 @@ fail:
 int
 dsa_sig_verify(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig)
 {
+	BN_CTX *bnctx;
+	BIGNUM *w, *u1, *u2, *v, *tmp;
+	SHA1_CTX sha1ctx;
+	uint8_t hash[SHA1_DIGEST_LENGTH];
+	int cmp;
+
+	if (BN_is_zero(sig->r) || BN_cmp(dsa->q, sig->r) == -1 ||
+	    BN_is_zero(sig->s) || BN_cmp(dsa->q, sig->s) == -1 ||
+
+	    (bnctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(bnctx);
+
+	if ((w = BN_CTX_get(bnctx)) == NULL ||
+	    (u1 = BN_CTX_get(bnctx)) == NULL ||
+	    (u2 = BN_CTX_get(bnctx)) == NULL ||
+	    (v = BN_CTX_get(bnctx)) == NULL ||
+	    (tmp = BN_CTX_get(bnctx)) == NULL ||
+
+	    invmod(w, sig->s, dsa->q, bnctx) == 0)
+		goto fail;
+
+	SHA1Init(&sha1ctx);
+	SHA1Update(&sha1ctx, buf, len);
+	SHA1Final(hash, &sha1ctx);
+
+	if (BN_bin2bn(hash, SHA1_DIGEST_LENGTH, u1) == NULL ||
+	    BN_mod_mul(u1, u1, w, dsa->q, bnctx) == 0 ||
+
+	    BN_mod_mul(u2, sig->r, w, dsa->q, bnctx) == 0 ||
+
+	    BN_mod_exp(v, dsa->g, u1, dsa->p, bnctx) == 0 ||    
+	    BN_mod_exp(tmp, dsa->pub_key, u2, dsa->p, bnctx) == 0 ||    
+	    BN_mod_mul(v, v, tmp, dsa->q, bnctx) == 0)
+		goto fail;
+
+	cmp = BN_cmp(v, sig->r);
+
+	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
+
+	return cmp == 0;
+fail:
+	return 0;
 }
 
 void
