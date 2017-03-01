@@ -7,34 +7,21 @@
 
 #include <openssl/bn.h>
 
-#define P	"800000000000000089e1855218a0e7dac38136ffafa72eda7"			\
-		"859f2171e25e65eac698c1702578b07dc2a1076da241c76c6"			\
-		"2d374d8389ea5aeffd3226a0530cc565f3bf6b50929139ebe"			\
-		"ac04f48c3c84afb796d61e5a4f9a8fda812ab59494232c7d2"			\
-		"b4deb50aa18ee9e132bfa85ac4374d7f9091abc3d015efc87"			\
+#define P	"800000000000000089e1855218a0e7dac38136ffafa72eda7"	\
+		"859f2171e25e65eac698c1702578b07dc2a1076da241c76c6"	\
+		"2d374d8389ea5aeffd3226a0530cc565f3bf6b50929139ebe"	\
+		"ac04f48c3c84afb796d61e5a4f9a8fda812ab59494232c7d2"	\
+		"b4deb50aa18ee9e132bfa85ac4374d7f9091abc3d015efc87"	\
 		"1a584471bb1"
 
 #define Q	"f4f47f05794b256174bba6e9b396a7707e563c5b"
 
-#define G	"5958c9d3898b224b12672c0b98e06c60df923cb8bc999d119"			\
-		"458fef538b8fa4046c8db53039db620c094c9fa077ef389b5"			\
-		"322a559946a71903f990f1f7e0e025e2d7f7cf494aff1a047"			\
-		"0f5b64c36b625a097f1651fe775323556fe00b3608c887892"			\
-		"878480e99041be601a62166ca6894bdd41a7054ec89f756ba"			\
+#define G	"5958c9d3898b224b12672c0b98e06c60df923cb8bc999d119"	\
+		"458fef538b8fa4046c8db53039db620c094c9fa077ef389b5"	\
+		"322a559946a71903f990f1f7e0e025e2d7f7cf494aff1a047"	\
+		"0f5b64c36b625a097f1651fe775323556fe00b3608c887892"	\
+		"878480e99041be601a62166ca6894bdd41a7054ec89f756ba"	\
 		"9fc95302291"
-
-#define DATA	"For those that envy a MC it can be hazardous to your health"		\
-		"So be friendly, a matter of life and death, just like a etch-a-sketch"
-
-#define PUB_KEY	"84ad4719d044495496a3201c8ff484feb45b962e7302e56a392aee4"		\
-		"abab3e4bdebf2955b4736012f21a08084056b19bcd7fee56048e004"		\
-		"e44984e2f411788efdc837a0d2e5abb7b555039fd243ac01f0fb2ed"		\
-		"1dec568280ce678e931868d23eb095fde9d3779191b8c0299d6e07b"		\
-		"bb283e6633451e535c45513b2d33c99ea17"
-
-#define SIG_R	"548099063082341131477253921760299949438196259240"
-
-#define SIG_S	"857042759984254168557880549501802188789837994940"
 
 struct dsa {
 	BIGNUM *p;
@@ -81,7 +68,7 @@ fail:
 }
 
 struct dsa_sig *
-dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len, BIGNUM **kp)
+dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len)
 {
 	BN_CTX *bnctx;
 	BIGNUM *k, *tmp;
@@ -105,10 +92,6 @@ dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len, BIGNUM **kp)
 		if (BN_rand_range(k, dsa->q) == 0)
 			goto fail;
 	while (BN_is_zero(k));
-
-	if (kp != NULL)
-		if (BN_copy(*kp, k) == 0)
-			goto fail;
 
 	if (BN_mod_exp(sig->r, dsa->g, k, dsa->p, bnctx) == 0 ||
 	    BN_nnmod(sig->r, sig->r, dsa->q, bnctx) == 0)
@@ -191,43 +174,6 @@ dsa_sig_free(struct dsa_sig *sig)
 	free(sig);
 }
 
-BIGNUM *
-crack_dsa(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig, BIGNUM *k)
-{
-	BN_CTX *bnctx;
-	BIGNUM *priv_key, *tmp;
-	SHA1_CTX sha1ctx;
-	uint8_t hash[SHA1_DIGEST_LENGTH];
-
-	if ((bnctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(bnctx);
-
-	if ((priv_key = BN_new()) == NULL ||
-	    (tmp = BN_CTX_get(bnctx)) == NULL ||
-
-	    BN_mul(priv_key, sig->s, k, bnctx) == 0)
-		goto fail;
-
-	SHA1Init(&sha1ctx);
-	SHA1Update(&sha1ctx, buf, len);
-	SHA1Final(hash, &sha1ctx);
-
-	if (BN_bin2bn(hash, SHA1_DIGEST_LENGTH, tmp) == NULL ||
-	    BN_sub(priv_key, priv_key, tmp) == 0 ||
-
-	    BN_mod_inverse(tmp, sig->r, dsa->q, bnctx) == 0 ||
-	    BN_mod_mul(priv_key, priv_key, tmp, dsa->q, bnctx) == 0)
-		goto fail;
-
-	BN_CTX_end(bnctx);
-	BN_CTX_free(bnctx);
-
-	return priv_key;
-fail:
-	return NULL;
-}
-
 int
 main(void)
 {
@@ -235,6 +181,10 @@ main(void)
 	struct dsa_sig *sig;
 
 	if (dsa_init(&dsa) == 0)
+		err(1, NULL);
+
+	if ((sig = dsa_sig_create(&dsa, "hello", 5)) == NULL ||
+	    dsa_sig_verify(&dsa, "hello", 5, sig) == 0)
 		err(1, NULL);
 
 	exit(0);
