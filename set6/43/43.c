@@ -170,8 +170,8 @@ dsa_sig_verify(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig)
 	uint8_t hash[SHA1_DIGEST_LENGTH];
 	int cmp;
 
-	if (BN_is_zero(sig->r) || BN_cmp(dsa->q, sig->r) == -1 ||
-	    BN_is_zero(sig->s) || BN_cmp(dsa->q, sig->s) == -1 ||
+	if (BN_is_zero(sig->r) || BN_cmp(sig->r, dsa->q) >= 0 ||
+	    BN_is_zero(sig->s) || BN_cmp(sig->s, dsa->q) >= 0 ||
 
 	    (bnctx = BN_CTX_new()) == NULL)
 		goto fail;
