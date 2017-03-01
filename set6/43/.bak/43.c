@@ -68,13 +68,31 @@ fail:
 }
 
 struct dsa_sig *
-dsa_sign(struct dsa *dsa, uint8_t *buf, size_t len)
+dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len)
 {
+	struct dsa_sig *sig;
+
+	if ((sig = malloc(sizeof(*sig))) == NULL ||
+	    (sig->r = BN_new()) == NULL ||
+	    (sig->s = BN_new()) == NULL)
+		goto fail;
+
+	return sig;
+fail:
+	return NULL;
 }
 
 int
-dsa_verify(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig)
+dsa_sig_verify(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig)
 {
+}
+
+void
+dsa_sig_free(struct dsa_sig *sig)
+{
+	BN_free(sig->r);
+	BN_free(sig->s);
+	free(sig);
 }
 
 int

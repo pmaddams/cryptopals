@@ -37,6 +37,51 @@ struct dsa_sig {
 };
 
 int
+invmod(BIGNUM *res, BIGNUM *bn, BIGNUM *modulus, BN_CTX *ctx)
+{
+	BIGNUM *out, *remainder, *quotient, *x1, *x2, *t1, *t2;
+
+	if (BN_is_zero(bn) || BN_is_zero(modulus))
+		goto fail;
+	if (BN_is_one(bn) || BN_is_one(modulus))
+		return BN_copy(res, BN_value_one()) != NULL;
+
+	if ((out = BN_CTX_get(ctx)) == NULL ||
+	    (remainder = BN_CTX_get(ctx)) == NULL ||
+	    (quotient = BN_CTX_get(ctx)) == NULL ||
+	    (x1 = BN_CTX_get(ctx)) == NULL ||
+	    (x2 = BN_CTX_get(ctx)) == NULL ||
+	    (t1 = BN_CTX_get(ctx)) == NULL ||
+	    (t2 = BN_CTX_get(ctx)) == NULL ||
+
+	    BN_copy(out, bn) == NULL ||
+	    BN_copy(remainder, modulus) == NULL ||
+	    BN_one(x1) == 0 ||
+	    BN_zero(x2) == 0)
+		goto fail;
+
+	while (!BN_is_zero(remainder)) {
+		if (BN_div(quotient, t1, out, remainder, ctx) == 0 ||
+		    BN_copy(out, remainder) == NULL ||
+		    BN_copy(remainder, t1) == NULL ||
+
+		    BN_copy(t1, x2) == NULL ||
+		    BN_mul(t2, quotient, x2, ctx) == 0 ||
+		    BN_sub(x2, x1, t2) == 0 ||
+		    BN_copy(x1, t1) == NULL)
+			goto fail;
+	}
+
+	if (!BN_is_one(out) ||
+	    BN_nnmod(out, x1, modulus, ctx) == 0)
+		goto fail;
+
+	return BN_copy(res, out) != NULL;
+fail:
+	return 0;
+}
+
+int
 dsa_init(struct dsa *dsa)
 {
 	BN_CTX *ctx;
@@ -70,12 +115,45 @@ fail:
 struct dsa_sig *
 dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len)
 {
+	SHA1_CTX sha1ctx;
+	uint8_t hash[SHA1_DIGEST_LENGTH];
+	BN_CTX *bnctx;
+	BIGNUM *k, *tmp;
 	struct dsa_sig *sig;
 
-	if ((sig = malloc(sizeof(*sig))) == NULL ||
+	SHA1Init(&sha1ctx);
+	SHA1Update(&sha1ctx, buf, len);
+	SHA1Final(hash, &sha1ctx);
+
+	if ((bnctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(bnctx);
+
+	if ((k = BN_CTX_get(bnctx)) == NULL ||
+	    (tmp = BN_CTX_get(bnctx)) == NULL ||
+
+	    (sig = malloc(sizeof(*sig))) == NULL ||
 	    (sig->r = BN_new()) == NULL ||
 	    (sig->s = BN_new()) == NULL)
 		goto fail;
+
+	do
+		if (BN_rand_range(k, dsa->q) == 0)
+			goto fail;
+	while (BN_is_zero(k));
+
+	if (BN_mod_exp(sig->r, dsa->g, k, dsa->p, bnctx) == 0 ||
+	    BN_nnmod(sig->r, sig->r, dsa->q, bnctx) == 0 ||
+
+	    BN_bin2bn(hash, SHA1_DIGEST_LENGTH, sig->s) == NULL ||
+	    BN_mod_mul(tmp, dsa->priv_key, sig->r, dsa->q, bnctx) == 0 ||
+	    BN_add(sig->s, sig->s, tmp) == 0 ||
+	    invmod(k, k, dsa->q, bnctx) == 0 ||
+	    BN_mod_mul(sig->s, k, sig->s, dsa->q, bnctx) == 0)
+		goto fail;
+
+	BN_CTX_end(bnctx);
+	BN_CTX_free(bnctx);
 
 	return sig;
 fail:
@@ -99,8 +177,12 @@ int
 main(void)
 {
 	struct dsa dsa;
+	struct dsa_sig *sig;
 
 	if (dsa_init(&dsa) == 0)
+		err(1, NULL);
+
+	if ((sig = dsa_sig_create(&dsa, "hello", 5)) == NULL)
 		err(1, NULL);
 
 	exit(0);
