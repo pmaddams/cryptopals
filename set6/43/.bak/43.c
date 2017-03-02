@@ -235,6 +235,7 @@ main(void)
 {
 	struct dsa dsa;
 	struct dsa_sig sig;
+	BIGNUM *k, *limit;
 
 	if (dsa_init(&dsa) == 0 ||
 	    BN_hex2bn(&dsa.pub_key, PUB_KEY) == 0 ||
@@ -243,7 +244,13 @@ main(void)
 	    (sig.s = BN_new()) == NULL ||
 
 	    BN_hex2bn(&sig.s, SIG_S) == 0 ||
-	    BN_hex2bn(&sig.r, SIG_R) == 0)
+	    BN_hex2bn(&sig.r, SIG_R) == 0 ||
+
+	    (k = BN_new()) == NULL ||
+	    (limit = BN_new()) == NULL ||
+
+	    BN_zero(k) == 0 ||
+	    BN_hex2bn(&limit, "ffff") == 0)
 		err(1, NULL);
 
 	exit(0);

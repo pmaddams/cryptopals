@@ -4,6 +4,7 @@
 #include <sha1.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <openssl/bn.h>
 
@@ -35,6 +36,8 @@
 #define SIG_R	"548099063082341131477253921760299949438196259240"
 
 #define SIG_S	"857042759984254168557880549501802188789837994940"
+
+#define HASH	"0954edd5e0afe5542a4adf012611a91912a3ec16"
 
 struct dsa {
 	BIGNUM *p;
@@ -193,11 +196,11 @@ dsa_sig_free(struct dsa_sig *sig)
 	free(sig);
 }
 
-BIGNUM *
-crack_dsa(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig, BIGNUM *k)
+int
+crack_dsa(BIGNUM *res, struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig, BIGNUM *k)
 {
 	BN_CTX *bnctx;
-	BIGNUM *priv_key, *tmp;
+	BIGNUM *tmp;
 	SHA1_CTX sha1ctx;
 	uint8_t hash[SHA1_DIGEST_LENGTH];
 
@@ -205,10 +208,9 @@ crack_dsa(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig, BIGNUM
 		goto fail;
 	BN_CTX_start(bnctx);
 
-	if ((priv_key = BN_new()) == NULL ||
-	    (tmp = BN_CTX_get(bnctx)) == NULL ||
+	if ((tmp = BN_CTX_get(bnctx)) == NULL ||
 
-	    BN_mul(priv_key, sig->s, k, bnctx) == 0)
+	    BN_mul(res, sig->s, k, bnctx) == 0)
 		goto fail;
 
 	SHA1Init(&sha1ctx);
@@ -216,35 +218,69 @@ crack_dsa(struct dsa *dsa, uint8_t *buf, size_t len, struct dsa_sig *sig, BIGNUM
 	SHA1Final(hash, &sha1ctx);
 
 	if (BN_bin2bn(hash, SHA1_DIGEST_LENGTH, tmp) == NULL ||
-	    BN_sub(priv_key, priv_key, tmp) == 0 ||
+	    BN_sub(res, res, tmp) == 0 ||
 
 	    BN_mod_inverse(tmp, sig->r, dsa->q, bnctx) == 0 ||
-	    BN_mod_mul(priv_key, priv_key, tmp, dsa->q, bnctx) == 0)
+	    BN_mod_mul(res, res, tmp, dsa->q, bnctx) == 0)
 		goto fail;
 
 	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
 
-	return priv_key;
+	return 1;
 fail:
-	return NULL;
+	return 0;
 }
 
 int
 main(void)
 {
+	BN_CTX *ctx;
 	struct dsa dsa;
 	struct dsa_sig sig;
+	BIGNUM *k, *limit, *priv_key, *pub_key;
+	size_t len;
+	char *buf, hash[SHA1_DIGEST_STRING_LENGTH];
+
+	if ((ctx = BN_CTX_new()) == NULL)
+		err(1, NULL);
+	BN_CTX_start(ctx);
 
 	if (dsa_init(&dsa) == 0 ||
 	    BN_hex2bn(&dsa.pub_key, PUB_KEY) == 0 ||
 
-	    (sig.r = BN_new()) == NULL ||
-	    (sig.s = BN_new()) == NULL ||
+	    (sig.r = BN_CTX_get(ctx)) == NULL ||
+	    (sig.s = BN_CTX_get(ctx)) == NULL ||
+	    (k = BN_CTX_get(ctx)) == NULL ||
+	    (limit = BN_CTX_get(ctx)) == NULL ||
+	    (priv_key = BN_CTX_get(ctx)) == NULL ||
+	    (pub_key = BN_CTX_get(ctx)) == NULL ||
 
-	    BN_hex2bn(&sig.s, SIG_S) == 0 ||
-	    BN_hex2bn(&sig.r, SIG_R) == 0)
+	    BN_dec2bn(&sig.s, SIG_S) == 0 ||
+	    BN_dec2bn(&sig.r, SIG_R) == 0 ||
+
+	    BN_zero(k) == 0 ||
+	    BN_hex2bn(&limit, "ffff") == 0)
 		err(1, NULL);
+
+	len = strlen(DATA);
+	while (BN_cmp(k, limit) <= 0) {
+		if (crack_dsa(priv_key, &dsa, DATA, len, &sig, k) == 0 ||
+		    BN_mod_exp(pub_key, dsa.g, priv_key, dsa.p, ctx) == 0)
+			err(1, NULL);
+
+		if (BN_cmp(pub_key, dsa.pub_key) == 0)
+			break;
+
+		if (BN_add(k, k, BN_value_one()) == 0)
+			err(1, NULL);
+	}
+
+	if ((buf = BN_bn2hex(priv_key)) == NULL ||
+	    SHA1Data(buf, strlen(buf), hash) == NULL)
+		err(1, NULL);
+
+	puts(strcmp(hash, HASH) == 0 ? buf : "failure");
 
 	exit(0);
 }
