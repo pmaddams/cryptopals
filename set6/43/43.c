@@ -84,8 +84,8 @@ struct dsa_sig *
 dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len, BIGNUM **kp)
 {
 	BN_CTX *bnctx;
-	BIGNUM *k, *tmp;
 	struct dsa_sig *sig;
+	BIGNUM *k, *tmp;
 	SHA1_CTX sha1ctx;
 	uint8_t hash[SHA1_DIGEST_LENGTH];
 
@@ -93,22 +93,18 @@ dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len, BIGNUM **kp)
 		goto fail;
 	BN_CTX_start(bnctx);
 
-	if ((k = BN_CTX_get(bnctx)) == NULL ||
-	    (tmp = BN_CTX_get(bnctx)) == NULL ||
-
-	    (sig = malloc(sizeof(*sig))) == NULL ||
+	if ((sig = malloc(sizeof(*sig))) == NULL ||
 	    (sig->r = BN_new()) == NULL ||
-	    (sig->s = BN_new()) == NULL)
+	    (sig->s = BN_new()) == NULL ||
+
+	    (k = BN_new()) == NULL ||
+	    (tmp = BN_CTX_get(bnctx)) == NULL)
 		goto fail;
 
 	do
 		if (BN_rand_range(k, dsa->q) == 0)
 			goto fail;
 	while (BN_is_zero(k));
-
-	if (kp != NULL)
-		if (BN_copy(*kp, k) == 0)
-			goto fail;
 
 	if (BN_mod_exp(sig->r, dsa->g, k, dsa->p, bnctx) == 0 ||
 	    BN_nnmod(sig->r, sig->r, dsa->q, bnctx) == 0)
@@ -127,6 +123,11 @@ dsa_sig_create(struct dsa *dsa, uint8_t *buf, size_t len, BIGNUM **kp)
 
 	BN_CTX_end(bnctx);
 	BN_CTX_free(bnctx);
+
+	if (kp != NULL)
+		*kp = k;
+	else
+		free(k);
 
 	return sig;
 fail:
@@ -228,14 +229,44 @@ fail:
 	return NULL;
 }
 
+void
+putx(uint8_t *buf, size_t len)
+{
+	while (len--)
+		printf("%02hhx", *buf++);
+	putchar('\n');
+}
+
 int
 main(void)
 {
 	struct dsa dsa;
+	BIGNUM *k, *priv_key;
 	struct dsa_sig *sig;
+	size_t len;
+	char *buf;
 
 	if (dsa_init(&dsa) == 0)
 		err(1, NULL);
+
+	len = BN_num_bytes(dsa.priv_key);
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(dsa.priv_key, buf) == 0)
+		err(1, NULL);
+
+	putx(buf, len);
+	free(buf);
+
+	if ((sig = dsa_sig_create(&dsa, "hello world", 11, &k)) == NULL ||
+	    (priv_key = crack_dsa(&dsa, "hello world", 11, sig, k)) == 0)
+
+	len = BN_num_bytes(priv_key);
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(priv_key, buf) == 0)
+		err(1, NULL);
+
+	putx(buf, len);
+	free(buf);
 
 	exit(0);
 }
