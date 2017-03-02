@@ -276,8 +276,10 @@ main(void)
 			err(1, NULL);
 	}
 
-	if ((buf = BN_bn2hex(priv_key)) == NULL ||
-	    SHA1Data(buf, strlen(buf), hash) == NULL)
+	len = BN_num_bytes(priv_key);
+	if ((buf = malloc(len)) == NULL ||
+	    BN_bn2bin(priv_key, buf) == 0 ||
+	    SHA1Data(buf, len, hash) == NULL)
 		err(1, NULL);
 
 	puts(strcmp(hash, HASH) == 0 ? buf : "failure");
