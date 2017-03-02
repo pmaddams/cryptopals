@@ -233,18 +233,4 @@ fail:
 int
 main(void)
 {
-	struct dsa dsa;
-	struct dsa_sig sig;
-
-	if (dsa_init(&dsa) == 0 ||
-	    BN_hex2bn(&dsa.pub_key, PUB_KEY) == 0 ||
-
-	    (sig.r = BN_new()) == NULL ||
-	    (sig.s = BN_new()) == NULL ||
-
-	    BN_hex2bn(&sig.s, SIG_S) == 0 ||
-	    BN_hex2bn(&sig.r, SIG_R) == 0)
-		err(1, NULL);
-
-	exit(0);
 }
