@@ -1,5 +1,6 @@
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <sha1.h>
 #include <stdio.h>
@@ -239,7 +240,7 @@ main(void)
 	struct dsa dsa;
 	struct dsa_sig sig;
 	BIGNUM *k, *limit, *priv_key, *pub_key;
-	size_t len;
+	size_t i, len;
 	char *buf, hash[SHA1_DIGEST_STRING_LENGTH];
 
 	if ((ctx = BN_CTX_new()) == NULL)
@@ -276,12 +277,14 @@ main(void)
 			err(1, NULL);
 	}
 
-	len = BN_num_bytes(priv_key);
-	if ((buf = malloc(len)) == NULL ||
+	if ((buf = BN_bn2hex(priv_key)) == NULL)
+		err(1, NULL);
 
-	    BN_bn2bin(priv_key, buf) == 0 ||
+	len = strlen(buf);
+	for (i = 0; i < len; i++)
+		buf[i] = tolower(buf[i]);
 
-	    SHA1Data(buf, len, hash) == NULL)
+	if (SHA1Data(buf, len, hash) == NULL)
 		err(1, NULL);
 
 	puts(strcmp(hash, HASH) == 0 ? buf : "failure");
