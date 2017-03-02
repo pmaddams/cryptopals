@@ -278,7 +278,9 @@ main(void)
 
 	len = BN_num_bytes(priv_key);
 	if ((buf = malloc(len)) == NULL ||
+
 	    BN_bn2bin(priv_key, buf) == 0 ||
+
 	    SHA1Data(buf, len, hash) == NULL)
 		err(1, NULL);
 
