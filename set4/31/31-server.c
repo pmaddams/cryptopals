@@ -8,7 +8,7 @@
 #include <time.h>
 
 #define KEY		"YELLOW SUBMARINE"
-#define FILENAME	"TEST"
+#define FILENAME	"DATA"
 
 #define BLKSIZ		64
 #define SLEEPMS		50

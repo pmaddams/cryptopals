@@ -1,6 +1,6 @@
 CLIENT=		31-client
 SERVER=		31-server
-FILENAME=	TEST
+FILENAME=	DATA
 DESTDIR=	/var/www/cgi-bin
 
 LDFLAGS+=	-lcrypto -lssl

@@ -12,7 +12,7 @@
 #define HOST		"localhost"
 #define PORT		"443"
 #define RESOURCE	"/cgi-bin/32-server"
-#define FILENAME	"TEST"
+#define FILENAME	"DATA"
 
 #define HEXCHARS	"0123456789abcdef"
 
