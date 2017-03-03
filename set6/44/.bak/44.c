@@ -32,24 +32,18 @@ entry_new(char *s_buf, char *r_buf, char *m_buf)
 	if ((span = strcspn(m_buf, " ")) > strlen(m_buf)-2)
 		goto fail;
 	m_buf += span + 1;
-
-	m_buf[strcspn(m_buf, "\n")] = '\0';
 	if (BN_hex2bn(&entry->m, m_buf) == 0)
 		goto fail;
 
 	if ((span = strcspn(s_buf, " ")) > strlen(s_buf)-2)
 		goto fail;
 	s_buf += span + 1;
-
-	s_buf[strcspn(s_buf, "\n")] = '\0';
 	if (BN_dec2bn(&entry->sig->s, s_buf) == 0)
 		goto fail;
 
 	if ((span = strcspn(r_buf, " ")) > strlen(r_buf)-2)
 		goto fail;
 	r_buf += span + 1;
-
-	r_buf[strcspn(r_buf, "\n")] = '\0';
 	if (BN_dec2bn(&entry->sig->r, r_buf) == 0)
 		goto fail;
 
@@ -63,28 +57,12 @@ load_data(FILE *fp)
 {
 	char *msg_buf, *s_buf, *r_buf, *m_buf;
 	size_t msg_size, s_size, r_size, m_size;
-	ssize_t len;
 	struct entry *entry, **newp;
 
 	msg_buf = s_buf = r_buf = m_buf = NULL;
 	msg_size = s_size = r_size = m_size = 0;
 
 	for (;;) {
-		/*
-		if (getline(&msg_buf, &msg_size, fp) == -1 ||
-
-		    (len = getline(&s_buf, &s_size, fp)) == -1)
-			break;
-		s_buf[len] = '\0';
-
-		if ((len = getline(&r_buf, &r_size, fp)) == -1)
-			break;
-		r_buf[len] = '\0';
-
-		if ((len = getline(&m_buf, &m_size, fp)) == -1)
-			break;
-		m_buf[len] = '\0';
-		*/
 		if (getline(&msg_buf, &msg_size, fp) == -1 ||
 		    getline(&s_buf, &s_size, fp) == -1 ||
 		    getline(&r_buf, &r_size, fp) == -1 ||
