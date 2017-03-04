@@ -1,12 +1,15 @@
 #include <sys/types.h>
 
 #include <err.h>
+#include <sha2.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <openssl/bn.h>
 #include <openssl/dsa.h>
+
+#define BITS 2048
 
 DSA_SIG *
 magic_sig(DSA *dsa)
@@ -47,7 +50,42 @@ fail:
 }
 
 int
-main(void)
+main(int argc, char **argv)
 {
-	return 0;
+	DSA *dsa;
+	DSA_SIG *sig;
+	char *s;
+	SHA2_CTX ctx;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
+
+	if (argc == 1) {
+		fprintf(stderr, "usage: %s string ...\n", argv[0]);
+		exit(1);
+	}
+
+	if ((dsa = DSA_new()) == NULL ||
+
+	    DSA_generate_parameters_ex(dsa, BITS, NULL, 0, NULL, NULL, NULL) == 0 ||
+	    DSA_generate_key(dsa) == 0 ||
+
+	    BN_copy(dsa->g, dsa->p) == 0 ||
+	    BN_add(dsa->g, dsa->g, BN_value_one()) == 0 ||
+
+	    (sig = magic_sig(dsa)) == NULL)
+		err(1, NULL);
+ 
+	while (argc > 1) {
+		s = argv[1];
+	
+		SHA256Init(&ctx);
+		SHA256Update(&ctx, s, strlen(s));
+		SHA256Final(hash, &ctx);
+	
+		puts(DSA_do_verify(hash, SHA256_DIGEST_LENGTH, sig, dsa) ? "success" : "failure");
+	
+		argc--;
+		argv++;
+	}
+
+	exit(0);
 }
