@@ -64,20 +64,20 @@ new_entry(char *s_buf, char *r_buf, char *m_buf)
 	if (BN_hex2bn(&entry->m, m_buf) == 0)
 		goto fail;
 
-	if ((i = strcspn(s_buf, " ")) > strlen(s_buf)-2)
-		goto fail;
-	s_buf += i+1;
-	s_buf[strcspn(s_buf, "\n")] = '\0';
-
-	if (BN_dec2bn(&entry->sig->s, s_buf) == 0)
-		goto fail;
-
 	if ((i = strcspn(r_buf, " ")) > strlen(r_buf)-2)
 		goto fail;
 	r_buf += i+1;
 	r_buf[strcspn(r_buf, "\n")] = '\0';
 
 	if (BN_dec2bn(&entry->sig->r, r_buf) == 0)
+		goto fail;
+
+	if ((i = strcspn(s_buf, " ")) > strlen(s_buf)-2)
+		goto fail;
+	s_buf += i+1;
+	s_buf[strcspn(s_buf, "\n")] = '\0';
+
+	if (BN_dec2bn(&entry->sig->s, s_buf) == 0)
 		goto fail;
 
 	return entry;
