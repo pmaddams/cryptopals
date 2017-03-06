@@ -8,7 +8,7 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 
-#define BITS	1024
+#define BITS 1024
 
 const char *data = "VGhhdCdzIHdoeSBJIGZvdW5kIHlvdSBkb24ndCBwbGF5IGFyb3VuZCB3aXRoIHRoZSBGdW5reSBDb2xkIE1lZGluYQ==";
 
@@ -60,11 +60,44 @@ fail:
 	return -1;
 }
 
-BIGNUM *
+void
+print_hollywood_style(char *buf, size_t len)
+{
+	char c;
+
+	while (len--)
+		if (isprint(c = *buf++))
+			putchar(c);
+		else
+			putchar('?');
+}
+
+char *
 crack_rsa(RSA *rsa, BIGNUM *enc)
 {
 	BN_CTX *ctx;
-	BIGNUM *two, *lower, *upper, *tmp;
+	BIGNUM *lower, *upper, *factor;
+	char *buf;
+
+	if ((ctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(ctx);
+
+	if ((lower = BN_CTX_get(ctx)) == NULL ||
+	    (upper = BN_CTX_get(ctx)) == NULL ||
+	    (factor = BN_CTX_get(ctx)) == NULL ||
+
+	    BN_zero(lower) == 0 ||
+	    BN_copy(upper, rsa->n) == 0 ||
+	    BN_set_word(factor, 2) == 0 ||
+	    BN_mod_exp(factor, factor, rsa->e, rsa->n, ctx) == 0)
+		goto fail;
+
+	while (BN_cmp(lower, upper)) {
+		break;
+	}
+fail:
+	return NULL;
 }
 
 int
@@ -72,7 +105,6 @@ main(void)
 {
 	RSA *rsa;
 	BIGNUM *f4, *enc;
-	int even;
 
 	if ((rsa = RSA_new()) == NULL ||
 	    (f4 = BN_new()) == NULL ||

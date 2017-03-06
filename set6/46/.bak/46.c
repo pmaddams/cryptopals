@@ -8,66 +8,70 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 
-#define BITS	1024
+#define BITS 1024
 
 const char *data = "VGhhdCdzIHdoeSBJIGZvdW5kIHlvdSBkb24ndCBwbGF5IGFyb3VuZCB3aXRoIHRoZSBGdW5reSBDb2xkIE1lZGluYQ==";
 
-uint8_t *
+BIGNUM *
 rsa_encrypt_b64(RSA *rsa, char *buf)
 {
+	BN_CTX *ctx;
 	ssize_t buflen, tmplen;
-	uint8_t *tmp, *res;
+	char *tmpbuf;
+	BIGNUM *res, *tmp;
+
+	if ((ctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(ctx);
 
 	buflen = strlen(buf);
-	if ((tmp = malloc(buflen)) == NULL ||
-	    (res = malloc(RSA_size(rsa))) == NULL ||
+	if ((tmpbuf = malloc(buflen)) == NULL ||
+	    (tmplen = EVP_DecodeBlock(tmpbuf, buf, buflen)) == 0 ||
 
-	    (tmplen = EVP_DecodeBlock(tmp, buf, buflen)) == 0 ||
-	    RSA_public_encrypt(tmplen, tmp, res, rsa, RSA_PKCS1_PADDING) == -1)
+	    (res = BN_new()) == NULL ||
+	    (tmp = BN_CTX_get(ctx)) == NULL ||
+
+	    BN_bin2bn(tmpbuf, tmplen, tmp) == NULL ||
+	    BN_mod_exp(res, tmp, rsa->e, rsa->n, ctx) == 0)
 		goto fail;
 
-	free(tmp);
+	BN_CTX_end(ctx);
+	BN_CTX_free(ctx);
+
 	return res;
 fail:
 	return NULL;
 }
 
 int
-is_plaintext_even(RSA *rsa, uint8_t *enc)
+is_plaintext_even(RSA *rsa, BIGNUM *enc, BN_CTX *ctx)
 {
-	ssize_t rsa_size, declen;
-	char *dec;
-	int res;
+	static BIGNUM *tmp;
 
-	rsa_size = RSA_size(rsa);
-	if ((dec = malloc(rsa_size)) == NULL ||
+	if (tmp == NULL)
+		if ((tmp = BN_CTX_get(ctx)) == NULL)
+			goto fail;
 
-	    (declen = RSA_private_decrypt(rsa_size, enc, dec, rsa, RSA_PKCS1_PADDING)) == -1)
+	if (BN_mod_exp(tmp, enc, rsa->d, rsa->n, ctx) == 0)
 		goto fail;
 
-	res = !(dec[declen-1] & 1);
-
-	free(dec);
-	return res;
+	return !BN_is_odd(tmp);
 fail:
 	return -1;
 }
 
 BIGNUM *
-crack_rsa(RSA *rsa, uint8_t *enc)
+crack_rsa(RSA *rsa, BIGNUM *enc)
 {
 	BN_CTX *ctx;
-	BIGNUM *lower, *upper;
-
-	
+	BIGNUM *two, *lower, *upper, *tmp;
 }
 
 int
 main(void)
 {
 	RSA *rsa;
-	BIGNUM *f4;
-	uint8_t *enc;
+	BIGNUM *f4, *enc;
 	int even;
 
 	if ((rsa = RSA_new()) == NULL ||
@@ -78,6 +82,8 @@ main(void)
 
 	    (enc = rsa_encrypt_b64(rsa, (char *) data)) == NULL)
 		err(1, NULL);
+
+	crack_rsa(rsa, enc);
 
 	exit(0);
 }
