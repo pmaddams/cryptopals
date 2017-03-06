@@ -76,26 +76,17 @@ char *
 crack_rsa(RSA *rsa, BIGNUM *enc)
 {
 	BN_CTX *ctx;
-	BIGNUM *lower, *upper, *factor;
+	size_t i, len;
+	int even;
 	char *buf;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(ctx);
 
-	if ((lower = BN_CTX_get(ctx)) == NULL ||
-	    (upper = BN_CTX_get(ctx)) == NULL ||
-	    (factor = BN_CTX_get(ctx)) == NULL ||
+	for (i = 0; i < BITS; i++) {
+	};
 
-	    BN_zero(lower) == 0 ||
-	    BN_copy(upper, rsa->n) == 0 ||
-	    BN_set_word(factor, 2) == 0 ||
-	    BN_mod_exp(factor, factor, rsa->e, rsa->n, ctx) == 0)
-		goto fail;
-
-	while (BN_cmp(lower, upper)) {
-		break;
-	}
 fail:
 	return NULL;
 }

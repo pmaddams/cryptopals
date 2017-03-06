@@ -60,11 +60,73 @@ fail:
 	return -1;
 }
 
-BIGNUM *
+void
+print_hollywood_style(char *buf, size_t len)
+{
+	char c;
+
+	while (len--)
+		if (isprint(c = *buf++))
+			putchar(c);
+		else
+			putchar('?');
+}
+
+char *
 crack_rsa(RSA *rsa, BIGNUM *enc)
 {
 	BN_CTX *ctx;
-	BIGNUM *two, *lower, *upper, *tmp;
+	BIGNUM *tmp, *two, *factor, *rounds, *lower, *upper, *denom;
+	int even;
+	size_t len;
+	char *buf;
+
+	if ((ctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(ctx);
+
+	if ((tmp = BN_CTX_get(ctx)) == NULL ||
+	    (two = BN_CTX_get(ctx)) == NULL ||
+	    (factor = BN_CTX_get(ctx)) == NULL ||
+	    (rounds = BN_CTX_get(ctx)) == NULL ||
+	    (lower = BN_CTX_get(ctx)) == NULL ||
+	    (upper = BN_CTX_get(ctx)) == NULL ||
+	    (denom = BN_CTX_get(ctx)) == NULL ||
+
+	    BN_copy(tmp, enc) == 0 ||
+	    BN_set_word(two, 2) == 0 ||
+	    BN_mod_exp(factor, two, rsa->e, rsa->n, ctx) == 0 ||
+	    BN_set_word(rounds, BN_num_bits(rsa->n)) == 0 ||
+	    BN_zero(lower) == 0 ||
+	    BN_copy(upper, rsa->n) == 0 ||
+	    BN_one(denom) == 0)
+		goto fail;
+
+	while (BN_cmp(lower, upper)) {
+		if (BN_mod_mul(tmp, tmp, factor, rsa->n, ctx) == 0 ||
+		    (even = is_plaintext_even(rsa, tmp, ctx)) == -1)
+			goto fail;
+
+		if (even) {
+			if (BN_add(lower, lower, upper) == 0 ||
+			    BN_div(lower, NULL, lower, two, ctx) == 0)
+				goto fail;
+		} else {
+			if (BN_add(upper, lower, upper) == 0 ||
+			    BN_div(upper, NULL, upper, two, ctx) == 0)
+				goto fail;
+		}
+	};
+
+	len = BN_num_bytes(upper);
+	if ((buf = malloc(len+1)) == 0)
+		goto fail;
+
+	BN_bn2bin(upper, buf);
+	buf[len] = '\0';
+	errx(1, "%s", buf);
+fail:
+	return NULL;
 }
 
 int
@@ -72,7 +134,6 @@ main(void)
 {
 	RSA *rsa;
 	BIGNUM *f4, *enc;
-	int even;
 
 	if ((rsa = RSA_new()) == NULL ||
 	    (f4 = BN_new()) == NULL ||
