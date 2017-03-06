@@ -10,18 +10,22 @@
 
 const char *data = "VGhhdCdzIHdoeSBJIGZvdW5kIHlvdSBkb24ndCBwbGF5IGFyb3VuZCB3aXRoIHRoZSBGdW5reSBDb2xkIE1lZGluYQ==";
 
-BIGNUM *
+char *
 rsa_encrypt_b64(RSA *rsa, char *buf)
 {
-	size_t len;
-	char *tmp;
+	ssize_t buflen, tmplen;
+	char *tmp, *res;
 
-	len = strlen(buf);
-	if ((tmp = malloc(len)) == NULL ||
+	buflen = strlen(buf);
+	if ((tmp = malloc(buflen)) == NULL ||
+	    (res = malloc(RSA_size(rsa))) == NULL ||
 
-	    EVP_DecodeBlock(tmp, buf, strlen(buf)) == 0)
+	    (tmplen = EVP_DecodeBlock(tmp, buf, buflen)) == 0 ||
+	    RSA_public_encrypt(tmplen, tmp, res, rsa, RSA_PKCS1_PADDING) == -1)
 		goto fail;
 
+	free(tmp);
+	return res;
 fail:
 	return NULL;
 }
@@ -29,7 +33,6 @@ fail:
 int
 check_parity()
 {
-
 }
 
 int
@@ -37,13 +40,14 @@ main(void)
 {
 	RSA *rsa;
 	BIGNUM *f4;
+	char *enc;
 
 	if ((rsa = RSA_new()) == NULL ||
 	    (f4 = BN_new()) == NULL ||
 
 	    BN_set_word(f4, RSA_F4) == 0 ||
-	    RSA_generate_key_ex(rsa, BITS, f4, NULL) == 0)
-		err(1, NULL);
+	    RSA_generate_key_ex(rsa, BITS, f4, NULL) == 0 ||
 
-	rsa_encrypt_b64(rsa, (char *) data);
+	    (enc = rsa_encrypt_b64(rsa, (char *) data)) == NULL)
+		err(1, NULL);
 }
