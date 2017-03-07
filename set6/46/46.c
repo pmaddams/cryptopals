@@ -78,7 +78,7 @@ int
 crack_rsa(RSA *rsa, BIGNUM *enc)
 {
 	BN_CTX *ctx;
-	BIGNUM *tmp, *two, *factor, *lower, *upper;
+	BIGNUM *tmp, *two, *factor, *lower, *upper, *mid;
 	char *buf;
 	int even;
 
@@ -91,6 +91,7 @@ crack_rsa(RSA *rsa, BIGNUM *enc)
 	    (factor = BN_CTX_get(ctx)) == NULL ||
 	    (lower = BN_CTX_get(ctx)) == NULL ||
 	    (upper = BN_CTX_get(ctx)) == NULL ||
+	    (mid = BN_CTX_get(ctx)) == NULL ||
 
 	    BN_copy(tmp, enc) == 0 ||
 	    BN_set_word(two, 2) == 0 ||
@@ -101,18 +102,24 @@ crack_rsa(RSA *rsa, BIGNUM *enc)
 	    (buf = malloc(RSA_size(rsa))) == NULL)
 		goto fail;
 
-	while (BN_cmp(lower, upper)) {
+	for (;;) {
+		if (BN_add(mid, lower, upper) == 0 ||
+		    BN_div(mid, NULL, mid, two, ctx) == 0)
+			goto fail;
+
+		if (BN_cmp(lower, mid) == 0)
+			break;
+
 		if (BN_mod_mul(tmp, tmp, factor, rsa->n, ctx) == 0 ||
 		    (even = is_plaintext_even(rsa, tmp, ctx)) == -1)
 			goto fail;
 
 		if (even) {
-			if (BN_add(upper, lower, upper) == 0 ||
-			    BN_div(upper, NULL, upper, two, ctx) == 0)
+			if (BN_copy(upper, mid) == 0 ||
+			    BN_add(upper, upper, BN_value_one()) == 0)
 				goto fail;
 		} else {
-			if (BN_add(lower, lower, upper) == 0 ||
-			    BN_div(lower, NULL, lower, two, ctx) == 0)
+			if (BN_copy(lower, mid) == 0)
 				goto fail;
 		}
 
