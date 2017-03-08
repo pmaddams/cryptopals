@@ -8,6 +8,11 @@
 
 #define BITS 256
 
+struct interval {
+	BIGNUM *lower;
+	BIGNUM *upper;
+};
+
 const char *data = "kick it, CC";
 
 uint8_t *
@@ -27,7 +32,6 @@ fail:
 int
 check_padding(RSA *rsa, char *enc)
 {
-
 }
 
 int
@@ -42,6 +46,4 @@ main(void)
 	    BN_set_word(f4, RSA_F4) == 0 ||
 	    RSA_generate_key_ex(rsa, BITS, f4, NULL) == 0)
 		err(1, NULL);
-
-	rsa_encrypt(rsa, "hello world");
 }
