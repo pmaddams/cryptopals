@@ -6,7 +6,7 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 
-#define E	"3"
+#define E	3
 
 #define BITS	2048
 
@@ -22,8 +22,8 @@ cubert(BIGNUM *res, BIGNUM *bn, BN_CTX *ctx)
 	    (t2 = BN_CTX_get(ctx)) == NULL ||
 
 	    BN_copy(out, bn) == NULL ||
-	    BN_dec2bn(&two, "2") == 0 ||
-	    BN_dec2bn(&three, "3") == 0)
+	    BN_set_word(two, 2) == 0 ||
+	    BN_set_word(three, 3) == 0)
 		goto fail;
 
 	for (;;) {
@@ -124,7 +124,7 @@ main(int argc, char **argv)
 	    (c3 = BN_new()) == NULL ||
 	    (p = BN_new()) == NULL ||
 
-	    BN_dec2bn(&e, E) == 0 ||
+	    BN_set_word(e, E) == 0 ||
 
 	    RSA_generate_key_ex(r1, BITS, e, NULL) == 0 ||
 	    RSA_generate_key_ex(r2, BITS, e, NULL) == 0 ||

@@ -7,7 +7,7 @@
 
 #define VERBOSE
 
-#define E	"3"
+#define E	3
 
 #define BITS	2048
 
@@ -96,7 +96,7 @@ rsa_init(struct rsa *rsa)
 
 	    BN_mul(rsa->n, rsa->p, rsa->q, ctx) == 0 ||
 
-	    BN_dec2bn(&rsa->e, E) == 0 ||
+	    BN_set_word(rsa->e, E) == 0 ||
 
 	    BN_sub(t1, rsa->p, BN_value_one()) == 0 ||
 	    BN_sub(t2, rsa->q, BN_value_one()) == 0 ||

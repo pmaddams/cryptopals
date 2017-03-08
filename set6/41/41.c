@@ -10,9 +10,9 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 
-#define S		"2"
+#define S		2
 
-#define E		"3"
+#define E		3
 
 #define BITS		2048
 
@@ -205,7 +205,7 @@ crack_msg(RSA *rsa, char *enc)
 	    (pprime = BN_CTX_get(ctx)) == NULL ||
 	    (denom = BN_CTX_get(ctx)) == NULL ||
 
-	    BN_dec2bn(&s, S) == 0 ||
+	    BN_set_word(s, S) == 0 ||
 	    BN_hex2bn(&c, enc) == 0 ||
 
 	    BN_mod_exp(cprime, s, rsa->e, rsa->n, ctx) == 0 ||
@@ -246,7 +246,7 @@ main(int argc, char **argv)
 	}
 
 	if ((e = BN_new()) == NULL ||
-	    BN_dec2bn(&e, E) == 0 ||
+	    BN_set_word(e, E) == 0 ||
 
 	    (rsa = RSA_new()) == NULL ||
 	    RSA_generate_key_ex(rsa, BITS, e, NULL) == 0)
