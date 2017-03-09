@@ -13,26 +13,24 @@ struct interval {
 	BIGNUM *upper;
 };
 
+struct bb {
+	struct interval *m;
+	size_t m_len;
+	size_t i;
+	BIGNUM *b;
+	BIGNUM *s;
+};
+
 const char *data = "kick it, CC";
 
-uint8_t *
-rsa_encrypt(RSA *rsa, char *buf)
-{
-	uint8_t *res;
-
-	if ((res = malloc(RSA_size(rsa))) == NULL ||
-	    RSA_public_encrypt(strlen(buf), buf, res, rsa, RSA_PKCS1_PADDING) == 0)
-		goto fail;
-
-	return res;
-fail:
-	return NULL;
-}
-
 int
-check_padding(RSA *rsa, char *enc)
+bb_init(struct bb *bb)
 {
 }
+
+/*
+RSA_padding_check_PKCS1_type_2
+*/
 
 int
 main(void)
