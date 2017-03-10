@@ -35,6 +35,32 @@ struct bb {
 
 const char *data = "kick it, CC";
 
+void
+bb_debug(struct bb *bb)
+{
+	printf("b: ");
+	BN_print_fp(stdout, bb->b);
+	putchar('\n');
+
+	printf("c0: ");
+	BN_print_fp(stdout, bb->c0);
+	putchar('\n');
+
+	printf("ci: ");
+	BN_print_fp(stdout, bb->ci);
+	putchar('\n');
+
+	printf("s0: ");
+	BN_print_fp(stdout, bb->s0);
+	putchar('\n');
+
+	printf("si: ");
+	BN_print_fp(stdout, bb->si);
+	putchar('\n');
+
+	printf("i: %u\n", bb->i);
+}
+
 uint8_t *
 rsa_encrypt(RSA *rsa, char *buf)
 {
@@ -53,7 +79,7 @@ int
 rsa_check_padding(RSA *rsa, BIGNUM *c)
 {
 	static uint8_t *t1, *t2;
-	size_t rsa_len;
+	static size_t rsa_len;
 
 	if (t1 == NULL || t2 == NULL) {
 		rsa_len = RSA_size(rsa);
