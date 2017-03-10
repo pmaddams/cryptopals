@@ -44,6 +44,27 @@ fail:
 }
 
 int
+rsa_check_padding(RSA *rsa, BIGNUM *c)
+{
+	static uint8_t *t1, *t2;
+	size_t rsa_len;
+
+	if (t1 == NULL || t2 == NULL) {
+		rsa_len = RSA_size(rsa);
+		if ((t1 = malloc(rsa_len)) == NULL ||
+		    (t2 = malloc(rsa_len)) == NULL)
+			goto fail;
+	}
+
+	if (BN_bn2bin(c, t1) == 0)
+		goto fail;
+
+	return RSA_private_decrypt(rsa_len, t1, t2, rsa, RSA_PKCS1_PADDING) != -1;
+fail:
+	return -1;
+}
+
+int
 bb_init(struct bb *bb, uint8_t *enc, BIGNUM *n)
 {
 	int rsa_len;
@@ -85,27 +106,6 @@ bb_init(struct bb *bb, uint8_t *enc, BIGNUM *n)
 	return 1;
 fail:
 	return 0;
-}
-
-int
-check_padding(RSA *rsa, struct bb *bb)
-{
-	static uint8_t *t1, *t2;
-	size_t rsa_size;
-
-	if (t1 == NULL || t2 == NULL) {
-		rsa_size = RSA_size(rsa);
-		if ((t1 = malloc(rsa_size)) == NULL ||
-		    (t2 = malloc(rsa_size)) == NULL)
-			goto fail;
-	}
-
-	if (BN_bn2bin(bb->ci, t1) == 0)
-		goto fail;
-
-	return RSA_private_decrypt(rsa_size, t1, t2, rsa, RSA_PKCS1_PADDING) != -1;
-fail:
-	return -1;
 }
 
 int
