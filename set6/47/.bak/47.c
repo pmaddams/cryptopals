@@ -28,7 +28,7 @@ struct bb {
 	BIGNUM *ci;
 	BIGNUM *s0;
 	BIGNUM *si;
-	struct interval *m;
+	struct interval **m;
 	size_t m_len;
 	size_t i;
 };
@@ -104,10 +104,13 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 {
 	size_t rsa_len;
 	BN_CTX *ctx;
-	BIGNUM *tmp;
+	BIGNUM *two, *three, *lower, *upper;
 
 	rsa_len = RSA_size(rsa);
 	bb->rsa = rsa;
+	bb->m = NULL;
+	bb->m_len = 0;
+	bb->i = 1;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
@@ -119,20 +122,27 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 	    (bb->s0 = BN_new()) == NULL ||
 	    (bb->si = BN_new()) == NULL ||
 
-	    (tmp = BN_CTX_get(ctx)) == NULL ||
+	    (two = BN_CTX_get(ctx)) == NULL ||
+	    (three = BN_CTX_get(ctx)) == NULL ||
+	    (lower = BN_CTX_get(ctx)) == NULL ||
+	    (upper = BN_CTX_get(ctx)) == NULL ||
+
+	    BN_set_word(two, 2) == 0 ||
+	    BN_set_word(three, 3) == 0 ||
 
 	    BN_set_word(bb->b, 8*(rsa_len-2)) == 0 ||
-	    BN_set_word(tmp, 2) == 0 ||
-	    BN_exp(bb->b, tmp, bb->b, ctx) == 0 ||
+	    BN_exp(bb->b, two, bb->b, ctx) == 0 ||
 
 	    BN_bin2bn(enc, rsa_len, bb->c0) == NULL ||
 
-	    BN_one(bb->s0) == 0)
-		goto fail;
+	    BN_one(bb->s0) == 0 ||
 
-	bb->m = NULL;
-	bb->m_len = 0;
-	bb->i = 1;
+	    BN_mul(lower, bb->b, two, ctx) == 0 ||
+	    BN_mul(upper, bb->b, three, ctx) == 0 ||
+	    BN_mul(upper, upper, BN_value_one(), ctx) == 0 ||
+
+	    bb_append_interval(bb, lower, upper) == 0)
+		goto fail;
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
@@ -143,9 +153,44 @@ fail:
 }
 
 int
-bb_append_interval(struct bb *bb)
+bb_append_interval(struct bb *bb, BIGNUM *lval, BIGNUM *uval)
 {
-	struct interval *newp;
+	struct interval **pp, *p;
+	BIGNUM *lower, *upper;
+
+	if ((pp = reallocarray(bb->m, bb->m_len+1, sizeof(*bb->m))) == NULL ||
+	    (p = malloc(sizeof(*p))) == NULL ||
+	    (lower = BN_new()) == NULL ||
+	    (upper = BN_new()) == NULL ||
+
+	    BN_copy(lower, lval) == 0 ||
+	    BN_copy(upper, uval) == 0)
+		goto fail;
+
+	p->lower = lower;
+	p->upper = upper;
+
+	bb->m = pp;
+	bb->m[bb->m_len++] = p;
+
+	return 1;
+fail:
+	return 0;
+}
+
+void
+bb_free_all_intervals(struct bb *bb)
+{
+	size_t i;
+
+	for (i = 0; i < bb->m_len; i++) {
+		BN_free(bb->m[i]->lower);
+		BN_free(bb->m[i]->upper);
+		free(bb->m[i]);
+	}
+
+	bb->m = NULL;
+	bb->m_len = 0;
 }
 
 int

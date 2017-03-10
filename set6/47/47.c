@@ -121,11 +121,11 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 	    (bb->ci = BN_new()) == NULL ||
 	    (bb->s0 = BN_new()) == NULL ||
 	    (bb->si = BN_new()) == NULL ||
+	    (lower = BN_new()) == NULL ||
+	    (upper = BN_new()) == NULL ||
 
 	    (two = BN_CTX_get(ctx)) == NULL ||
 	    (three = BN_CTX_get(ctx)) == NULL ||
-	    (lower = BN_CTX_get(ctx)) == NULL ||
-	    (upper = BN_CTX_get(ctx)) == NULL ||
 
 	    BN_set_word(two, 2) == 0 ||
 	    BN_set_word(three, 3) == 0 ||
@@ -153,18 +153,12 @@ fail:
 }
 
 int
-bb_append_interval(struct bb *bb, BIGNUM *lval, BIGNUM *uval)
+bb_append_interval(struct bb *bb, BIGNUM *lower, BIGNUM *upper)
 {
 	struct interval **pp, *p;
-	BIGNUM *lower, *upper;
 
 	if ((pp = reallocarray(bb->m, bb->m_len+1, sizeof(*bb->m))) == NULL ||
-	    (p = malloc(sizeof(*p))) == NULL ||
-	    (lower = BN_new()) == NULL ||
-	    (upper = BN_new()) == NULL ||
-
-	    BN_copy(lower, lval) == 0 ||
-	    BN_copy(upper, uval) == 0)
+	    (p = malloc(sizeof(*p))) == NULL)
 		goto fail;
 
 	p->lower = lower;
