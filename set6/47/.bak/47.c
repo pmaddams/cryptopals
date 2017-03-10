@@ -10,19 +10,13 @@
 
 #define BITS 256
 
-enum {
-	PADDING_OK,
-	PADDING_BAD,
-	PADDING_ERR
-};
-
 struct interval {
 	BIGNUM *lower;
 	BIGNUM *upper;
 };
 
 struct bb {
-	RSA *rsa;
+	BIGNUM *n;
 	BIGNUM *b;
 	BIGNUM *c0;
 	BIGNUM *ci;
@@ -65,35 +59,34 @@ rsa_check_padding(RSA *rsa, BIGNUM *c)
 	if (BN_bn2bin(c, t1) == 0)
 		goto fail;
 
-	if (RSA_private_decrypt(rsa_len, t1, t2, rsa, RSA_PKCS1_PADDING) != -1)
-		return PADDING_OK;
-	else
-		return PADDING_BAD;
+	return RSA_private_decrypt(rsa_len, t1, t2, rsa, RSA_PKCS1_PADDING) != -1;
 fail:
-	return PADDING_ERR;
+	return -1;
 }
 
 int
-bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
+bb_init(struct bb *bb, uint8_t *enc, BIGNUM *n)
 {
-	size_t rsa_len;
+	int rsa_len;
 	BN_CTX *ctx;
 	BIGNUM *tmp;
 
-	rsa_len = RSA_size(rsa);
-	bb->rsa = rsa;
+	rsa_len = BN_num_bytes(n);
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(ctx);
 
-	if ((bb->b = BN_new()) == NULL ||
+	if ((bb->n = BN_new()) == NULL ||
+	    (bb->b = BN_new()) == NULL ||
 	    (bb->c0 = BN_new()) == NULL ||
 	    (bb->ci = BN_new()) == NULL ||
 	    (bb->s0 = BN_new()) == NULL ||
 	    (bb->si = BN_new()) == NULL ||
 
 	    (tmp = BN_CTX_get(ctx)) == NULL ||
+
+	    BN_copy(bb->n, n) == 0 ||
 
 	    BN_set_word(bb->b, 8*(rsa_len-2)) == 0 ||
 	    BN_set_word(tmp, 2) == 0 ||
@@ -105,60 +98,10 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 		goto fail;
 
 	bb->m = NULL;
-	bb->m_len = 0;
 	bb->i = 1;
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
-
-	return 1;
-fail:
-	return 0;
-}
-
-int
-bb_append_interval(struct bb *bb)
-{
-	struct interval *newp;
-}
-
-int
-bb_search(struct bb *bb)
-{
-	BN_CTX *ctx;
-	BIGNUM *r, *rmin, *rmax;
-	int padding;
-
-	if ((ctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(ctx);
-
-	if ((r = BN_CTX_get(ctx)) == NULL ||
-	    (rmin = BN_CTX_get(ctx)) == NULL ||
-	    (rmax = BN_CTX_get(ctx)) == NULL)
-		goto fail;
-
-	if (bb->i == 1) {
-		if (BN_copy(bb->si, bb->s0) == 0)
-			goto fail;
-		for (;;) {
-			if (BN_mod_exp(bb->ci, bb->si, bb->rsa->e, bb->rsa->n, ctx) == 0 ||
-			    BN_mod_mul(bb->ci, bb->ci, bb->c0, bb->rsa->n, ctx) == 0)
-				goto fail;
-
-			if ((padding = rsa_check_padding(bb->rsa, bb->ci)) == PADDING_ERR)
-				goto fail;
-			else if (padding == PADDING_OK)
-				break;
-
-			if (BN_add(bb->si, bb->si, BN_value_one()) == 0)
-				goto fail;
-		}
-	} else if (0) {
-		;
-	} else {
-		;
-	}
 
 	return 1;
 fail:
@@ -181,6 +124,6 @@ main(void)
 
 	    (enc = rsa_encrypt(rsa, (char *) data)) == NULL ||
 
-	    bb_init(&bb, enc, rsa) == 0)
+	    bb_init(&bb, enc, rsa->n) == 0)
 		err(1, NULL);
 }
