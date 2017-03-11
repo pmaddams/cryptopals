@@ -28,8 +28,8 @@ struct bb {
 	BIGNUM *ci;
 	BIGNUM *s0;
 	BIGNUM *si;
-	struct interval **m;
-	size_t m_len;
+	struct interval **m[2];
+	size_t m_len[2];
 	size_t i;
 };
 
@@ -38,6 +38,8 @@ const char *data = "kick it, CC";
 void
 bb_debug(struct bb *bb)
 {
+	size_t i;
+
 	printf("b: ");
 	BN_print_fp(stdout, bb->b);
 	putchar('\n');
@@ -57,6 +59,23 @@ bb_debug(struct bb *bb)
 	printf("si: ");
 	BN_print_fp(stdout, bb->si);
 	putchar('\n');
+
+	puts("{");
+	for (i = 0; i < bb->m_len[0]; i++) {
+		puts("\t[");
+		printf("\tlower: ");
+		BN_print_fp(stdout, bb->m[0][i]->lower);
+		putchar('\n');
+
+		printf("\tupper: ");
+		BN_print_fp(stdout, bb->m[0][i]->upper);
+		putchar('\n');
+		puts("\t]");
+
+		if (i < bb->m_len[0]-1)
+			putchar('\n');
+	}
+	puts("}");
 
 	printf("i: %u\n", bb->i);
 }
@@ -100,6 +119,52 @@ fail:
 }
 
 int
+bb_interval_update(struct bb *bb, BIGNUM *lval, BIGNUM *uval)
+{
+	struct interval **pp, *p;
+	BIGNUM *lower, *upper;
+
+	if ((pp = reallocarray(bb->m[1], bb->m_len[1]+1, sizeof(*bb->m[1]))) == NULL ||
+	    (p = malloc(sizeof(*p))) == NULL ||
+
+	    (lower = BN_new()) == NULL ||
+	    (upper = BN_new()) == NULL ||
+
+	    BN_copy(lower, lval) == 0 ||
+	    BN_copy(upper, uval) == 0)
+		goto fail;
+
+	p->lower = lower;
+	p->upper = upper;
+
+	bb->m[1] = pp;
+	bb->m[1][bb->m_len[1]++] = p;
+
+	return 1;
+fail:
+	return 0;
+}
+
+void
+bb_interval_final(struct bb *bb)
+{
+	size_t i;
+
+	for (i = 0; i < bb->m_len[0]; i++) {
+		BN_free(bb->m[0][i]->lower);
+		BN_free(bb->m[0][i]->upper);
+		free(bb->m[0][i]);
+	}
+	free(bb->m[0]);
+
+	bb->m[0] = bb->m[1];
+	bb->m_len[0] = bb->m_len[1];
+
+	bb->m[1] = NULL;
+	bb->m_len[1] = 0;
+}
+
+int
 bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 {
 	size_t rsa_len;
@@ -108,8 +173,8 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 
 	rsa_len = RSA_size(rsa);
 	bb->rsa = rsa;
-	bb->m = NULL;
-	bb->m_len = 0;
+	bb->m[0] = bb->m[1] = NULL;
+	bb->m_len[0] = bb->m_len[1] = 0;
 	bb->i = 1;
 
 	if ((ctx = BN_CTX_new()) == NULL)
@@ -121,11 +186,11 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 	    (bb->ci = BN_new()) == NULL ||
 	    (bb->s0 = BN_new()) == NULL ||
 	    (bb->si = BN_new()) == NULL ||
-	    (lower = BN_new()) == NULL ||
-	    (upper = BN_new()) == NULL ||
 
 	    (two = BN_CTX_get(ctx)) == NULL ||
 	    (three = BN_CTX_get(ctx)) == NULL ||
+	    (lower = BN_CTX_get(ctx)) == NULL ||
+	    (upper = BN_CTX_get(ctx)) == NULL ||
 
 	    BN_set_word(two, 2) == 0 ||
 	    BN_set_word(three, 3) == 0 ||
@@ -141,8 +206,9 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 	    BN_mul(upper, bb->b, three, ctx) == 0 ||
 	    BN_mul(upper, upper, BN_value_one(), ctx) == 0 ||
 
-	    bb_append_interval(bb, lower, upper) == 0)
+	    bb_interval_update(bb, lower, upper) == 0)
 		goto fail;
+	bb_interval_final(bb);
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
@@ -150,41 +216,6 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 	return 1;
 fail:
 	return 0;
-}
-
-int
-bb_append_interval(struct bb *bb, BIGNUM *lower, BIGNUM *upper)
-{
-	struct interval **pp, *p;
-
-	if ((pp = reallocarray(bb->m, bb->m_len+1, sizeof(*bb->m))) == NULL ||
-	    (p = malloc(sizeof(*p))) == NULL)
-		goto fail;
-
-	p->lower = lower;
-	p->upper = upper;
-
-	bb->m = pp;
-	bb->m[bb->m_len++] = p;
-
-	return 1;
-fail:
-	return 0;
-}
-
-void
-bb_free_all_intervals(struct bb *bb)
-{
-	size_t i;
-
-	for (i = 0; i < bb->m_len; i++) {
-		BN_free(bb->m[i]->lower);
-		BN_free(bb->m[i]->upper);
-		free(bb->m[i]);
-	}
-
-	bb->m = NULL;
-	bb->m_len = 0;
 }
 
 int
@@ -228,6 +259,12 @@ bb_search(struct bb *bb)
 	return 1;
 fail:
 	return 0;
+}
+
+int
+bb_generate_intervals()
+{
+	
 }
 
 int
