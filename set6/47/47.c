@@ -206,7 +206,7 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 	    BN_mul(upper, bb->b, three, ctx) == 0 ||
 	    BN_mul(upper, upper, BN_value_one(), ctx) == 0 ||
 
-	    bb_interval_update(bb, upper, lower) == 0)
+	    bb_interval_update(bb, lower, upper) == 0)
 		goto fail;
 	bb_interval_final(bb);
 
@@ -222,17 +222,11 @@ int
 bb_search(struct bb *bb)
 {
 	BN_CTX *ctx;
-	BIGNUM *r, *rmin, *rmax;
 	int padding;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(ctx);
-
-	if ((r = BN_CTX_get(ctx)) == NULL ||
-	    (rmin = BN_CTX_get(ctx)) == NULL ||
-	    (rmax = BN_CTX_get(ctx)) == NULL)
-		goto fail;
 
 	if (bb->i == 1) {
 		if (BN_copy(bb->si, bb->s0) == 0)
@@ -288,18 +282,20 @@ bb_generate_intervals(struct bb *bb)
 		goto fail;
 
 	for (i = 0; i < bb->m_len[0]; i++) {
-		BN_mul(t1, bb->m[0][i]->lower, bb->si, ctx);
-		BN_mul(t2, three, bb->b, ctx);
-		BN_sub(rmin, t1, t2);
-		BN_add(rmin, rmin, BN_value_one());
-		BN_div(rmin, NULL, rmin, bb->rsa->n, ctx);
+		if (BN_mul(t1, bb->m[0][i]->lower, bb->si, ctx) == 0 ||
+		    BN_mul(t2, three, bb->b, ctx) == 0 ||
+		    BN_sub(rmin, t1, t2) == 0 ||
+		    BN_add(rmin, rmin, BN_value_one()) == 0 ||
+		    BN_div(rmin, NULL, rmin, bb->rsa->n, ctx) == 0 ||
 
-		BN_mul(t1, bb->m[0][i]->upper, bb->si, ctx);
-		BN_mul(t2, two, bb->b, ctx);
-		BN_sub(rmax, t1, t2);
-		BN_div(rmax, NULL, rmax, bb->rsa->n, ctx);
+		    BN_mul(t1, bb->m[0][i]->upper, bb->si, ctx) == 0 ||
+		    BN_mul(t2, two, bb->b, ctx) == 0 ||
+		    BN_sub(rmax, t1, t2) == 0 ||
+		    BN_div(rmax, NULL, rmax, bb->rsa->n, ctx) == 0 ||
 
-		BN_copy(r, rmin);
+		    BN_copy(r, rmin) == 0)
+			goto fail;
+
 		for (;;) {
 			if (BN_mul(t1, two, bb->b, ctx) == 0 ||
 			    BN_mul(t2, r, bb->rsa->n, ctx) == 0 ||
@@ -312,10 +308,6 @@ bb_generate_intervals(struct bb *bb)
 					goto fail;
 
 			if (BN_cmp(lower, bb->m[0][i]->lower) < 0)
-				/*
-				if (BN_copy(lower, bb->m[0][i]->lower) == 0)
-					goto fail;
-				*/
 				lower = bb->m[0][i]->lower;
 
 			if (BN_mul(t1, three, bb->b, ctx) == 0 ||
@@ -326,10 +318,6 @@ bb_generate_intervals(struct bb *bb)
 				goto fail;
 
 			if (BN_cmp(upper, bb->m[0][i]->upper) > 0)
-				/*
-				if (BN_copy(upper, bb->m[0][i]->upper) == 0)
-					goto fail;
-				*/
 				upper = bb->m[0][i]->upper;
 
 			if (bb_interval_update(bb, lower, upper) == 0)

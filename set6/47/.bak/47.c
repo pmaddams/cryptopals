@@ -206,7 +206,7 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 	    BN_mul(upper, bb->b, three, ctx) == 0 ||
 	    BN_mul(upper, upper, BN_value_one(), ctx) == 0 ||
 
-	    bb_interval_update(bb, lower, upper) == 0)
+	    bb_interval_update(bb, upper, lower) == 0)
 		goto fail;
 	bb_interval_final(bb);
 
@@ -262,9 +262,92 @@ fail:
 }
 
 int
-bb_generate_intervals()
+bb_generate_intervals(struct bb *bb)
 {
-	
+	BN_CTX *ctx;
+	BIGNUM *rmin, *rmax, *r, *two, *three, *t1, *t2,
+	    *lower, *upper;
+	size_t i;
+
+	if ((ctx = BN_CTX_new()) == NULL)
+		goto fail;
+	BN_CTX_start(ctx);
+
+	if ((rmin = BN_CTX_get(ctx)) == NULL ||
+	    (rmax = BN_CTX_get(ctx)) == NULL ||
+	    (r = BN_CTX_get(ctx)) == NULL ||
+	    (two = BN_CTX_get(ctx)) == NULL ||
+	    (three = BN_CTX_get(ctx)) == NULL ||
+	    (t1 = BN_CTX_get(ctx)) == NULL ||
+	    (t2 = BN_CTX_get(ctx)) == NULL ||
+	    (lower = BN_CTX_get(ctx)) == NULL ||
+	    (upper = BN_CTX_get(ctx)) == NULL ||
+
+	    BN_set_word(two, 2) == 0 ||
+	    BN_set_word(three, 3) == 0)
+		goto fail;
+
+	for (i = 0; i < bb->m_len[0]; i++) {
+		BN_mul(t1, bb->m[0][i]->lower, bb->si, ctx);
+		BN_mul(t2, three, bb->b, ctx);
+		BN_sub(rmin, t1, t2);
+		BN_add(rmin, rmin, BN_value_one());
+		BN_div(rmin, NULL, rmin, bb->rsa->n, ctx);
+
+		BN_mul(t1, bb->m[0][i]->upper, bb->si, ctx);
+		BN_mul(t2, two, bb->b, ctx);
+		BN_sub(rmax, t1, t2);
+		BN_div(rmax, NULL, rmax, bb->rsa->n, ctx);
+
+		BN_copy(r, rmin);
+		for (;;) {
+			if (BN_mul(t1, two, bb->b, ctx) == 0 ||
+			    BN_mul(t2, r, bb->rsa->n, ctx) == 0 ||
+			    BN_add(lower, t1, t2) == 0 ||
+			    BN_div(lower, t1, lower, bb->si, ctx) == 0)
+				goto fail;
+
+			if (!BN_zero(t1))
+				if (BN_add(lower, lower, BN_value_one()) == 0)
+					goto fail;
+
+			if (BN_cmp(lower, bb->m[0][i]->lower) < 0)
+				/*
+				if (BN_copy(lower, bb->m[0][i]->lower) == 0)
+					goto fail;
+				*/
+				lower = bb->m[0][i]->lower;
+
+			if (BN_mul(t1, three, bb->b, ctx) == 0 ||
+			    BN_mul(t2, r, bb->rsa->n, ctx) == 0 ||
+			    BN_add(upper, t1, t2) == 0 ||
+			    BN_sub(upper, upper, BN_value_one()) == 0 ||
+			    BN_div(upper, NULL, upper, bb->si, ctx) == 0)
+				goto fail;
+
+			if (BN_cmp(upper, bb->m[0][i]->upper) > 0)
+				/*
+				if (BN_copy(upper, bb->m[0][i]->upper) == 0)
+					goto fail;
+				*/
+				upper = bb->m[0][i]->upper;
+
+			if (bb_interval_update(bb, lower, upper) == 0)
+				goto fail;
+
+			if (BN_cmp(r, rmax) >= 0)
+				break;
+
+			if (BN_add(r, r, BN_value_one()) == 0)
+				goto fail;
+		}
+	}
+
+	bb_interval_final(bb);
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
