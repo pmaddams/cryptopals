@@ -333,6 +333,9 @@ bb_generate_intervals(struct bb *bb)
 
 	bb_interval_final(bb);
 
+	BN_CTX_end(ctx);
+	BN_CTX_free(ctx);
+
 	return 1;
 fail:
 	return 0;
