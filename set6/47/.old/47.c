@@ -204,7 +204,7 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 
 	    BN_mul(lower, bb->b, two, ctx) == 0 ||
 	    BN_mul(upper, bb->b, three, ctx) == 0 ||
-	    BN_mul(upper, upper, BN_value_one(), ctx) == 0 ||
+	    BN_sub(upper, upper, BN_value_one()) == 0 ||
 
 	    bb_interval_update(bb, lower, upper) == 0)
 		goto fail;
@@ -298,9 +298,14 @@ bb_generate_intervals(struct bb *bb)
 		    BN_mul(t2, three, bb->b, ctx) == 0 ||
 		    BN_sub(rmin, t1, t2) == 0 ||
 		    BN_add(rmin, rmin, BN_value_one()) == 0 ||
-		    BN_div(rmin, NULL, rmin, bb->rsa->n, ctx) == 0 ||
+		    BN_div(rmin, t1, rmin, bb->rsa->n, ctx) == 0)
+			goto fail;
 
-		    BN_mul(t1, bb->m[0][i]->upper, bb->si, ctx) == 0 ||
+		if (!BN_is_zero(t1))
+			if (BN_add(rmin, rmin, BN_value_one()) == 0)
+				goto fail;
+
+		if (BN_mul(t1, bb->m[0][i]->upper, bb->si, ctx) == 0 ||
 		    BN_mul(t2, two, bb->b, ctx) == 0 ||
 		    BN_sub(rmax, t1, t2) == 0 ||
 		    BN_div(rmax, NULL, rmax, bb->rsa->n, ctx) == 0 ||
@@ -373,7 +378,5 @@ main(void)
 		err(1, NULL);
 
 	bb_search(&bb);
-	bb_debug(&bb);
 	bb_generate_intervals(&bb);
-	bb_debug(&bb);
 }
