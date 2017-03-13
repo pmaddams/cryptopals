@@ -222,15 +222,27 @@ int
 bb_search(struct bb *bb)
 {
 	BN_CTX *ctx;
+	BIGNUM *tmp;
 	int padding;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(ctx);
 
+	if ((tmp = BN_CTX_get(ctx)) == NULL)
+		goto fail;
+
 	if (bb->i == 1) {
-		if (BN_copy(bb->si, bb->s0) == 0)
+		if (BN_copy(bb->si, bb->rsa->n) == 0 ||
+		    BN_set_word(tmp, 3) == 0 ||
+		    BN_mul(tmp, tmp, bb->b, ctx) == 0 ||
+		    BN_div(bb->si, tmp, bb->si, tmp, ctx) == 0)
 			goto fail;
+
+		if (!BN_is_zero(tmp))
+			if (BN_add(bb->si, bb->si, BN_value_one()) == 0)
+				goto fail;
+
 		for (;;) {
 			if (BN_mod_exp(bb->ci, bb->si, bb->rsa->e, bb->rsa->n, ctx) == 0 ||
 			    BN_mod_mul(bb->ci, bb->ci, bb->c0, bb->rsa->n, ctx) == 0)
@@ -359,4 +371,7 @@ main(void)
 
 	    bb_init(&bb, enc, rsa) == 0)
 		err(1, NULL);
+
+	bb_search(&bb);
+	bb_debug(&bb);
 }
