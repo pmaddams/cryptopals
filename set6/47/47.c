@@ -204,7 +204,7 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 
 	    BN_mul(lower, bb->b, two, ctx) == 0 ||
 	    BN_mul(upper, bb->b, three, ctx) == 0 ||
-	    BN_mul(upper, upper, BN_value_one(), ctx) == 0 ||
+	    BN_sub(upper, upper, BN_value_one(), ctx) == 0 ||
 
 	    bb_interval_update(bb, lower, upper) == 0)
 		goto fail;
@@ -371,7 +371,4 @@ main(void)
 
 	    bb_init(&bb, enc, rsa) == 0)
 		err(1, NULL);
-
-	bb_search(&bb);
-	bb_debug(&bb);
 }
