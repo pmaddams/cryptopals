@@ -10,6 +10,8 @@
 
 #define BITS 256
 
+#define DEBUG(bb) do { BN_print_fp(stdout, bb->rsa->n); putchar('\n'); } while (0);
+
 enum {
 	PADDING_OK,
 	PADDING_BAD,
@@ -226,24 +228,26 @@ int
 bb_search(struct bb *bb)
 {
 	BN_CTX *ctx;
-	BIGNUM *tmp;
+	BIGNUM *r, *t1, *t2, *t3, *smin, *smax;
 	int padding;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(ctx);
 
-	if ((tmp = BN_CTX_get(ctx)) == NULL)
-		goto fail;
+	DEBUG(bb);
 
 	if (bb->i == 1) {
-		if (BN_copy(bb->si, bb->rsa->n) == 0 ||
-		    BN_set_word(tmp, 3) == 0 ||
-		    BN_mul(tmp, tmp, bb->b, ctx) == 0 ||
-		    BN_div(bb->si, tmp, bb->si, tmp, ctx) == 0)
+		if ((t1 = BN_CTX_get(ctx)) == NULL)
 			goto fail;
 
-		if (!BN_is_zero(tmp))
+		if (BN_copy(bb->si, bb->rsa->n) == 0 ||
+		    BN_set_word(t1, 3) == 0 ||
+		    BN_mul(t1, t1, bb->b, ctx) == 0 ||
+		    BN_div(bb->si, t1, bb->si, t1, ctx) == 0)
+			goto fail;
+
+		if (!BN_is_zero(t1))
 			if (BN_add(bb->si, bb->si, BN_value_one()) == 0)
 				goto fail;
 
@@ -255,16 +259,70 @@ bb_search(struct bb *bb)
 			if ((padding = rsa_check_padding(bb->rsa, bb->ci)) == PADDING_ERR)
 				goto fail;
 			else if (padding == PADDING_OK)
-				break;
+				goto done;
 
 			if (BN_add(bb->si, bb->si, BN_value_one()) == 0)
 				goto fail;
 		}
-	} else if (0) {
-		;
+	} else if (bb->m_len[0] == 1) {
+		if ((r = BN_CTX_get(ctx)) == NULL ||
+		    (t1 = BN_CTX_get(ctx)) == NULL ||
+		    (t2 = BN_CTX_get(ctx)) == NULL ||
+		    (smin = BN_CTX_get(ctx)) == NULL ||
+		    (smax = BN_CTX_get(ctx)) == NULL ||
+
+		    BN_copy(r, bb->si) == 0 ||
+		    BN_sub(r, r, BN_value_one()) == 0 ||
+
+		    BN_set_word(t2, 2) == 0 ||
+		    BN_mul(t3, t2, bb->b, ctx) == 0 ||
+
+		    BN_sub(r, r, t3) == 0 ||
+
+		    BN_mul(r, r, t2, ctx) == 0 ||
+
+		    BN_div(r, NULL, r, bb->rsa->n, ctx) == 0)
+			goto fail;
+
+		for (;;) {
+			if (BN_mul(t1, r, bb->rsa->n, ctx) == 0 ||
+
+			    BN_mul(t3, t2, bb->b, ctx) == 0 ||
+			    BN_add(smin, t1, t3) == 0 ||
+			    BN_div(smin, NULL, smin, bb->m[0][0]->upper, ctx) == 0 ||
+
+			    BN_set_word(t2, 3) == 0 ||
+			    BN_mul(t3, t2, bb->b, ctx) == 0 ||
+			    BN_add(smax, t1, t3) == 0 ||
+			    BN_div(smax, NULL, smax, bb->m[0][0]->lower, ctx) == 0 ||
+
+			    BN_copy(bb->si, smin) == 0)
+				goto fail;
+
+			for (;;) {
+				if (BN_mod_exp(bb->ci, bb->si, bb->rsa->e, bb->rsa->n, ctx) == 0 ||
+				    BN_mod_mul(bb->ci, bb->ci, bb->c0, bb->rsa->n, ctx) == 0)
+					goto fail;
+	
+				if ((padding = rsa_check_padding(bb->rsa, bb->ci)) == PADDING_ERR)
+					goto fail;
+				else if (padding == PADDING_OK)
+					goto done;
+	
+				if (BN_cmp(bb->si, smax) == 0)
+					break;
+				if (BN_add(bb->si, bb->si, BN_value_one()) == 0)
+					goto fail;
+			}
+			if (BN_add(r, r, BN_value_one()) == 0)
+				goto fail;
+		}
 	} else {
-		;
+		errx(1, "search");
 	}
+done:
+	BN_CTX_end(ctx);
+	BN_CTX_free(ctx);
 
 	return 1;
 fail:
@@ -362,13 +420,37 @@ fail:
 	return 0;
 }
 
+char *
+crack_rsa(RSA *rsa, uint8_t *enc)
+{
+	struct bb bb;
+	char *res;
+
+	bb_init(&bb, enc, rsa);
+	bb_search(&bb);
+	bb_generate_intervals(&bb);
+	res = malloc(RSA_size(rsa));
+
+	if (bb.m_len[0] == 1) {
+		if (BN_cmp(bb.m[0][0]->lower, bb.m[0][0]->upper) == 0) {
+			BN_bn2bin(bb.m[0][0]->lower, res);
+			return res;
+		}
+
+		bb.i++;
+		bb_search(&bb);
+		bb_generate_intervals(&bb);
+	} else
+		errx(1, "try again");
+}
+
 int
 main(void)
 {
 	RSA *rsa;
 	BIGNUM *f4;
 	uint8_t *enc;
-	struct bb bb;
+	char *buf;
 
 	if ((rsa = RSA_new()) == NULL ||
 	    (f4 = BN_new()) == NULL ||
@@ -377,12 +459,10 @@ main(void)
 	    RSA_generate_key_ex(rsa, BITS, f4, NULL) == 0 ||
 
 	    (enc = rsa_encrypt(rsa, (char *) data)) == NULL ||
-
-	    bb_init(&bb, enc, rsa) == 0)
+	    (buf = crack_rsa(rsa, enc)) == NULL)
 		err(1, NULL);
 
-	bb_search(&bb);
-	bb_debug(&bb);
-	bb_generate_intervals(&bb);
-	bb_debug(&bb);
+	puts(buf);
+
+	exit(0);
 }

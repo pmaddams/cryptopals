@@ -16,11 +16,6 @@ enum {
 	PADDING_ERR
 };
 
-struct interval {
-	BIGNUM *lower;
-	BIGNUM *upper;
-};
-
 struct bb {
 	RSA *rsa;
 	BIGNUM *b;
@@ -28,57 +23,12 @@ struct bb {
 	BIGNUM *ci;
 	BIGNUM *s0;
 	BIGNUM *si;
-	struct interval **m[2];
-	size_t m_len[2];
+	BIGNUM *lower;
+	BIGNUM *upper;
 	size_t i;
 };
 
 const char *data = "kick it, CC";
-
-void
-bb_debug(struct bb *bb)
-{
-	size_t i;
-
-	printf("b: ");
-	BN_print_fp(stdout, bb->b);
-	putchar('\n');
-
-	printf("c0: ");
-	BN_print_fp(stdout, bb->c0);
-	putchar('\n');
-
-	printf("ci: ");
-	BN_print_fp(stdout, bb->ci);
-	putchar('\n');
-
-	printf("s0: ");
-	BN_print_fp(stdout, bb->s0);
-	putchar('\n');
-
-	printf("si: ");
-	BN_print_fp(stdout, bb->si);
-	putchar('\n');
-
-	puts("{");
-	for (i = 0; i < bb->m_len[0]; i++) {
-		puts("\t[");
-		printf("\tlower: ");
-		BN_print_fp(stdout, bb->m[0][i]->lower);
-		putchar('\n');
-
-		printf("\tupper: ");
-		BN_print_fp(stdout, bb->m[0][i]->upper);
-		putchar('\n');
-		puts("\t]");
-
-		if (i < bb->m_len[0]-1)
-			putchar('\n');
-	}
-	puts("}");
-
-	printf("i: %u\n", bb->i);
-}
 
 uint8_t *
 rsa_encrypt(RSA *rsa, char *buf)
@@ -125,47 +75,8 @@ fail:
 int
 bb_interval_update(struct bb *bb, BIGNUM *lval, BIGNUM *uval)
 {
-	struct interval **pp, *p;
-	BIGNUM *lower, *upper;
-
-	if ((pp = reallocarray(bb->m[1], bb->m_len[1]+1, sizeof(*bb->m[1]))) == NULL ||
-	    (p = malloc(sizeof(*p))) == NULL ||
-
-	    (lower = BN_new()) == NULL ||
-	    (upper = BN_new()) == NULL ||
-
-	    BN_copy(lower, lval) == 0 ||
-	    BN_copy(upper, uval) == 0)
-		goto fail;
-
-	p->lower = lower;
-	p->upper = upper;
-
-	bb->m[1] = pp;
-	bb->m[1][bb->m_len[1]++] = p;
-
-	return 1;
-fail:
-	return 0;
-}
-
-void
-bb_interval_final(struct bb *bb)
-{
-	size_t i;
-
-	for (i = 0; i < bb->m_len[0]; i++) {
-		BN_free(bb->m[0][i]->lower);
-		BN_free(bb->m[0][i]->upper);
-		free(bb->m[0][i]);
-	}
-	free(bb->m[0]);
-
-	bb->m[0] = bb->m[1];
-	bb->m_len[0] = bb->m_len[1];
-
-	bb->m[1] = NULL;
-	bb->m_len[1] = 0;
+	return BN_copy(bb->lower, lval) &&
+	    BN_copy(bb->upper, uval);
 }
 
 int
@@ -177,8 +88,6 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 
 	rsa_len = RSA_size(rsa);
 	bb->rsa = rsa;
-	bb->m[0] = bb->m[1] = NULL;
-	bb->m_len[0] = bb->m_len[1] = 0;
 	bb->i = 1;
 
 	if ((ctx = BN_CTX_new()) == NULL)
@@ -190,6 +99,8 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 	    (bb->ci = BN_new()) == NULL ||
 	    (bb->s0 = BN_new()) == NULL ||
 	    (bb->si = BN_new()) == NULL ||
+	    (bb->lower = BN_new()) == NULL ||
+	    (bb->upper = BN_new()) == NULL ||
 
 	    (two = BN_CTX_get(ctx)) == NULL ||
 	    (three = BN_CTX_get(ctx)) == NULL ||
@@ -212,7 +123,6 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 
 	    bb_interval_update(bb, lower, upper) == 0)
 		goto fail;
-	bb_interval_final(bb);
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
@@ -260,8 +170,7 @@ bb_search(struct bb *bb)
 			if (BN_add(bb->si, bb->si, BN_value_one()) == 0)
 				goto fail;
 		}
-	} else if (bb->m_len[0] == 1) {
-		warnx("%d", bb->i);
+	} else {
 		if ((r = BN_CTX_get(ctx)) == NULL ||
 		    (t1 = BN_CTX_get(ctx)) == NULL ||
 		    (t2 = BN_CTX_get(ctx)) == NULL ||
@@ -281,19 +190,17 @@ bb_search(struct bb *bb)
 		    BN_div(r, NULL, r, bb->rsa->n, ctx) == 0)
 			goto fail;
 
-		errx(1, "debug");
-
 		for (;;) {
 			if (BN_mul(t1, r, bb->rsa->n, ctx) == 0 ||
 
 			    BN_mul(t3, t2, bb->b, ctx) == 0 ||
 			    BN_add(smin, t1, t3) == 0 ||
-			    BN_div(smin, NULL, smin, bb->m[0][0]->upper, ctx) == 0 ||
+			    BN_div(smin, NULL, smin, bb->upper, ctx) == 0 ||
 
 			    BN_set_word(t2, 3) == 0 ||
 			    BN_mul(t3, t2, bb->b, ctx) == 0 ||
 			    BN_add(smax, t1, t3) == 0 ||
-			    BN_div(smax, NULL, smax, bb->m[0][0]->lower, ctx) == 0 ||
+			    BN_div(smax, NULL, smax, bb->lower, ctx) == 0 ||
 
 			    BN_copy(bb->si, smin) == 0)
 				goto fail;
@@ -316,8 +223,6 @@ bb_search(struct bb *bb)
 			if (BN_add(r, r, BN_value_one()) == 0)
 				goto fail;
 		}
-	} else {
-		errx(1, "search");
 	}
 done:
 	BN_CTX_end(ctx);
@@ -354,62 +259,61 @@ bb_generate_intervals(struct bb *bb)
 	    BN_set_word(three, 3) == 0)
 		goto fail;
 
-	for (i = 0; i < bb->m_len[0]; i++) {
-		if (BN_mul(t1, bb->m[0][i]->lower, bb->si, ctx) == 0 ||
-		    BN_mul(t2, three, bb->b, ctx) == 0 ||
-		    BN_sub(rmin, t1, t2) == 0 ||
-		    BN_add(rmin, rmin, BN_value_one()) == 0 ||
-		    BN_div(rmin, t1, rmin, bb->rsa->n, ctx) == 0)
+	if (BN_mul(t1, bb->lower, bb->si, ctx) == 0 ||
+	    BN_mul(t2, three, bb->b, ctx) == 0 ||
+	    BN_sub(rmin, t1, t2) == 0 ||
+	    BN_add(rmin, rmin, BN_value_one()) == 0 ||
+	    BN_div(rmin, t1, rmin, bb->rsa->n, ctx) == 0)
+		goto fail;
+
+	if (!BN_is_zero(t1))
+		if (BN_add(rmin, rmin, BN_value_one()) == 0)
 			goto fail;
 
-		if (!BN_is_zero(t1))
-			if (BN_add(rmin, rmin, BN_value_one()) == 0)
-				goto fail;
+	if (BN_mul(t1, bb->upper, bb->si, ctx) == 0 ||
+	    BN_mul(t2, two, bb->b, ctx) == 0 ||
+	    BN_sub(rmax, t1, t2) == 0 ||
+	    BN_div(rmax, NULL, rmax, bb->rsa->n, ctx) == 0 ||
 
-		if (BN_mul(t1, bb->m[0][i]->upper, bb->si, ctx) == 0 ||
-		    BN_mul(t2, two, bb->b, ctx) == 0 ||
-		    BN_sub(rmax, t1, t2) == 0 ||
-		    BN_div(rmax, NULL, rmax, bb->rsa->n, ctx) == 0 ||
+	    BN_copy(r, rmin) == 0)
+		goto fail;
 
-		    BN_copy(r, rmin) == 0)
+	if (BN_cmp(rmin, rmax) != 0)
+		errx(1, "try again");
+
+	for (;;) {
+		if (BN_mul(t1, two, bb->b, ctx) == 0 ||
+		    BN_mul(t2, r, bb->rsa->n, ctx) == 0 ||
+		    BN_add(lower, t1, t2) == 0 ||
+		    BN_div(lower, t1, lower, bb->si, ctx) == 0)
 			goto fail;
 
-		for (;;) {
-			if (BN_mul(t1, two, bb->b, ctx) == 0 ||
-			    BN_mul(t2, r, bb->rsa->n, ctx) == 0 ||
-			    BN_add(lower, t1, t2) == 0 ||
-			    BN_div(lower, t1, lower, bb->si, ctx) == 0)
+		if (!BN_zero(t1))
+			if (BN_add(lower, lower, BN_value_one()) == 0)
 				goto fail;
 
-			if (!BN_zero(t1))
-				if (BN_add(lower, lower, BN_value_one()) == 0)
-					goto fail;
+		if (BN_cmp(lower, bb->lower) < 0)
+			lower = bb->lower;
 
-			if (BN_cmp(lower, bb->m[0][i]->lower) < 0)
-				lower = bb->m[0][i]->lower;
+		if (BN_mul(t1, three, bb->b, ctx) == 0 ||
+		    BN_mul(t2, r, bb->rsa->n, ctx) == 0 ||
+		    BN_add(upper, t1, t2) == 0 ||
+		    BN_sub(upper, upper, BN_value_one()) == 0 ||
+		    BN_div(upper, NULL, upper, bb->si, ctx) == 0)
+			goto fail;
 
-			if (BN_mul(t1, three, bb->b, ctx) == 0 ||
-			    BN_mul(t2, r, bb->rsa->n, ctx) == 0 ||
-			    BN_add(upper, t1, t2) == 0 ||
-			    BN_sub(upper, upper, BN_value_one()) == 0 ||
-			    BN_div(upper, NULL, upper, bb->si, ctx) == 0)
-				goto fail;
+		if (BN_cmp(upper, bb->upper) > 0)
+			upper = bb->upper;
 
-			if (BN_cmp(upper, bb->m[0][i]->upper) > 0)
-				upper = bb->m[0][i]->upper;
+		if (bb_interval_update(bb, lower, upper) == 0)
+			goto fail;
 
-			if (bb_interval_update(bb, lower, upper) == 0)
-				goto fail;
+		if (BN_cmp(r, rmax) >= 0)
+			break;
 
-			if (BN_cmp(r, rmax) >= 0)
-				break;
-
-			if (BN_add(r, r, BN_value_one()) == 0)
-				goto fail;
-		}
+		if (BN_add(r, r, BN_value_one()) == 0)
+			goto fail;
 	}
-
-	bb_interval_final(bb);
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
@@ -430,17 +334,14 @@ crack_rsa(RSA *rsa, uint8_t *enc)
 	bb_generate_intervals(&bb);
 	res = malloc(RSA_size(rsa));
 
-	if (bb.m_len[0] == 1) {
-		if (BN_cmp(bb.m[0][0]->lower, bb.m[0][0]->upper) == 0) {
-			BN_bn2bin(bb.m[0][0]->lower, res);
-			return res;
-		}
+	if (BN_cmp(bb.lower, bb.upper) == 0) {
+		BN_bn2bin(bb.lower, res);
+		return res;
+	}
 
-		bb.i++;
-		bb_search(&bb);
-		bb_generate_intervals(&bb);
-	} else
-		errx(1, "try again");
+	bb.i++;
+	bb_search(&bb);
+	bb_generate_intervals(&bb);
 }
 
 int
