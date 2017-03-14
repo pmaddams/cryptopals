@@ -1,1 +1,1 @@
-LDFLAGS+= -lcrypto
+LDFLAGS+= -g -lcrypto
