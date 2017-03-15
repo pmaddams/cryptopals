@@ -20,9 +20,8 @@ struct bb {
 	RSA *rsa;
 	BIGNUM *b;
 	BIGNUM *c0;
-	BIGNUM *ci;
-	BIGNUM *s0;
-	BIGNUM *si;
+	BIGNUM *c;
+	BIGNUM *s;
 	BIGNUM *lower;
 	BIGNUM *upper;
 	size_t i;
@@ -96,9 +95,8 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 
 	if ((bb->b = BN_new()) == NULL ||
 	    (bb->c0 = BN_new()) == NULL ||
-	    (bb->ci = BN_new()) == NULL ||
-	    (bb->s0 = BN_new()) == NULL ||
-	    (bb->si = BN_new()) == NULL ||
+	    (bb->c = BN_new()) == NULL ||
+	    (bb->s = BN_new()) == NULL ||
 	    (bb->lower = BN_new()) == NULL ||
 	    (bb->upper = BN_new()) == NULL ||
 
@@ -114,8 +112,6 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 	    BN_exp(bb->b, two, bb->b, ctx) == 0 ||
 
 	    BN_bin2bn(enc, rsa_len, bb->c0) == NULL ||
-
-	    BN_one(bb->s0) == 0 ||
 
 	    BN_mul(lower, bb->b, two, ctx) == 0 ||
 	    BN_mul(upper, bb->b, three, ctx) == 0 ||
@@ -136,7 +132,7 @@ int
 bb_search(struct bb *bb)
 {
 	BN_CTX *ctx;
-	BIGNUM *r, *t1, *t2, *t3, *smin, *smax;
+	BIGNUM *r, *two, *three, *t1, *t2, *t3, *smin, *smax;
 	int padding;
 
 	if ((ctx = BN_CTX_new()) == NULL)
@@ -147,45 +143,45 @@ bb_search(struct bb *bb)
 		if ((t1 = BN_CTX_get(ctx)) == NULL)
 			goto fail;
 
-		if (BN_copy(bb->si, bb->rsa->n) == 0 ||
+		if (BN_copy(bb->s, bb->rsa->n) == 0 ||
 		    BN_set_word(t1, 3) == 0 ||
 		    BN_mul(t1, t1, bb->b, ctx) == 0 ||
-		    BN_div(bb->si, t1, bb->si, t1, ctx) == 0)
+		    BN_div(bb->s, t1, bb->s, t1, ctx) == 0)
 			goto fail;
 
 		if (!BN_is_zero(t1))
-			if (BN_add(bb->si, bb->si, BN_value_one()) == 0)
+			if (BN_add(bb->s, bb->s, BN_value_one()) == 0)
 				goto fail;
 
 		for (;;) {
-			if (BN_mod_exp(bb->ci, bb->si, bb->rsa->e, bb->rsa->n, ctx) == 0 ||
-			    BN_mod_mul(bb->ci, bb->ci, bb->c0, bb->rsa->n, ctx) == 0)
+			if (BN_mod_exp(bb->c, bb->s, bb->rsa->e, bb->rsa->n, ctx) == 0 ||
+			    BN_mod_mul(bb->c, bb->c, bb->c0, bb->rsa->n, ctx) == 0)
 				goto fail;
 
-			if ((padding = rsa_check_padding(bb->rsa, bb->ci)) == PADDING_ERR)
+			if ((padding = rsa_check_padding(bb->rsa, bb->c)) == PADDING_ERR)
 				goto fail;
 			else if (padding == PADDING_OK)
 				goto done;
 
-			if (BN_add(bb->si, bb->si, BN_value_one()) == 0)
+			if (BN_add(bb->s, bb->s, BN_value_one()) == 0)
 				goto fail;
 		}
 	} else {
 		if ((r = BN_CTX_get(ctx)) == NULL ||
+		    (two = BN_CTX_get(ctx)) == NULL ||
+		    (three = BN_CTX_get(ctx)) == NULL ||
 		    (t1 = BN_CTX_get(ctx)) == NULL ||
 		    (t2 = BN_CTX_get(ctx)) == NULL ||
 		    (smin = BN_CTX_get(ctx)) == NULL ||
 		    (smax = BN_CTX_get(ctx)) == NULL ||
 
-		    BN_copy(r, bb->si) == 0 ||
-		    BN_sub(r, r, BN_value_one()) == 0 ||
+		    BN_copy(r, bb->s) == 0 ||
+		    BN_set_word(two, 2) == 0 ||
+		    BN_mul(r, r, two, ctx) == 0 ||
+		    BN_mul(r, r, bb->upper, ctx) == 0 ||
 
-		    BN_set_word(t2, 2) == 0 ||
-		    BN_mul(t3, t2, bb->b, ctx) == 0 ||
-
-		    BN_sub(r, r, t3) == 0 ||
-
-		    BN_mul(r, r, t2, ctx) == 0 ||
+		    BN_mul(t1, two, bb->b, ctx) == 0 ||
+		    BN_sub(r, r, t1) == 0 ||
 
 		    BN_div(r, NULL, r, bb->rsa->n, ctx) == 0)
 			goto fail;
@@ -193,31 +189,31 @@ bb_search(struct bb *bb)
 		for (;;) {
 			if (BN_mul(t1, r, bb->rsa->n, ctx) == 0 ||
 
-			    BN_mul(t3, t2, bb->b, ctx) == 0 ||
-			    BN_add(smin, t1, t3) == 0 ||
+			    BN_mul(t2, two, bb->b, ctx) == 0 ||
+			    BN_add(smin, t1, t2) == 0 ||
 			    BN_div(smin, NULL, smin, bb->upper, ctx) == 0 ||
 
-			    BN_set_word(t2, 3) == 0 ||
-			    BN_mul(t3, t2, bb->b, ctx) == 0 ||
-			    BN_add(smax, t1, t3) == 0 ||
+			    BN_set_word(three, 3) == 0 ||
+			    BN_mul(t2, three, bb->b, ctx) == 0 ||
+			    BN_add(smax, t1, t2) == 0 ||
 			    BN_div(smax, NULL, smax, bb->lower, ctx) == 0 ||
 
-			    BN_copy(bb->si, smin) == 0)
+			    BN_copy(bb->s, smin) == 0)
 				goto fail;
 
 			for (;;) {
-				if (BN_mod_exp(bb->ci, bb->si, bb->rsa->e, bb->rsa->n, ctx) == 0 ||
-				    BN_mod_mul(bb->ci, bb->ci, bb->c0, bb->rsa->n, ctx) == 0)
+				if (BN_mod_exp(bb->c, bb->s, bb->rsa->e, bb->rsa->n, ctx) == 0 ||
+				    BN_mod_mul(bb->c, bb->c, bb->c0, bb->rsa->n, ctx) == 0)
 					goto fail;
-	
-				if ((padding = rsa_check_padding(bb->rsa, bb->ci)) == PADDING_ERR)
+
+				if ((padding = rsa_check_padding(bb->rsa, bb->c)) == PADDING_ERR)
 					goto fail;
 				else if (padding == PADDING_OK)
 					goto done;
-	
-				if (BN_cmp(bb->si, smax) == 0)
+
+				if (BN_cmp(bb->s, smax) >= 0)
 					break;
-				if (BN_add(bb->si, bb->si, BN_value_one()) == 0)
+				if (BN_add(bb->s, bb->s, BN_value_one()) == 0)
 					goto fail;
 			}
 			if (BN_add(r, r, BN_value_one()) == 0)
@@ -259,7 +255,7 @@ bb_generate_intervals(struct bb *bb)
 	    BN_set_word(three, 3) == 0)
 		goto fail;
 
-	if (BN_mul(t1, bb->lower, bb->si, ctx) == 0 ||
+	if (BN_mul(t1, bb->lower, bb->s, ctx) == 0 ||
 	    BN_mul(t2, three, bb->b, ctx) == 0 ||
 	    BN_sub(rmin, t1, t2) == 0 ||
 	    BN_add(rmin, rmin, BN_value_one()) == 0 ||
@@ -270,7 +266,7 @@ bb_generate_intervals(struct bb *bb)
 		if (BN_add(rmin, rmin, BN_value_one()) == 0)
 			goto fail;
 
-	if (BN_mul(t1, bb->upper, bb->si, ctx) == 0 ||
+	if (BN_mul(t1, bb->upper, bb->s, ctx) == 0 ||
 	    BN_mul(t2, two, bb->b, ctx) == 0 ||
 	    BN_sub(rmax, t1, t2) == 0 ||
 	    BN_div(rmax, NULL, rmax, bb->rsa->n, ctx) == 0 ||
@@ -285,7 +281,7 @@ bb_generate_intervals(struct bb *bb)
 		if (BN_mul(t1, two, bb->b, ctx) == 0 ||
 		    BN_mul(t2, r, bb->rsa->n, ctx) == 0 ||
 		    BN_add(lower, t1, t2) == 0 ||
-		    BN_div(lower, t1, lower, bb->si, ctx) == 0)
+		    BN_div(lower, t1, lower, bb->s, ctx) == 0)
 			goto fail;
 
 		if (!BN_zero(t1))
@@ -296,10 +292,10 @@ bb_generate_intervals(struct bb *bb)
 			lower = bb->lower;
 
 		if (BN_mul(t1, three, bb->b, ctx) == 0 ||
+		    BN_sub(t1, t1, BN_value_one()) == 0 ||
 		    BN_mul(t2, r, bb->rsa->n, ctx) == 0 ||
 		    BN_add(upper, t1, t2) == 0 ||
-		    BN_sub(upper, upper, BN_value_one()) == 0 ||
-		    BN_div(upper, NULL, upper, bb->si, ctx) == 0)
+		    BN_div(upper, NULL, upper, bb->s, ctx) == 0)
 			goto fail;
 
 		if (BN_cmp(upper, bb->upper) > 0)
@@ -327,21 +323,28 @@ char *
 crack_rsa(RSA *rsa, uint8_t *enc)
 {
 	struct bb bb;
+	size_t rsa_len;
 	char *res;
 
 	bb_init(&bb, enc, rsa);
 	bb_search(&bb);
 	bb_generate_intervals(&bb);
-	res = malloc(RSA_size(rsa));
 
-	if (BN_cmp(bb.lower, bb.upper) == 0) {
-		BN_bn2bin(bb.lower, res);
-		return res;
+	rsa_len = RSA_size(rsa);
+	if ((res = malloc(rsa_len+1)) == NULL)
+		goto fail;
+
+	while (BN_cmp(bb.lower, bb.upper) != 0) {
+		bb.i++;
+		bb_search(&bb);
+		bb_generate_intervals(&bb);
 	}
 
-	bb.i++;
-	bb_search(&bb);
-	bb_generate_intervals(&bb);
+	BN_bn2bin(bb.lower, res);
+
+	return res;
+fail:
+	return NULL;
 }
 
 int
