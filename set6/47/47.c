@@ -55,10 +55,8 @@ rsa_check_padding(RSA *rsa, BIGNUM *c)
 	}
 
 	memset(t1, 0, rsa_len);
-	if (BN_bn2bin(c, t1+rsa_len-BN_num_bytes(c)) == 0)
-		goto fail;
-
-	if (RSA_private_decrypt(rsa_len, t1, t2, rsa, RSA_NO_PADDING) == -1)
+	if (BN_bn2bin(c, t1+rsa_len-BN_num_bytes(c)) == 0 ||
+	    RSA_private_decrypt(rsa_len, t1, t2, rsa, RSA_NO_PADDING) == -1)
 		goto fail;
 
 	if (memcmp(t2, "\x00\x02", 2) == 0)
@@ -124,16 +122,18 @@ bb_find_first_s(struct bb *bb)
 		goto fail;
 	BN_CTX_start(ctx);
 
-	cprime = BN_CTX_get(ctx);
-	tmp = BN_CTX_get(ctx);
+	if ((cprime = BN_CTX_get(ctx)) == NULL ||
+	    (tmp = BN_CTX_get(ctx)) == NULL ||
 
-	BN_set_word(tmp, 3);
-	BN_mul(tmp, tmp, bb->b, ctx);
-	BN_div(bb->s, tmp, bb->rsa->n, tmp, ctx);
+	    BN_set_word(tmp, 3) == 0 ||
+	    BN_mul(tmp, tmp, bb->b, ctx) == 0 ||
+	    BN_div(bb->s, tmp, bb->rsa->n, tmp, ctx) == 0)
+		goto fail;
 
 	for (;;) {
-		BN_mod_exp(cprime, bb->s, bb->rsa->e, bb->rsa->n, ctx);
-		BN_mod_mul(cprime, cprime, bb->c, bb->rsa->n, ctx);
+		if (BN_mod_exp(cprime, bb->s, bb->rsa->e, bb->rsa->n, ctx) == 0 ||
+		    BN_mod_mul(cprime, cprime, bb->c, bb->rsa->n, ctx) == 0)
+			goto fail;
 
 		if ((padding = rsa_check_padding(bb->rsa, cprime)) == PADDING_ERR)
 			goto fail;
@@ -159,54 +159,65 @@ bb_generate_interval(struct bb *bb)
 	BIGNUM *r, *rmax, *tmp, *two, *three,
 	    *newlower, *newupper;
 
-	ctx = BN_CTX_new();
+	if ((ctx = BN_CTX_new()) == NULL)
+		goto fail;
 	BN_CTX_start(ctx);
 
-	r = BN_CTX_get(ctx);
-	rmax = BN_CTX_get(ctx);
-	tmp = BN_CTX_get(ctx);
-	two = BN_CTX_get(ctx);
-	three = BN_CTX_get(ctx);
-	newlower = BN_CTX_get(ctx);
-	newupper = BN_CTX_get(ctx);
+	if ((r = BN_CTX_get(ctx)) == NULL ||
+	    (rmax = BN_CTX_get(ctx)) == NULL ||
+	    (tmp = BN_CTX_get(ctx)) == NULL ||
+	    (two = BN_CTX_get(ctx)) == NULL ||
+	    (three = BN_CTX_get(ctx)) == NULL ||
+	    (newlower = BN_CTX_get(ctx)) == NULL ||
+	    (newupper = BN_CTX_get(ctx)) == NULL ||
 
-	BN_set_word(two, 2);
-	BN_set_word(three, 3);
+	    BN_set_word(two, 2) == 0 ||
+	    BN_set_word(three, 3) == 0 ||
 
-	BN_mul(r, bb->lower, bb->s, ctx);
-	BN_mul(tmp, three, bb->b, ctx);
-	BN_sub(r, r, tmp);
-	BN_add(r, r, BN_value_one());
-	BN_div(r, tmp, r, bb->rsa->n, ctx);
+	    BN_mul(r, bb->lower, bb->s, ctx) == 0 ||
+	    BN_mul(tmp, three, bb->b, ctx) == 0 ||
+	    BN_sub(r, r, tmp) == 0 ||
+	    BN_add(r, r, BN_value_one()) == 0 ||
+	    BN_div(r, tmp, r, bb->rsa->n, ctx) == 0)
+		goto fail;
+
 	if (!BN_is_zero(tmp))
-		BN_add(r, r, BN_value_one());
+		if (BN_add(r, r, BN_value_one()) == 0)
+			goto fail;
 
-	BN_mul(rmax, bb->upper, bb->s, ctx);
-	BN_mul(tmp, two, bb->b, ctx);
-	BN_sub(rmax, rmax, tmp);
-	BN_div(rmax, NULL, rmax, bb->rsa->n, ctx);
+	if (BN_mul(rmax, bb->upper, bb->s, ctx) == 0 ||
+	    BN_mul(tmp, two, bb->b, ctx) == 0 ||
+	    BN_sub(rmax, rmax, tmp) == 0 ||
+	    BN_div(rmax, NULL, rmax, bb->rsa->n, ctx) == 0)
+		goto fail;
 
 	if (BN_cmp(r, rmax) != 0)
-		errx(1, "multiple intervals");
+		errx(1, "try again");
 
-	BN_mul(newlower, two, bb->b, ctx);
-	BN_mul(tmp, r, bb->rsa->n, ctx);
-	BN_add(newlower, newlower, tmp);
-	BN_div(newlower, tmp, newlower, bb->s, ctx);
+	if (BN_mul(newlower, two, bb->b, ctx) == 0 ||
+	    BN_mul(tmp, r, bb->rsa->n, ctx) == 0 ||
+	    BN_add(newlower, newlower, tmp) == 0 ||
+	    BN_div(newlower, tmp, newlower, bb->s, ctx) == 0)
+		goto fail;
+
 	if (!BN_is_zero(tmp))
-		BN_add(newlower, newlower, BN_value_one());
+		if (BN_add(newlower, newlower, BN_value_one()) == 0)
+			goto fail;
 
 	if (BN_cmp(newlower, bb->lower) > 0)
-		BN_copy(bb->lower, newlower);
+		if (BN_copy(bb->lower, newlower) == 0)
+			goto fail;
 
-	BN_mul(newupper, three, bb->b, ctx);
-	BN_sub(newupper, newupper, BN_value_one());
-	BN_mul(tmp, r, bb->rsa->n, ctx);
-	BN_add(newupper, newupper, tmp);
-	BN_div(newupper, NULL, newupper, bb->s, ctx);
+	if (BN_mul(newupper, three, bb->b, ctx) == 0 ||
+	    BN_sub(newupper, newupper, BN_value_one()) == 0 ||
+	    BN_mul(tmp, r, bb->rsa->n, ctx) == 0 ||
+	    BN_add(newupper, newupper, tmp) == 0 ||
+	    BN_div(newupper, NULL, newupper, bb->s, ctx) == 0)
+		goto fail;
 
 	if (BN_cmp(newupper, bb->upper) < 0)
-		BN_copy(bb->upper, newupper);
+		if (BN_copy(bb->upper, newupper) == 0)
+			goto fail;
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
@@ -223,46 +234,57 @@ bb_find_next_s(struct bb *bb)
 	BIGNUM *r, *news, *newslim, *cprime, *tmp, *two, *three;
 	int padding;
 
-	ctx = BN_CTX_new();
+	if ((ctx = BN_CTX_new()) == NULL)
+		goto fail;
 	BN_CTX_start(ctx);
 
-	r = BN_CTX_get(ctx);
-	news = BN_CTX_get(ctx);
-	newslim = BN_CTX_get(ctx);
-	cprime = BN_CTX_get(ctx);
-	tmp = BN_CTX_get(ctx);
-	two = BN_CTX_get(ctx);
-	three = BN_CTX_get(ctx);
+	if ((r = BN_CTX_get(ctx)) == NULL ||
+	    (news = BN_CTX_get(ctx)) == NULL ||
+	    (newslim = BN_CTX_get(ctx)) == NULL ||
+	    (cprime = BN_CTX_get(ctx)) == NULL ||
+	    (tmp = BN_CTX_get(ctx)) == NULL ||
+	    (two = BN_CTX_get(ctx)) == NULL ||
+	    (three = BN_CTX_get(ctx)) == NULL ||
 
-	BN_set_word(two, 2);
-	BN_set_word(three, 3);
+	    BN_set_word(two, 2) == 0 ||
+	    BN_set_word(three, 3) == 0 ||
 
-	BN_mul(r, bb->upper, bb->s, ctx);
-	BN_mul(tmp, two, bb->b, ctx);
-	BN_sub(r, r, tmp);
-	BN_mul(r, r, two, ctx);
-	BN_div(r, tmp, r, bb->rsa->n, ctx);
+	    BN_mul(r, bb->upper, bb->s, ctx) == 0 ||
+	    BN_mul(tmp, two, bb->b, ctx) == 0 ||
+	    BN_sub(r, r, tmp) == 0 ||
+	    BN_mul(r, r, two, ctx) == 0 ||
+	    BN_div(r, tmp, r, bb->rsa->n, ctx) == 0)
+		goto fail;
+
 	if (!BN_is_zero(tmp))
-		BN_add(r, r, BN_value_one());
+		if (BN_add(r, r, BN_value_one()) == 0)
+			goto fail;
 
 	for (;;) {
-		BN_mul(news, two, bb->b, ctx);
-		BN_mul(tmp, r, bb->rsa->n, ctx);
-		BN_add(news, news, tmp);
-		BN_div(news, tmp, news, bb->upper, ctx);
-		if (!BN_is_zero(tmp))
-			BN_add(news, news, BN_value_one());
+		if (BN_mul(news, two, bb->b, ctx) == 0 ||
+		    BN_mul(tmp, r, bb->rsa->n, ctx) == 0 ||
+		    BN_add(news, news, tmp) == 0 ||
+		    BN_div(news, tmp, news, bb->upper, ctx) == 0)
+			goto fail;
 
-		BN_mul(newslim, three, bb->b, ctx);
-		BN_mul(tmp, r, bb->rsa->n, ctx);
-		BN_add(newslim, newslim, tmp);
-		BN_div(newslim, tmp, newslim, bb->lower, ctx);
 		if (!BN_is_zero(tmp))
-			BN_add(newslim, newslim, BN_value_one());
+			if (BN_add(news, news, BN_value_one()) == 0)
+				goto fail;
+
+		if (BN_mul(newslim, three, bb->b, ctx) == 0 ||
+		    BN_mul(tmp, r, bb->rsa->n, ctx) == 0 ||
+		    BN_add(newslim, newslim, tmp) == 0 ||
+		    BN_div(newslim, tmp, newslim, bb->lower, ctx) == 0)
+			goto fail;
+
+		if (!BN_is_zero(tmp))
+			if (BN_add(newslim, newslim, BN_value_one()) == 0)
+				goto fail;
 
 		while (BN_cmp(news, newslim) != 0) {
-			BN_mod_exp(cprime, news, bb->rsa->e, bb->rsa->n, ctx);
-			BN_mod_mul(cprime, cprime, bb->c, bb->rsa->n, ctx);
+			if (BN_mod_exp(cprime, news, bb->rsa->e, bb->rsa->n, ctx) == 0 ||
+			    BN_mod_mul(cprime, cprime, bb->c, bb->rsa->n, ctx) == 0)
+				goto fail;
 
 			if ((padding = rsa_check_padding(bb->rsa, cprime)) == PADDING_ERR)
 				goto fail;
@@ -273,10 +295,12 @@ bb_find_next_s(struct bb *bb)
 				goto fail;
 		}
 
-		BN_add(r, r, BN_value_one());
+		if (BN_add(r, r, BN_value_one()) == 0)
+			goto fail;
 	}
 done:
-	BN_copy(bb->s, news);
+	if (BN_copy(bb->s, news) == 0)
+		goto fail;
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
@@ -291,15 +315,17 @@ crack_rsa(RSA *rsa, uint8_t *enc)
 {
 	struct bb bb;
 	size_t i, len;
-	char *res, *p;
+	char *res;
 
-	bb_init(&bb, rsa, enc);
-	bb_find_first_s(&bb);
-	bb_generate_interval(&bb);
+	if (bb_init(&bb, rsa, enc) == 0 ||
+	    bb_find_first_s(&bb) == 0 ||
+	    bb_generate_interval(&bb) == 0)
+		goto fail;
 
 	while (BN_cmp(bb.lower, bb.upper) != 0) {
-		bb_find_next_s(&bb);
-		bb_generate_interval(&bb);
+		if (bb_find_next_s(&bb) == 0 ||
+		    bb_generate_interval(&bb) == 0)
+			goto fail;
 	}
 
 	if ((len = BN_num_bytes(bb.lower)) < 2 ||
@@ -324,16 +350,18 @@ int
 main(void)
 {
 	RSA *rsa;
-	BIGNUM *three;
+	BIGNUM *f4;
 	uint8_t *enc, *dec;
 
-	rsa = RSA_new();
-	three = BN_new();
-	BN_set_word(three, 3);
-	RSA_generate_key_ex(rsa, BITS, three, NULL);
+	if ((rsa = RSA_new()) == NULL ||
+	    (f4 = BN_new()) == NULL ||
 
-	enc = rsa_encrypt(rsa, (char *) data);
-	dec = crack_rsa(rsa, enc);
+	    BN_set_word(f4, RSA_F4) == 0 ||
+	    RSA_generate_key_ex(rsa, BITS, f4, NULL) == 0 ||
+
+	    (enc = rsa_encrypt(rsa, (char *) data)) == NULL ||
+	    (dec = crack_rsa(rsa, enc)) == NULL)
+		err(1, NULL);
 
 	puts(dec);
 
