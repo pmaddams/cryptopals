@@ -152,6 +152,70 @@ fail:
 }
 
 int
+bb_generate_interval(struct bb *bb)
+{
+	BN_CTX *ctx;
+	BIGNUM *r, *rmax, *tmp, *two, *three,
+	    *newlower, *newupper;
+
+	ctx = BN_CTX_new();
+	BN_CTX_start(ctx);
+
+	r = BN_CTX_get(ctx);
+	rmax = BN_CTX_get(ctx);
+	tmp = BN_CTX_get(ctx);
+	two = BN_CTX_get(ctx);
+	three = BN_CTX_get(ctx);
+	newlower = BN_CTX_get(ctx);
+	newupper = BN_CTX_get(ctx);
+
+	BN_set_word(two, 2);
+	BN_set_word(three, 3);
+
+	BN_mul(r, bb->lower, bb->s, ctx);
+	BN_mul(tmp, three, bb->b, ctx);
+	BN_sub(r, r, tmp);
+	BN_add(r, r, BN_value_one());
+	BN_div(r, tmp, r, bb->rsa->n, ctx);
+	if (!BN_is_zero(tmp))
+		BN_add(r, r, BN_value_one());
+
+	BN_mul(rmax, bb->upper, bb->s, ctx);
+	BN_mul(tmp, two, bb->b, ctx);
+	BN_sub(rmax, rmax, tmp);
+	BN_div(rmax, NULL, rmax, bb->rsa->n, ctx);
+
+	if (BN_cmp(r, rmax) == 0)
+		errx(1, "multiple intervals");
+
+	BN_mul(newlower, two, bb->b, ctx);
+	BN_mul(tmp, r, bb->rsa->n, ctx);
+	BN_add(newlower, newlower, tmp);
+	BN_div(newlower, tmp, newlower, bb->s, ctx);
+	if (!BN_is_zero(tmp))
+		BN_add(newlower, newlower, BN_value_one());
+
+	if (BN_cmp(newlower, bb->lower) > 0)
+		BN_copy(bb->lower, newlower);
+
+	BN_mul(newupper, three, bb->b, ctx);
+	BN_sub(newupper, newupper, BN_value_one());
+	BN_mul(tmp, r, bb->rsa->n, ctx);
+	BN_add(newupper, newupper, tmp);
+	BN_div(newupper, NULL, newupper, bb->s, ctx);
+
+	if (BN_cmp(newupper, bb->upper) < 0)
+		BN_copy(bb->upper, newupper);
+
+	BN_CTX_end(ctx);
+	BN_CTX_free(ctx);
+
+	return 1;
+fail:
+	return 0;
+}
+
+int
 bb_find_next_s(struct bb *bb)
 {
 
