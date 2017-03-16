@@ -10,6 +10,8 @@
 
 #define BITS 256
 
+const char *data = "kick it, CC";
+
 enum {
 	PADDING_OK,
 	PADDING_BAD,
@@ -68,7 +70,7 @@ fail:
 }
 
 int
-bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
+bb_init(struct bb *bb, RSA *rsa, uint8_t *enc)
 {
 	size_t rsa_len;
 	BN_CTX *ctx;
@@ -284,16 +286,56 @@ fail:
 	return 0;
 }
 
+char *
+crack_rsa(RSA *rsa, uint8_t *enc)
+{
+	struct bb bb;
+	size_t i, len;
+	char *res;
+
+	bb_init(&bb, rsa, enc);
+	bb_find_first_s(&bb);
+	bb_generate_interval(&bb);
+
+	while (BN_cmp(bb.lower, bb.upper) != 0) {
+		bb_find_next_s(&bb);
+		bb_generate_interval(&bb);
+	}
+
+	if ((len = BN_num_bytes(bb.lower)) < 2 ||
+	    (res = malloc(len)) == NULL ||
+	    BN_bn2bin(bb.lower, res) == 0)
+		goto fail;
+
+	for (i = len-2; i > 0; i++)
+		if (res[i] == '\0')
+			break;
+	len -= i;
+	memmove(res, res+i, len);
+	res[len] = '\0';
+
+	return res;
+fail:
+	return NULL;
+}
+
 int
 main(void)
 {
-	struct bb bb;
 	RSA *rsa;
 	BIGNUM *three;
+	uint8_t *enc, *dec;
 
 	rsa = RSA_new();
 	three = BN_new();
 
 	BN_set_word(three, 3);
 	RSA_generate_key_ex(rsa, BITS, three, NULL);
+
+	enc = rsa_encrypt(rsa, (char *) data);
+	dec = crack_rsa(rsa, enc);
+
+	puts(dec);
+
+	exit(0);
 }

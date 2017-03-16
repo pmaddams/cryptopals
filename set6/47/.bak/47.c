@@ -20,7 +20,6 @@ struct bb {
 	RSA *rsa;
 	BIGNUM *b;
 	BIGNUM *c;
-	BIGNUM *cprime;
 	BIGNUM *s;
 	BIGNUM *lower;
 	BIGNUM *upper;
@@ -84,7 +83,6 @@ bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
 
 	if ((bb->b = BN_new()) == NULL ||
 	    (bb->c = BN_new()) == NULL ||
-	    (bb->cprime = BN_new()) == NULL ||
 	    (bb->s = BN_new()) == NULL ||
 	    (bb->lower = BN_new()) == NULL ||
 	    (bb->upper = BN_new()) == NULL ||
@@ -117,13 +115,14 @@ int
 bb_find_first_s(struct bb *bb)
 {
 	BN_CTX *ctx;
-	BIGNUM *tmp;
+	BIGNUM *cprime, *tmp;
 	int padding;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(ctx);
 
+	cprime = BN_CTX_get(ctx);
 	tmp = BN_CTX_get(ctx);
 
 	BN_set_word(tmp, 3);
@@ -131,10 +130,10 @@ bb_find_first_s(struct bb *bb)
 	BN_div(bb->s, tmp, bb->rsa->n, tmp, ctx);
 
 	for (;;) {
-		BN_mod_exp(bb->cprime, bb->s, bb->rsa->e, bb->rsa->n, ctx);
-		BN_mod_mul(bb->cprime, bb->cprime, bb->c, bb->rsa->n, ctx);
+		BN_mod_exp(cprime, bb->s, bb->rsa->e, bb->rsa->n, ctx);
+		BN_mod_mul(cprime, cprime, bb->c, bb->rsa->n, ctx);
 
-		if ((padding = rsa_check_padding(bb->rsa, bb->c)) == PADDING_ERR)
+		if ((padding = rsa_check_padding(bb->rsa, cprime)) == PADDING_ERR)
 			goto fail;
 		else if (padding == PADDING_OK)
 			break;
@@ -218,7 +217,71 @@ fail:
 int
 bb_find_next_s(struct bb *bb)
 {
+	BN_CTX *ctx;
+	BIGNUM *r, *news, *newslim, *cprime, *tmp, *two, *three;
+	int padding;
 
+	ctx = BN_CTX_new();
+	BN_CTX_start(ctx);
+
+	r = BN_CTX_get(ctx);
+	news = BN_CTX_get(ctx);
+	newslim = BN_CTX_get(ctx);
+	cprime = BN_CTX_get(ctx);
+	tmp = BN_CTX_get(ctx);
+	two = BN_CTX_get(ctx);
+	three = BN_CTX_get(ctx);
+
+	BN_set_word(two, 2);
+	BN_set_word(three, 3);
+
+	BN_mul(r, bb->b, bb->s, ctx);
+	BN_mul(tmp, two, bb->b, ctx);
+	BN_sub(r, r, tmp);
+	BN_mul(r, r, two, ctx);
+	BN_div(r, tmp, r, bb->rsa->n, ctx);
+	if (!BN_is_zero(tmp))
+		BN_add(r, r, BN_value_one());
+
+	for (;;) {
+		BN_mul(news, two, bb->b, ctx);
+		BN_mul(tmp, r, bb->rsa->n, ctx);
+		BN_add(news, news, tmp);
+		BN_div(news, tmp, news, bb->upper, ctx);
+		if (!BN_is_zero(tmp))
+			BN_add(news, news, BN_value_one());
+
+		BN_mul(newslim, three, bb->b, ctx);
+		BN_mul(tmp, r, bb->rsa->n, ctx);
+		BN_add(newslim, newslim, tmp);
+		BN_div(newslim, tmp, newslim, bb->lower, ctx);
+		if (!BN_is_zero(tmp))
+			BN_add(newslim, newslim, BN_value_one());
+
+		while (!BN_cmp(news, newslim)) {
+			BN_mod_exp(cprime, news, bb->rsa->e, bb->rsa->n, ctx);
+			BN_mod_mul(cprime, cprime, bb->c, bb->rsa->n, ctx);
+
+			if ((padding = rsa_check_padding(bb->rsa, cprime)) == PADDING_ERR)
+				goto fail;
+			else if (padding == PADDING_OK)
+				goto done;
+
+			if (BN_add(news, news, BN_value_one()) == 0)
+				goto fail;
+		}
+
+		BN_add(r, r, BN_value_one());
+	}
+done:
+	BN_copy(bb->s, news);
+
+	BN_CTX_end(ctx);
+	BN_CTX_free(ctx);
+
+	return 1;
+fail:
+	return 0;
 }
 
 int
