@@ -69,7 +69,7 @@ fail:
 }
 
 int
-bb_init(struct bb *bb, uint8_t *enc, RSA *rsa)
+bb_init(struct bb *bb, RSA *rsa, uint8_t *enc)
 {
 	size_t rsa_len;
 	BN_CTX *ctx;
@@ -116,39 +116,7 @@ fail:
 int
 bb_find_first_s(struct bb *bb)
 {
-	BN_CTX *ctx;
-	BIGNUM *tmp;
-	int padding;
 
-	if ((ctx = BN_CTX_new()) == NULL)
-		goto fail;
-	BN_CTX_start(ctx);
-
-	tmp = BN_CTX_get(ctx);
-
-	BN_set_word(tmp, 3);
-	BN_mul(tmp, tmp, bb->b, ctx);
-	BN_div(bb->s, tmp, bb->rsa->n, tmp, ctx);
-
-	for (;;) {
-		BN_mod_exp(bb->cprime, bb->s, bb->rsa->e, bb->rsa->n, ctx);
-		BN_mod_mul(bb->cprime, bb->cprime, bb->c, bb->rsa->n, ctx);
-
-		if ((padding = rsa_check_padding(bb->rsa, bb->c)) == PADDING_ERR)
-			goto fail;
-		else if (padding == PADDING_OK)
-			break;
-
-		if (BN_add(bb->s, bb->s, BN_value_one()) == 0)
-			goto fail;
-	}
-
-	BN_CTX_end(ctx);
-	BN_CTX_free(ctx);
-
-	return 1;
-fail:
-	return 0;
 }
 
 int
