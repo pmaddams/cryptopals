@@ -186,7 +186,7 @@ bb_generate_interval(struct bb *bb)
 	BN_sub(rmax, rmax, tmp);
 	BN_div(rmax, NULL, rmax, bb->rsa->n, ctx);
 
-	if (BN_cmp(r, rmax) == 0)
+	if (BN_cmp(r, rmax) != 0)
 		errx(1, "multiple intervals");
 
 	BN_mul(newlower, two, bb->b, ctx);
@@ -237,7 +237,7 @@ bb_find_next_s(struct bb *bb)
 	BN_set_word(two, 2);
 	BN_set_word(three, 3);
 
-	BN_mul(r, bb->b, bb->s, ctx);
+	BN_mul(r, bb->upper, bb->s, ctx);
 	BN_mul(tmp, two, bb->b, ctx);
 	BN_sub(r, r, tmp);
 	BN_mul(r, r, two, ctx);
@@ -260,7 +260,7 @@ bb_find_next_s(struct bb *bb)
 		if (!BN_is_zero(tmp))
 			BN_add(newslim, newslim, BN_value_one());
 
-		while (!BN_cmp(news, newslim)) {
+		while (BN_cmp(news, newslim) != 0) {
 			BN_mod_exp(cprime, news, bb->rsa->e, bb->rsa->n, ctx);
 			BN_mod_mul(cprime, cprime, bb->c, bb->rsa->n, ctx);
 
@@ -291,7 +291,7 @@ crack_rsa(RSA *rsa, uint8_t *enc)
 {
 	struct bb bb;
 	size_t i, len;
-	char *res;
+	char *res, *p;
 
 	bb_init(&bb, rsa, enc);
 	bb_find_first_s(&bb);
@@ -307,11 +307,12 @@ crack_rsa(RSA *rsa, uint8_t *enc)
 	    BN_bn2bin(bb.lower, res) == 0)
 		goto fail;
 
-	for (i = len-2; i > 0; i++)
+	for (i = len-2; i > 0; i--)
 		if (res[i] == '\0')
 			break;
+
 	len -= i;
-	memmove(res, res+i, len);
+	memmove(res, res+i+1, len);
 	res[len] = '\0';
 
 	return res;
@@ -328,7 +329,6 @@ main(void)
 
 	rsa = RSA_new();
 	three = BN_new();
-
 	BN_set_word(three, 3);
 	RSA_generate_key_ex(rsa, BITS, three, NULL);
 
