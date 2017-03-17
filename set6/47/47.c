@@ -8,9 +8,9 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 
-#define BITS 256
+#define DATA	"kick it, CC"
 
-const char *data = "kick it, CC";
+#define BITS	256
 
 enum {
 	PADDING_OK,
@@ -359,7 +359,7 @@ main(void)
 	    BN_set_word(f4, RSA_F4) == 0 ||
 	    RSA_generate_key_ex(rsa, BITS, f4, NULL) == 0 ||
 
-	    (enc = rsa_encrypt(rsa, (char *) data)) == NULL ||
+	    (enc = rsa_encrypt(rsa, DATA)) == NULL ||
 	    (dec = crack_rsa(rsa, enc)) == NULL)
 		err(1, NULL);
 
