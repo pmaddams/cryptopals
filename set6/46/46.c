@@ -11,28 +11,28 @@
 
 #define BITS 1024
 
-const char *data = "VGhhdCdzIHdoeSBJIGZvdW5kIHlvdSBkb24ndCBwbGF5IGFyb3VuZCB3aXRoIHRoZSBGdW5reSBDb2xkIE1lZGluYQ==";
-
 BIGNUM *
-rsa_encrypt_b64(RSA *rsa, char *buf)
+rsa_encrypt(RSA *rsa)
 {
+	const char *secret =
+	    "VGhhdCdzIHdoeSBJIGZvdW5kIHlvdSBkb24ndCBwbGF5IGFyb3VuZCB3aXRoIHRoZSBGdW5reSBDb2xkIE1lZGluYQ==";
 	BN_CTX *ctx;
-	ssize_t buflen, tmplen;
-	char *tmpbuf;
+	ssize_t len;
+	char *buf;
 	BIGNUM *res, *tmp;
 
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto fail;
 	BN_CTX_start(ctx);
 
-	buflen = strlen(buf);
-	if ((tmpbuf = malloc(buflen)) == NULL ||
-	    (tmplen = EVP_DecodeBlock(tmpbuf, buf, buflen)) == 0 ||
+	len = strlen(secret);
+	if ((buf = malloc(len)) == NULL ||
+	    (len = EVP_DecodeBlock(buf, secret, len)) == 0 ||
 
 	    (res = BN_new()) == NULL ||
 	    (tmp = BN_CTX_get(ctx)) == NULL ||
 
-	    BN_bin2bn(tmpbuf, tmplen, tmp) == NULL ||
+	    BN_bin2bn(buf, len, tmp) == NULL ||
 	    BN_mod_exp(res, tmp, rsa->e, rsa->n, ctx) == 0)
 		goto fail;
 
@@ -74,7 +74,7 @@ print_hollywood_style(char *buf, size_t len)
 	putchar('\n');
 }
 
-int
+char *
 crack_rsa(RSA *rsa, BIGNUM *enc)
 {
 	BN_CTX *ctx;
@@ -130,11 +130,10 @@ crack_rsa(RSA *rsa, BIGNUM *enc)
 
 	BN_CTX_end(ctx);
 	BN_CTX_free(ctx);
-	free(buf);
 
-	return 1;
+	return buf;
 fail:
-	return 0;
+	return NULL;
 }
 
 int
@@ -142,6 +141,7 @@ main(void)
 {
 	RSA *rsa;
 	BIGNUM *f4, *enc;
+	char *dec;
 
 	if ((rsa = RSA_new()) == NULL ||
 	    (f4 = BN_new()) == NULL ||
@@ -149,10 +149,11 @@ main(void)
 	    BN_set_word(f4, RSA_F4) == 0 ||
 	    RSA_generate_key_ex(rsa, BITS, f4, NULL) == 0 ||
 
-	    (enc = rsa_encrypt_b64(rsa, (char *) data)) == NULL ||
-
-	    crack_rsa(rsa, enc) == 0)
+	    (enc = rsa_encrypt(rsa)) == NULL ||
+	    (dec = crack_rsa(rsa, enc)) == NULL)
 		err(1, NULL);
+
+	puts(dec);
 
 	exit(0);
 }
