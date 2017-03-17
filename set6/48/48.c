@@ -477,7 +477,7 @@ main(void)
 	if ((rsa = RSA_new()) == NULL ||
 	    (f4 = BN_new()) == NULL ||
 
-	    BN_set_word(f4, 3) == 0 ||
+	    BN_set_word(f4, RSA_F4) == 0 ||
 	    RSA_generate_key_ex(rsa, BITS, f4, NULL) == 0 ||
 
 	    (enc = rsa_encrypt(rsa, (char *) data)) == NULL ||
