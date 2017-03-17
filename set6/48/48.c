@@ -19,8 +19,8 @@ enum {
 };
 
 struct interval {
-	BIGNUM *upper;
 	BIGNUM *lower;
+	BIGNUM *upper;
 	struct interval *next;
 };
 
