@@ -117,7 +117,7 @@ dh_verify(struct party *p1, struct party *p2, char *message)
 	SHA256Update(&ctx, message, strlen(message));
 	SHA256Final(mac2, &ctx);
 
-	return memcmp(mac1, mac2, SHA256_DIGEST_LENGTH) == 0;
+	return (memcmp(mac1, mac2, SHA256_DIGEST_LENGTH) == 0);
 }
 
 int
