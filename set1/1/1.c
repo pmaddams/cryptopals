@@ -7,14 +7,16 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
+#define FILENAME "DATA"
+
 int
-gethex(void)
+getx(FILE *fp)
 {
 	int i, c;
 	static char buf[3];
 
 	for (i = 0; i < 2;)
-		if (isxdigit(c = getchar()))
+		if (isxdigit(c = getc(fp)))
 			buf[i++] = c;
 		else if (c == EOF)
 			return EOF;
@@ -25,21 +27,22 @@ gethex(void)
 int
 main(void)
 {
+	FILE *fp;
 	BIO *bio, *b64;
 	int c;
 
-	if ((b64 = BIO_new(BIO_f_base64())) == NULL ||
+	if ((fp = fopen(FILENAME, "r")) == NULL ||
+	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
 	    (bio = BIO_new_fp(stdout, BIO_NOCLOSE)) == NULL)
 		err(1, NULL);
 
 	BIO_push(b64, bio);
 
-	while ((c = gethex()) != EOF)
+	while ((c = getx(fp)) != EOF)
 		if (BIO_write(b64, &c, 1) < 1)
 			err(1, NULL);
 
 	BIO_flush(b64);
-	BIO_free_all(b64);
 
 	exit(0);
 }

@@ -14,7 +14,7 @@
 
 #include "38.h"
 
-#define DATABASE "DATA"
+#define FILENAME "DATA"
 
 int
 lo_listen(in_port_t port)
@@ -252,7 +252,7 @@ main(void)
 		    send_salt_and_server_pub_key(connfd, &server) == 0 ||
 
 		    (client_hmac = srecv(connfd)) == 0 ||
-		    crack_password(&server, client_pub_key, client_hmac, DATABASE) == 0 ||
+		    crack_password(&server, client_pub_key, client_hmac, FILENAME) == 0 ||
 		    ssendf(connfd, "your password was %s", server.password) == 0)
 			err(1, NULL);
 

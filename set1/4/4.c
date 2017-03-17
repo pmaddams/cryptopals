@@ -10,6 +10,8 @@
 
 #include "freq.h"
 
+#define FILENAME "DATA"
+
 char *
 xtoa(char *s, size_t *lenp)
 {
@@ -37,7 +39,7 @@ done:
 }
 
 void
-xor(uint8_t *buf, size_t len, uint8_t c)
+xor(uint8_t *buf, uint8_t c, size_t len)
 {
 	while (len--)
 		*buf++ ^= c;
@@ -70,6 +72,7 @@ score(uint8_t *buf, size_t len)
 int
 main(void)
 {
+	FILE *fp;
 	float cur, best;
 	char *buf, *lbuf, *cp, *found;
 	size_t len;
@@ -78,7 +81,10 @@ main(void)
 	best = 0.;
 	lbuf = found = NULL;
 
-	while (buf = fgetln(stdin, &len)) {
+	if ((fp = fopen(FILENAME, "r")) == NULL)
+		err(1, NULL);
+
+	while (buf = fgetln(fp, &len)) {
 		if (buf[len-1] == '\n')
 			buf[--len] = '\0';
 		else {
@@ -97,7 +103,7 @@ main(void)
 
 		for (c = 0;; c++) {
 			memcpy(cp, buf, len);
-			xor(cp, len, c);
+			xor(cp, c, len);
 			if ((cur = score(cp, len)) > best) {
 				best = cur;
 				free(found);

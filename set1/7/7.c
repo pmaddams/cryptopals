@@ -6,16 +6,20 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#define KEY "YELLOW SUBMARINE"
+#define FILENAME	"DATA"
+
+#define KEY		"YELLOW SUBMARINE"
 
 int
 main(void)
 {
+	FILE *fp;
 	BIO *bio, *b64, *cip;
 	char buf[BUFSIZ];
 	ssize_t nr;
 
-	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
+	if ((fp = fopen(FILENAME, "r")) == NULL ||
+	    (bio = BIO_new_fp(fp, BIO_NOCLOSE)) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
 	    (cip = BIO_new(BIO_f_cipher())) == NULL)
 		err(1, NULL);
@@ -26,8 +30,6 @@ main(void)
 
 	while ((nr = BIO_read(cip, buf, BUFSIZ)) > 0)
 		fwrite(buf, nr, 1, stdout);
-
-	BIO_free_all(bio);
 
 	return 0;
 }

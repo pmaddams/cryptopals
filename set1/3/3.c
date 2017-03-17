@@ -10,14 +10,16 @@
 
 #include "freq.h"
 
+#define FILENAME "DATA"
+
 int
-gethex(void)
+getx(FILE *fp)
 {
 	int i, c;
 	static char buf[3];
 
 	for (i = 0; i < 2;)
-		if (isxdigit(c = getchar()))
+		if (isxdigit(c = getc(fp)))
 			buf[i++] = c;
 		else if (c == EOF)
 			return EOF;
@@ -26,7 +28,7 @@ gethex(void)
 }
 
 void
-xor(uint8_t *buf, size_t len, uint8_t c)
+xor(uint8_t *buf, uint8_t c, size_t len)
 {
 	while (len--)
 		*buf++ ^= c;
@@ -59,16 +61,17 @@ score(uint8_t *buf, size_t len)
 int
 main(void)
 {
-	FILE *memstream;
+	FILE *fp, *memstream;
 	char *buf, *cp;
 	size_t len;
 	int c, found;
 	float cur, best;
 
-	if ((memstream = open_memstream(&buf, &len)) == NULL)
+	if ((fp = fopen(FILENAME, "r")) == NULL ||
+	    (memstream = open_memstream(&buf, &len)) == NULL)
 		err(1, NULL);
 
-	while ((c = gethex()) != EOF)
+	while ((c = getx(fp)) != EOF)
 		putc(c, memstream);
 	fclose(memstream);
 
@@ -77,7 +80,7 @@ main(void)
 
 	for (best = 0., c = 0; c <= UINT8_MAX; c++) {
 		memcpy(cp, buf, len);
-		xor(cp, len, c);
+		xor(cp, c, len);
 		if ((cur = score(cp, len)) > best) {
 			best = cur;
 			found = c;
@@ -87,7 +90,7 @@ main(void)
 	if (best == 0.)
 		errx(1, "no match found");
 
-	xor(buf, len, found);
+	xor(buf, found, len);
 	puts(buf);
  
 	exit(0);

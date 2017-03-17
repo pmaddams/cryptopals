@@ -12,9 +12,11 @@
 
 #include "freq.h"
 
-#define MINLEN 6
-#define MAXLEN 40
-#define NBLOCK 4
+#define FILENAME	"DATA"
+
+#define MINLEN		6
+#define MAXLEN		40
+#define NBLK		4
 
 int
 dist(uint8_t *b1, uint8_t *b2, size_t len)
@@ -39,16 +41,16 @@ keydist(uint8_t *buf, size_t len, size_t guess)
 	int i, sum;
 	uint8_t tmp[guess];
 
-	if (guess*(NBLOCK+1) >= len)
+	if (guess*(NBLK+1) >= len)
 		goto fail;
 
-	for (sum = i = 0; i < NBLOCK; i++) {
+	for (sum = i = 0; i < NBLK; i++) {
 		memcpy(tmp, buf+(i+1)*guess, guess);
 		buf += i*guess;
 		sum += dist(buf, tmp, guess);
 	}
 
-	return (float) sum / (guess*NBLOCK);
+	return (float) sum / (guess*NBLK);
 fail:
 	return 8.;
 }
@@ -59,7 +61,7 @@ crack_keylen(uint8_t *buf, size_t len)
 	size_t guess, found, max;
 	float cur, best;
 
-	max = MIN(len/(NBLOCK+1), MAXLEN);
+	max = MIN(len/(NBLK+1), MAXLEN);
 
 	for (best = 8., found = guess = MINLEN; guess <= max; guess++)
 		if ((cur = keydist(buf, len, guess)) < best) {
@@ -71,7 +73,7 @@ crack_keylen(uint8_t *buf, size_t len)
 }
 
 void
-xor(uint8_t *buf, size_t len, uint8_t c)
+xor(uint8_t *buf, uint8_t c, size_t len)
 {
 	while (len--)
 		*buf++ ^= c;
@@ -123,7 +125,7 @@ crack_key(uint8_t *buf, size_t len, size_t keylen)
 
 		for (best = 0., c = 0; c <= UINT8_MAX; c++) {
 			memcpy(cp, tmp, tmplen);
-			xor(cp, tmplen, c);
+			xor(cp, c, tmplen);
 			if ((cur = score(cp, tmplen)) > best) {
 				best = cur;
 				key[i] = c;
@@ -142,13 +144,14 @@ fail:
 int
 main(void)
 {
+	FILE *fp, *memstream;
 	BIO *bio, *b64;
-	FILE *memstream;
 	char *buf, tmp[BUFSIZ], *key;
 	size_t i, len, keylen;
 	ssize_t nr;
 
-	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
+	if ((fp = fopen(FILENAME, "r")) == NULL ||
+	    (bio = BIO_new_fp(fp, BIO_NOCLOSE)) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
 	    (memstream = open_memstream(&buf, &len)) == NULL)
 		err(1, NULL);
@@ -159,8 +162,6 @@ main(void)
 		if (fwrite(tmp, nr, 1, memstream) < 1)
 			err(1, NULL);
 	fclose(memstream);
-
-	BIO_free_all(b64);
 
 	keylen = crack_keylen(buf, len);
 	if ((key = crack_key(buf, len, keylen)) == NULL)

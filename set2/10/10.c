@@ -8,8 +8,10 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#define KEY	"YELLOW SUBMARINE"
-#define BLKSIZ	16
+#define FILENAME	"DATA"
+
+#define KEY		"YELLOW SUBMARINE"
+#define BLKSIZ		16
 
 int
 cbc_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint8_t *vec, uint8_t *key, int enc)
@@ -78,13 +80,14 @@ fail:
 int
 main(void)
 {
+	FILE *fp, *memstream;
 	BIO *bio, *b64;
-	FILE *memstream;
 	char *in, tmp[BUFSIZ], *out;
 	size_t len;
 	ssize_t nr;
 
-	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
+	if ((fp = fopen(FILENAME, "r")) == NULL ||
+	    (bio = BIO_new_fp(fp, BIO_NOCLOSE)) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
 	    (memstream = open_memstream(&in, &len)) == NULL)
 		err(1, NULL);
@@ -95,8 +98,6 @@ main(void)
 		if (fwrite(tmp, nr, 1, memstream) < 1)
 			err(1, NULL);
 	fclose(memstream);
-
-	BIO_free_all(bio);
 
 	if ((out = cbc_crypt(in, len, NULL, KEY, 0)) == 0)
 		err(1, NULL);

@@ -9,7 +9,9 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#define BLKSIZ 16
+#define FILENAME	"DATA"
+
+#define BLKSIZ		16
 
 int
 ctr_crypt_blk(EVP_CIPHER_CTX *ctxp, uint8_t *blk, uint64_t nonce, uint64_t ctr, uint8_t *key)
@@ -97,14 +99,15 @@ fail:
 int
 main(void)
 {
+	FILE *fp, *memstream;
 	BIO *bio, *b64, *cip, *bio_out;
-	FILE *memstream;
 	char *buf, tmp[BUFSIZ];
 	size_t len;
 	ssize_t nr;
 	uint8_t *enc, *dec;
 
-	if ((bio = BIO_new_fp(stdin, BIO_NOCLOSE)) == NULL ||
+	if ((fp = fopen(FILENAME, "r")) == NULL ||
+	    (bio = BIO_new_fp(fp, BIO_NOCLOSE)) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
 	    (cip = BIO_new(BIO_f_cipher())) == NULL ||
 	    (memstream = open_memstream(&buf, &len)) == NULL ||
@@ -121,8 +124,6 @@ main(void)
 
 	BIO_flush(cip);
 	fclose(memstream);
-	BIO_free_all(b64);
-	BIO_free_all(cip);
 
 	if ((enc = ctr_crypt(buf, len, 0)) == NULL ||
 	    (dec = edit(enc, len, enc, len, 0)) == NULL)

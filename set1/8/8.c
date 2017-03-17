@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BLKSIZ 16
+#define FILENAME	"DATA"
+
+#define BLKSIZ		16
 
 char *
 xtoa(char *s, size_t *lenp)
@@ -34,14 +36,18 @@ done:
 int
 main(void)
 {
+	FILE *fp;
 	char *buf, *lbuf, *found;
 	size_t i, j, len, foundln;
 	int score, best;
 
+	if ((fp = fopen(FILENAME, "r")) == NULL)
+		err(1, NULL);
+
 	best = 0;
 	lbuf = found = NULL;
 
-	while (buf = fgetln(stdin, &len)) {
+	while (buf = fgetln(fp, &len)) {
 		if (buf[len-1] == '\n')
 			buf[len-1] = '\0';
 		else {
