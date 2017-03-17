@@ -8,10 +8,9 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
-#define BLKSIZ	16
+#define BLKSIZ 16
 
-#define ECB	0
-#define CBC	1
+enum { ECB, CBC };
 
 char *
 extend(char *buf, size_t *lenp)

@@ -43,9 +43,9 @@ cbc_crypt(uint8_t *in, size_t inlen, size_t *outlenp, int enc)
 	BIO_set_cipher(cip, EVP_aes_128_cbc(), key, key, enc);
 	BIO_push(cip, bio_out);
 
-	if (enc == ENCRYPT && BIO_write(cip, prefix, strlen(prefix)) <= 0 ||
+	if (enc && BIO_write(cip, prefix, strlen(prefix)) <= 0 ||
 	    BIO_write(cip, in, inlen) <= 0 ||
-	    enc == ENCRYPT && BIO_write(cip, suffix, strlen(suffix)) <= 0)
+	    enc && BIO_write(cip, suffix, strlen(suffix)) <= 0)
 			goto fail;
 
 	BIO_flush(cip);

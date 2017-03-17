@@ -33,7 +33,7 @@ cbc_crypt(uint8_t *in, size_t inlen, size_t *outlenp, int enc)
 	while (*key == '\0')
 		arc4random_buf(key, BLKSIZ);
 
-	if (enc == ENCRYPT) {
+	if (enc) {
 		if ((clean = malloc(inlen*3)) == NULL)
 			goto fail;
 		for (i = j = 0; i < inlen; i++)
@@ -69,7 +69,7 @@ cbc_crypt(uint8_t *in, size_t inlen, size_t *outlenp, int enc)
 	fclose(memstream);
 	BIO_free_all(cip);
 
-	if (enc == ENCRYPT)
+	if (enc)
 		free(clean);
 
 	if (outlenp != NULL)

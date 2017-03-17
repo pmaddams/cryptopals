@@ -15,11 +15,11 @@
 #define ENCRYPT	1
 
 struct rsa {
-	BIGNUM *p;
-	BIGNUM *q;
 	BIGNUM *n;
 	BIGNUM *e;
 	BIGNUM *d;
+	BIGNUM *p;
+	BIGNUM *q;
 };
 
 int

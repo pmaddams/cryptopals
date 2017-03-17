@@ -63,7 +63,7 @@ ctr_crypt(uint8_t *in, size_t inlen, size_t *outlenp, uint64_t nonce, int enc)
 	if ((memstream = open_memstream(&out, &outlen)) == NULL)
 		goto fail;
 
-	if (enc == ENCRYPT) {
+	if (enc) {
 	    	if (fwrite(prefix, strlen(prefix), 1, memstream) < 1)
 			goto fail;
 

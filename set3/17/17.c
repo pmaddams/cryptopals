@@ -49,7 +49,7 @@ fail:
 uint8_t *
 make_secret(size_t *lenp)
 {
-	const char *s, *choices[10] = {
+	const char *s, *secrets[10] = {
 		"MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc=",
 		"MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic=",
 		"MDAwMDAyUXVpY2sgdG8gdGhlIHBvaW50LCB0byB0aGUgcG9pbnQsIG5vIGZha2luZw==",
@@ -67,7 +67,7 @@ make_secret(size_t *lenp)
 	size_t inlen, outlen;
 	ssize_t nr;
 
-	s = choices[arc4random_uniform(10)];
+	s = secrets[arc4random_uniform(10)];
 
 	if ((b64_mem = BIO_new_mem_buf((char *) s, strlen(s))) == NULL ||
 	    (b64 = BIO_new(BIO_f_base64())) == NULL ||
