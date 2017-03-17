@@ -28,7 +28,7 @@ struct msg {
 
 struct entry {
 	time_t timestamp;
-	uint8_t *hash;
+	uint8_t hash[SHA256_DIGEST_LENGTH];
 	struct entry *next;
 };
 
@@ -88,9 +88,7 @@ check_msg(char *enc)
 			else
 				prev->next = next;
 
-			free(entry->hash);
 			free(entry);
-
 			entry = next;
 		} else if (memcmp(hash, entry->hash, SHA256_DIGEST_LENGTH) == 0)
 			goto fail;
@@ -99,8 +97,7 @@ check_msg(char *enc)
 			entry = entry->next;
 		}
 
-	if ((entry = malloc(sizeof(*entry))) == NULL ||
-	    (entry->hash = malloc(SHA256_DIGEST_LENGTH)) == NULL)
+	if ((entry = malloc(sizeof(*entry))) == NULL)
 		goto fail;
 
 	entry->timestamp = cur;
@@ -149,14 +146,14 @@ fail:
 char *
 decode_blob(RSA *rsa, char *dec)
 {
-	char *buf, *res;
 	BIGNUM *bn;
+	char *buf, *res;
 	struct msg msg;
 
-	if ((buf = malloc(RSA_size(rsa))) == NULL ||
-
-	    (bn = BN_new()) == NULL ||
+	if ((bn = BN_new()) == NULL ||
 	    BN_hex2bn(&bn, dec) == 0 ||
+
+	    (buf = malloc(BN_num_bytes(bn))) == NULL ||
 	    BN_bn2bin(bn, buf) == 0)
 		goto fail;
 
@@ -165,7 +162,7 @@ decode_blob(RSA *rsa, char *dec)
 		goto fail;
 
 	free(buf);
-	free(bn);
+	BN_free(bn);
 
 	return res;
 fail:
