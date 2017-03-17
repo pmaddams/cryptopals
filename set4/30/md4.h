@@ -1,12 +1,13 @@
 #include <sys/types.h>
 
-#define NSTATE 4
-#define	BLKSIZ 64
-#define PADSIZ 56
-#define DIGEST 16
+#define MD4_DIGEST_LENGTH	16
+
+#define NSTATES			4
+#define	BLKSIZ			64
+#define PADSIZ			56
 
 struct md4_ctx {
-	uint32_t state[NSTATE];
+	uint32_t state[NSTATES];
 	uint64_t count;
 	uint8_t buf[BLKSIZ];
 };

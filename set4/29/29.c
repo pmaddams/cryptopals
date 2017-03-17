@@ -7,9 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define NSTATES	5
 #define BLKSIZ	64
 #define PADSIZ	56
-#define NSTATE	5
 
 uint8_t *
 sha1_mac(uint8_t *buf, size_t len)
@@ -53,7 +53,7 @@ sha1_forge_mac(uint8_t *mac, size_t guess, char *message, char *append)
 		bytecount += BLKSIZ;
 	ctx.count = ((bytecount/BLKSIZ + 1) * BLKSIZ) * 8;
 
-	for (i = 0; i < NSTATE; i++)
+	for (i = 0; i < NSTATES; i++)
 		ctx.state[i] = htobe32(((uint32_t *) mac)[i]);
 
 	SHA1Update(&ctx, append, strlen(append));

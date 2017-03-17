@@ -153,6 +153,6 @@ md4_final(uint8_t *buf, struct md4_ctx *ctx)
 
 	md4_pad(ctx);
 
-	for (i = 0; i < NSTATE; i++)
+	for (i = 0; i < NSTATES; i++)
 		((uint32_t *) buf)[i] = le32toh(ctx->state[i]);
 }

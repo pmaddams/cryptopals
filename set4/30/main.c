@@ -23,7 +23,7 @@ md4_mac(uint8_t *buf, size_t len)
 		arc4random_buf(key, keylen);
 	}
 
-	if ((res = malloc(DIGEST)) == NULL)
+	if ((res = malloc(MD4_DIGEST_LENGTH)) == NULL)
 		goto fail;
 
 	md4_init(&ctx);
@@ -43,14 +43,14 @@ md4_forge_mac(uint8_t *mac, size_t guess, char *message, char *append)
 	struct md4_ctx ctx;
 	size_t i, bytecount;
 
-	if ((res = malloc(DIGEST)) == NULL)
+	if ((res = malloc(MD4_DIGEST_LENGTH)) == NULL)
 		goto done;
 
 	if ((bytecount = guess+strlen(message)) % BLKSIZ >= PADSIZ)
 		bytecount += BLKSIZ;
 	ctx.count = ((bytecount/BLKSIZ + 1) * BLKSIZ) * 8;
 
-	for (i = 0; i < NSTATE; i++)
+	for (i = 0; i < NSTATES; i++)
 		ctx.state[i] = htole32(((uint32_t *) mac)[i]);
 
 	md4_update(&ctx, append, strlen(append));
@@ -131,7 +131,7 @@ main(void)
 		    (buf = make_attack(guess, message, append, &len)) == NULL ||
 		    (check = md4_mac(buf, len)) == NULL)
 			err(1, NULL);
-		if (memcmp(forge, check, DIGEST) == 0)
+		if (memcmp(forge, check, MD4_DIGEST_LENGTH) == 0)
 			break;
 		free(forge);
 		free(check);
@@ -139,8 +139,8 @@ main(void)
 	if (guess > BLKSIZ)
 		errx(1, "forgery failed");
 
-	putx(forge, DIGEST);
-	putx(check, DIGEST);
+	putx(forge, MD4_DIGEST_LENGTH);
+	putx(check, MD4_DIGEST_LENGTH);
 
 	exit(0);
 }

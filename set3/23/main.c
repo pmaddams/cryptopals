@@ -32,11 +32,11 @@ main(void)
 	struct mt mt0, mt1;
 	time_t t;
 	size_t i, len;
-	uint32_t state[NSTATE];
+	uint32_t state[NSTATES];
 
 	mt_init(&mt0, time(&t));
 
-	for (i = 0; i < NSTATE; i++)
+	for (i = 0; i < NSTATES; i++)
 		state[i] = untemper(mt_rand(&mt0));
 
 	mt_clone(&mt1, state);

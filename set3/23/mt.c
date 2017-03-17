@@ -9,7 +9,7 @@ mt_init(struct mt *mt, uint32_t seed)
 {
 	size_t i;
 
-	for (mt->state[0] = seed, i = 1; i < NSTATE; i++)
+	for (mt->state[0] = seed, i = 1; i < NSTATES; i++)
 		mt->state[i] = 1812433253 * (mt->state[i-1] ^ (mt->state[i-1] >> 30)) + i;
 
 	mt->i = i;
@@ -21,9 +21,9 @@ mt_twist(struct mt *mt)
 	size_t i;
 	uint32_t x;
 
-	for (i = 0; i < NSTATE; i++) {
+	for (i = 0; i < NSTATES; i++) {
 		x = (mt->state[i] & 0x80000000) | (mt->state[i+1] & 0x7fffffff);
-		mt->state[i] = mt->state[(i+397) % NSTATE] ^ (x >> 1);
+		mt->state[i] = mt->state[(i+397) % NSTATES] ^ (x >> 1);
 		if (x & 1)
 			mt->state[i] ^= 0x9908b0df;
 	}
@@ -36,7 +36,7 @@ mt_rand(struct mt *mt)
 {
 	uint32_t x;
 
-	if (mt->i == NSTATE)
+	if (mt->i == NSTATES)
 		mt_twist(mt);
 
 	x = mt->state[mt->i++];
@@ -52,7 +52,7 @@ mt_rand(struct mt *mt)
 void
 mt_clone(struct mt *mt, uint32_t *state)
 {
-	memcpy(mt->state, state, NSTATE*sizeof(*state));
+	memcpy(mt->state, state, NSTATES*sizeof(*state));
 
 	mt_twist(mt);
 }

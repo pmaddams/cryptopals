@@ -1,9 +1,9 @@
 #include <sys/types.h>
 
-#define NSTATE 624
+#define NSTATES 624
 
 struct mt {
-	uint32_t state[NSTATE];
+	uint32_t state[NSTATES];
 	size_t i;
 };
 
