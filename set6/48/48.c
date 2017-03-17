@@ -8,7 +8,7 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 
-#define BITS 256
+#define BITS 768
 
 const char *data = "kick it, CC";
 
@@ -244,35 +244,32 @@ bb_generate_intervals_each(struct bb *bb, struct interval *m)
 	    BN_div(rmax, NULL, rmax, bb->rsa->n, ctx) == 0)
 		goto fail;
 
-	if (BN_cmp(r, rmax) != 0)
-		errx(1, "r != rmax");
-
 	while (BN_cmp(r, rmax) <= 0) {
 		if (BN_mul(newlower, two, bb->b, ctx) == 0 ||
 		    BN_mul(tmp, r, bb->rsa->n, ctx) == 0 ||
 		    BN_add(newlower, newlower, tmp) == 0 ||
 		    BN_div(newlower, tmp, newlower, bb->s, ctx) == 0)
 			goto fail;
-	
+
 		if (!BN_is_zero(tmp))
 			if (BN_add(newlower, newlower, BN_value_one()) == 0)
 				goto fail;
-	
-		if (BN_cmp(newlower, m->lower) > 0)
+
+		if (BN_cmp(m->lower, newlower) > 0)
 			if (BN_copy(newlower, m->lower) == 0)
 				goto fail;
-	
+
 		if (BN_mul(newupper, three, bb->b, ctx) == 0 ||
 		    BN_sub(newupper, newupper, BN_value_one()) == 0 ||
 		    BN_mul(tmp, r, bb->rsa->n, ctx) == 0 ||
 		    BN_add(newupper, newupper, tmp) == 0 ||
 		    BN_div(newupper, NULL, newupper, bb->s, ctx) == 0)
 			goto fail;
-	
-		if (BN_cmp(newupper, m->upper) < 0)
+
+		if (BN_cmp(m->upper, newupper) < 0)
 			if (BN_copy(newupper, m->upper) == 0)
 				goto fail;
-	
+
 		if (bb_interval_update(bb, newlower, newupper) == 0)
 			goto fail;
 
