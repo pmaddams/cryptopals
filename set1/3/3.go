@@ -35,7 +35,7 @@ func LetterFrequency(r io.Reader) (map[byte]float64, error) {
 	return m, nil
 }
 
-// Score adds up the points for letters and spaces in the provided buffer.
+// Score adds up the points for letters and spaces in the buffer.
 func Score(m map[byte]float64, bytes []byte) (res float64) {
 	for _, b := range bytes {
 		if k := Classify(b); k != 0 {
