@@ -99,7 +99,6 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
-
 		return func(bytes []byte) float64 {
 			return Score(m, bytes)
 		}
@@ -118,6 +117,6 @@ func main() {
 			continue
 		}
 		breakXORByteCipher(f, scoreFunc)
-		return
+		f.Close()
 	}
 }
