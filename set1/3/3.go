@@ -11,23 +11,26 @@ import (
 
 const sample = "alice.txt"
 
-// LetterFrequency reads text and returns a map of byte frequencies.
-func LetterFrequency(r io.Reader) (map[byte]float64, error) {
-	bytes, err := ioutil.ReadAll(r)
+// Symbols reads text and returns a map of UTF-8 symbol frequencies.
+func Symbols(in io.Reader) (map[rune]float64, error) {
+	bytes, err := ioutil.ReadAll(in)
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[byte]float64)
-	for _, b := range bytes {
-		m[b] += 1.0 / float64(len(bytes))
+	runes := []rune(string(bytes))
+	m := make(map[rune]float64)
+
+	for _, r := range runes {
+		m[r] += 1.0 / float64(len(runes))
 	}
 	return m, nil
 }
 
-// Score adds up the frequencies for bytes in the buffer.
-func Score(m map[byte]float64, bytes []byte) (res float64) {
-	for _, b := range bytes {
-		f, _ := m[b]
+// Score adds up the frequencies for UTF-8 symbols encoded in the buffer.
+func Score(m map[rune]float64, bytes []byte) (res float64) {
+	runes := []rune(string(bytes))
+	for _, r := range runes {
+		f, _ := m[r]
 		res += f
 	}
 	return
@@ -67,8 +70,8 @@ func bestXORByteBuffer(bytes []byte, scoreFunc func([]byte) float64) (msg []byte
 
 // breakXORByteCipher reads hex-encoded, encrypted data and breaks the cipher
 // using a scoring function, printing the message and key to standard output.
-func breakXORByteCipher(r io.Reader, scoreFunc func([]byte) float64) {
-	input := bufio.NewScanner(r)
+func breakXORByteCipher(in io.Reader, scoreFunc func([]byte) float64) {
+	input := bufio.NewScanner(in)
 	for input.Scan() {
 		bytes, err := hex.DecodeString(input.Text())
 		if err != nil {
@@ -96,8 +99,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
-		var m map[byte]float64
-		m, err = LetterFrequency(f)
+		var m map[rune]float64
+		m, err = Symbols(f)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
@@ -113,8 +116,8 @@ func main() {
 		breakXORByteCipher(os.Stdin, scoreFunc)
 		return
 	}
-	for _, arg := range files {
-		f, err := os.Open(arg)
+	for _, name := range files {
+		f, err := os.Open(name)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
