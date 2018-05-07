@@ -11,11 +11,11 @@ import (
 
 // HexToB64 converts a hexadecimal string to base64.
 func HexToB64(s string) (string, error) {
-	bytes, err := hex.DecodeString(s)
+	buf, err := hex.DecodeString(s)
 	if err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString(bytes), nil
+	return base64.StdEncoding.EncodeToString(buf), nil
 }
 
 // convert reads hexadecimal input and writes base64.
