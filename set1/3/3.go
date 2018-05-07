@@ -78,6 +78,9 @@ func breakXORByteCipher(r io.Reader, scoreFunc func([]byte) float64) {
 		msg, key := bestXORByteBuffer(bytes, scoreFunc)
 		fmt.Printf("MESSAGE: %s\nKEY: %v\n", msg, key)
 	}
+	if err := input.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+	}
 	return
 }
 
