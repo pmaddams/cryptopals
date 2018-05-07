@@ -17,17 +17,17 @@ func min(n, m int) int {
 }
 
 // XORBytes produces the XOR combination of two buffers.
-func XORBytes(dst, b1, b2 []byte) int {
+func XORBytes(out, b1, b2 []byte) int {
 	n := min(len(b1), len(b2))
 	for i := 0; i < n; i++ {
-		dst[i] = b1[i] ^ b2[i]
+		out[i] = b1[i] ^ b2[i]
 	}
 	return n
 }
 
 // xorTwoLines reads two hex-encoded lines and prints their XOR combination.
-func xorTwoLines(r io.Reader) {
-	input := bufio.NewScanner(r)
+func xorTwoLines(in io.Reader) {
+	input := bufio.NewScanner(in)
 	var b1, b2, out []byte
 	var err error
 
@@ -64,8 +64,8 @@ func main() {
 		xorTwoLines(os.Stdin)
 		return
 	}
-	for _, arg := range files {
-		f, err := os.Open(arg)
+	for _, name := range files {
+		f, err := os.Open(name)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue

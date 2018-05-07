@@ -7,8 +7,8 @@ import (
 )
 
 func decodeString(s string) []byte {
-	b, _ := hex.DecodeString(s)
-	return b
+	buf, _ := hex.DecodeString(s)
+	return buf
 }
 
 func TestXORBytes(t *testing.T) {
