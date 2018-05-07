@@ -1,17 +1,20 @@
 package main
 
-import "errors"
+// min returns the smaller of two integers.
+func min(n, m int) int {
+	if n < m {
+		return n
+	}
+	return m
+}
 
-// Xor returns the XOR combination of two equal-length buffers.
-func Xor(b1, b2 []byte) ([]byte, error) {
-	if len(b1) != len(b2) {
-		return nil, errors.New("buffers must have equal length")
+// XORBytes produces the XOR combination of two buffers.
+func XORBytes(dst, b1, b2 []byte) int {
+	n := min(len(b1), len(b2))
+	for i := 0; i < n; i++ {
+		dst[i] = b1[i] ^ b2[i]
 	}
-	res := make([]byte, len(b1))
-	for i, _ := range b1 {
-		res[i] = b1[i] ^ b2[i]
-	}
-	return res, nil
+	return n
 }
 
 func main() {

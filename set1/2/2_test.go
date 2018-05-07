@@ -11,7 +11,7 @@ func decodeString(s string) []byte {
 	return b
 }
 
-func TestXor(t *testing.T) {
+func TestXORBytes(t *testing.T) {
 	cases := []struct {
 		b1, b2, want []byte
 	}{
@@ -31,8 +31,10 @@ func TestXor(t *testing.T) {
 			[]byte{0, 0, 0, 0},
 		},
 	}
+	var got []byte
 	for _, c := range cases {
-		if got, _ := Xor(c.b1, c.b2); !bytes.Equal(got, c.want) {
+		got = make([]byte, len(c.b1))
+		if XORBytes(got, c.b1, c.b2); !bytes.Equal(got, c.want) {
 			t.Errorf("Xor(%v, %v) == %v, want %v",
 				c.b1, c.b2, got, c.want)
 		}
