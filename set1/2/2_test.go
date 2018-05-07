@@ -31,9 +31,8 @@ func TestXORBytes(t *testing.T) {
 			[]byte{0, 0, 0, 0},
 		},
 	}
-	var got []byte
 	for _, c := range cases {
-		got = make([]byte, len(c.b1))
+		got := make([]byte, len(c.b1))
 		if XORBytes(got, c.b1, c.b2); !bytes.Equal(got, c.want) {
 			t.Errorf("XORBytes(%v, %v) == %v, want %v",
 				c.b1, c.b2, got, c.want)
