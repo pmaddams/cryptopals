@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -10,43 +11,24 @@ import (
 
 const sample = "alice.txt"
 
-// Classify decides if a byte is a letter, a space, or neither.
-func Classify(b byte) byte {
-	switch {
-	case b >= 'A' && b <= 'Z':
-		return b
-	case b >= 'a' && b <= 'z':
-		return b - 'a' + 'A'
-	case b == ' ' || b == '\n':
-		return ' '
-	default:
-		return 0
-	}
-}
-
-// LetterFrequency reads text and returns a map of letter frequencies.
+// LetterFrequency reads text and returns a map of byte frequencies.
 func LetterFrequency(r io.Reader) (map[byte]float64, error) {
 	bytes, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 	m := make(map[byte]float64)
-
-	// A point represents a unit fraction of the data.
-	point := float64(1/len(bytes))
 	for _, b := range bytes {
-		m[Classify(b)] += point
+		m[b] += 1.0 / float64(len(bytes))
 	}
 	return m, nil
 }
 
-// Score adds up the points for letters and spaces in the buffer.
+// Score adds up the frequencies for bytes in the buffer.
 func Score(m map[byte]float64, bytes []byte) (res float64) {
 	for _, b := range bytes {
-		if k := Classify(b); k != 0 {
-			f, _ := m[k]
-			res += f
-		}
+		f, _ := m[b]
+		res += f
 	}
 	return
 }
@@ -86,14 +68,16 @@ func bestXORByteBuffer(bytes []byte, scoreFunc func([]byte) float64) (msg []byte
 // breakXORByteCipher reads hex-encoded, encrypted data and breaks the cipher
 // using a scoring function, printing the message and key to standard output.
 func breakXORByteCipher(r io.Reader, scoreFunc func([]byte) float64) {
-	dec := hex.NewDecoder(r)
-	bytes, err := ioutil.ReadAll(dec)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		return
+	input := bufio.NewScanner(r)
+	for input.Scan() {
+		bytes, err := hex.DecodeString(input.Text())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			return
+		}
+		msg, key := bestXORByteBuffer(bytes, scoreFunc)
+		fmt.Printf("MESSAGE: %s\nKEY: %v\n", msg, key)
 	}
-	msg, key := bestXORByteBuffer(bytes, scoreFunc)
-	fmt.Printf("MESSAGE: %s\nKEY: %v\n", msg, key)
 	return
 }
 
