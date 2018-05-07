@@ -13,11 +13,11 @@ const sample = "alice.txt"
 
 // Symbols reads text and returns a map of UTF-8 symbol frequencies.
 func Symbols(in io.Reader) (map[rune]float64, error) {
-	bytes, err := ioutil.ReadAll(in)
+	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return nil, err
 	}
-	runes := []rune(string(bytes))
+	runes := []rune(string(buf))
 	m := make(map[rune]float64)
 
 	for _, r := range runes {
@@ -27,8 +27,8 @@ func Symbols(in io.Reader) (map[rune]float64, error) {
 }
 
 // Score adds up the frequencies for UTF-8 symbols encoded in the buffer.
-func Score(m map[rune]float64, bytes []byte) (res float64) {
-	runes := []rune(string(bytes))
+func Score(m map[rune]float64, buf []byte) (res float64) {
+	runes := []rune(string(buf))
 	for _, r := range runes {
 		f, _ := m[r]
 		res += f
@@ -37,31 +37,31 @@ func Score(m map[rune]float64, bytes []byte) (res float64) {
 }
 
 // XORByte produces the XOR combination of a buffer with a single byte.
-func XORByte(dst, bytes []byte, b byte) int {
-	n := len(bytes)
+func XORByte(out, buf []byte, b byte) int {
+	n := len(buf)
 	for i := 0; i < n; i++ {
-		dst[i] = bytes[i] ^ b
+		out[i] = buf[i] ^ b
 	}
 	return n
 }
 
 // allXORByteBuffers returns all single-byte XOR products of a buffer.
-func allXORByteBuffers(bytes []byte) (res [256][]byte) {
+func allXORByteBuffers(buf []byte) (res [256][]byte) {
 	for i := 0; i < len(res); i++ {
-		res[i] = make([]byte, len(bytes))
-		XORByte(res[i], bytes, byte(i))
+		res[i] = make([]byte, len(buf))
+		XORByte(res[i], buf, byte(i))
 	}
 	return
 }
 
 // bestXORByteBuffer takes a buffer and a scoring function, and returns
 // the message and single-byte key corresponding to the highest score.
-func bestXORByteBuffer(bytes []byte, scoreFunc func([]byte) float64) (msg []byte, key byte) {
+func bestXORByteBuffer(buf []byte, scoreFunc func([]byte) float64) (msg []byte, key byte) {
 	var best float64
-	for i, buf := range allXORByteBuffers(bytes) {
-		if score := scoreFunc(buf); score > best {
+	for i, try := range allXORByteBuffers(buf) {
+		if score := scoreFunc(try); score > best {
 			best = score
-			msg = buf
+			msg = try
 			key = byte(i)
 		}
 	}
@@ -73,12 +73,12 @@ func bestXORByteBuffer(bytes []byte, scoreFunc func([]byte) float64) (msg []byte
 func breakXORByteCipher(in io.Reader, scoreFunc func([]byte) float64) {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
-		bytes, err := hex.DecodeString(input.Text())
+		buf, err := hex.DecodeString(input.Text())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			return
 		}
-		msg, key := bestXORByteBuffer(bytes, scoreFunc)
+		msg, key := bestXORByteBuffer(buf, scoreFunc)
 		fmt.Printf("MESSAGE: %s\nKEY: 0x%x\n", msg, key)
 	}
 	if err := input.Err(); err != nil {
@@ -89,7 +89,7 @@ func breakXORByteCipher(in io.Reader, scoreFunc func([]byte) float64) {
 
 func main() {
 	// Generate a scoring function from a sample file.
-	scoreFunc := func() func(bytes []byte) float64 {
+	scoreFunc := func() func([]byte) float64 {
 		var f *os.File
 		var err error
 
@@ -105,8 +105,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)
 		}
-		return func(bytes []byte) float64 {
-			return Score(m, bytes)
+		return func(buf []byte) float64 {
+			return Score(m, buf)
 		}
 	}()
 

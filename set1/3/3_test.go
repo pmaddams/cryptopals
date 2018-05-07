@@ -35,9 +35,9 @@ func TestSymbols(t *testing.T) {
 	}
 }
 
-func symbols(s string) (res map[rune]float64) {
-	res, _ = Symbols(strings.NewReader(s))
-	return
+func symbols(s string) map[rune]float64 {
+	m, _ := Symbols(strings.NewReader(s))
+	return m
 }
 
 func TestScore(t *testing.T) {
@@ -68,9 +68,9 @@ func TestScore(t *testing.T) {
 
 func TestXORByte(t *testing.T) {
 	cases := []struct {
-		got, bytes []byte
-		b          byte
-		want       []byte
+		out, buf []byte
+		b        byte
+		want     []byte
 	}{
 		{
 			make([]byte, 11),
@@ -86,10 +86,10 @@ func TestXORByte(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		XORByte(c.got, c.bytes, c.b)
-		if !bytes.Equal(c.got, c.want) {
+		XORByte(c.out, c.buf, c.b)
+		if !bytes.Equal(c.out, c.want) {
 			t.Errorf("XORByte(%v, %v, %v), want %v",
-				c.got, c.bytes, c.b, c.want)
+				c.out, c.buf, c.b, c.want)
 		}
 	}
 }
