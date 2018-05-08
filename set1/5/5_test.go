@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/hex"
+	"math/big"
 	"testing"
 )
 
@@ -36,6 +38,54 @@ func TestXORBytes(t *testing.T) {
 		if XORBytes(dst, c.b1, c.b2); !bytes.Equal(dst, c.want) {
 			t.Errorf("XORBytes(%v, %v, %v), want %v",
 				dst, c.b1, c.b2, c.want)
+		}
+	}
+}
+
+func randomBytes(max *big.Int) []byte {
+	// Generate a random bigint up to the given maximum.
+	n, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		panic(err.Error())
+	}
+	return n.Bytes()
+}
+
+func TestCrypt(t *testing.T) {
+	// Default test case.
+	const s = `Burning 'em, if you ain't quick and nimble
+I go crazy when I hear a cymbal`
+
+	src := []byte(s)
+	dst := make([]byte, len(src))
+	want := "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272" +
+		"a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"
+
+	x := NewCipher([]byte("ICE"))
+	x.Crypt(dst, src)
+
+	if hex.EncodeToString(dst) != want {
+		t.Error("Crypt: default test case failed")
+	}
+
+	// Generate additional pseudo-random test cases.
+	max, err := rand.Prime(rand.Reader, 1024)
+	if err != nil {
+		panic(err.Error())
+	}
+	for i := 0; i < 3; i++ {
+		src := randomBytes(max)
+		dst, want := make([]byte, len(src)), make([]byte, len(src))
+
+		key := randomBytes(max)
+		for i := 0; i < len(want); i += len(key) {
+			XORBytes(want[i:], src[i:], key)
+		}
+		x := NewCipher(key)
+		x.Crypt(dst, src)
+
+		if !bytes.Equal(dst, want) {
+			t.Errorf("Crypt(%v, %v), want %v", dst, src, want)
 		}
 	}
 }
