@@ -39,9 +39,6 @@ func NewCipher(key []byte) *XORCipher {
 
 // Crypt encrypts or decrypts a buffer.
 func (x *XORCipher) Crypt(dst, src []byte) {
-	if len(dst) < len(src) {
-		panic("output smaller than input")
-	}
 	for {
 		n := XORBytes(dst, src, x.key)
 		if n == 0 {
