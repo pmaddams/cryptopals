@@ -26,8 +26,8 @@ type xorCipher struct {
 }
 
 // NewCipher creates a new repeating XOR cipher.
-func NewCipher(key []byte) (cipher.Block, error) {
-	return &xorCipher{key}, nil
+func NewCipher(key []byte) cipher.Block {
+	return &xorCipher{key}
 }
 
 // BlockSize returns the XOR cipher block size.
