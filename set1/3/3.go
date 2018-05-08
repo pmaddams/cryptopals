@@ -11,8 +11,8 @@ import (
 
 const sample = "alice.txt"
 
-// Symbols reads text and returns a map of UTF-8 symbol frequencies.
-func Symbols(in io.Reader) (map[rune]float64, error) {
+// SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
+func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func main() {
 			os.Exit(1)
 		}
 		var m map[rune]float64
-		m, err = Symbols(f)
+		m, err = SymbolFrequencies(f)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			os.Exit(1)

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestSymbols(t *testing.T) {
+func TestSymbolFrequencies(t *testing.T) {
 	cases := []struct {
 		s    string
 		want map[rune]float64
@@ -27,16 +27,16 @@ func TestSymbols(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got, _ := Symbols(strings.NewReader(c.s))
+		got, _ := SymbolFrequencies(strings.NewReader(c.s))
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Symbols(%v) == %v, want %v",
+			t.Errorf("SymbolFrequencies(%v) == %v, want %v",
 				c.s, got, c.want)
 		}
 	}
 }
 
 func symbols(s string) map[rune]float64 {
-	m, _ := Symbols(strings.NewReader(s))
+	m, _ := SymbolFrequencies(strings.NewReader(s))
 	return m
 }
 
