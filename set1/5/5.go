@@ -19,10 +19,10 @@ func min(n, m int) int {
 }
 
 // XORBytes produces the XOR combination of two buffers.
-func XORBytes(out, b1, b2 []byte) int {
+func XORBytes(dst, b1, b2 []byte) int {
 	n := min(len(b1), len(b2))
 	for i := 0; i < n; i++ {
-		out[i] = b1[i] ^ b2[i]
+		dst[i] = b1[i] ^ b2[i]
 	}
 	return n
 }
