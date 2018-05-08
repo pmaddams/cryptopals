@@ -52,8 +52,8 @@ func (x *XORCipher) Crypt(dst, src []byte) {
 	}
 }
 
-// encrypt reads plaintext and prints hex-encoded ciphertext.
-func (x *XORCipher) encrypt(in io.Reader) {
+// printEncrypted reads plaintext and prints hex-encoded ciphertext.
+func (x *XORCipher) printEncrypted(in io.Reader) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -71,7 +71,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		x.encrypt(os.Stdin)
+		x.printEncrypted(os.Stdin)
 		return
 	}
 	for _, name := range files {
@@ -80,7 +80,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		x.encrypt(f)
+		x.printEncrypted(f)
 		f.Close()
 	}
 }
