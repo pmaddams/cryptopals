@@ -1,6 +1,14 @@
 package main
 
-import "crypto/cipher"
+import (
+	"encoding/hex"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+)
+
+const secret = "ICE"
 
 // min returns the smaller of two integers.
 func min(n, m int) int {
@@ -19,32 +27,60 @@ func XORBytes(out, b1, b2 []byte) int {
 	return n
 }
 
-// xorCipher implements the cipher.Block interface,
-// providing block encryption and decryption.
-type xorCipher struct {
+// XORCipher is a repeating XOR cipher.
+type XORCipher struct {
 	key []byte
 }
 
-// NewCipher creates a new repeating XOR cipher.
-func NewCipher(key []byte) cipher.Block {
-	return &xorCipher{key}
+// NewCipher creates a new XOR cipher.
+func NewCipher(key []byte) *XORCipher {
+	return &XORCipher{key}
 }
 
-// BlockSize returns the XOR cipher block size.
-func (c *xorCipher) BlockSize() int {
-	return len(c.key)
+// Crypt encrypts or decrypts a buffer.
+func (x *XORCipher) Crypt(dst, src []byte) {
+	if len(dst) < len(src) {
+		panic("output smaller than input")
+	}
+	for {
+		n := XORBytes(dst, src, x.key)
+		if n == 0 {
+			break
+		}
+		src = src[n:]
+		dst = dst[n:]
+	}
 }
 
-// Encrypt encrypts a buffer with the XOR cipher.
-func (c *xorCipher) Encrypt(dst, src []byte) {
-	XORBytes(dst, src, c.key)
-}
+// encrypt reads plaintext and prints hex-encoded ciphertext.
+func (x *XORCipher) encrypt(in io.Reader) {
+	buf, err := ioutil.ReadAll(in)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	// Encrypt the data in place.
+	x.Crypt(buf, buf)
 
-// Decrypt decrypts a buffer with the XOR cipher.
-// In this case, it is identical to Encrypt.
-func (c *xorCipher) Decrypt(dst, src []byte) {
-	c.Encrypt(dst, src)
+	// Print the hex-encoded buffer.
+	fmt.Println(hex.EncodeToString(buf))
 }
 
 func main() {
+	x := NewCipher([]byte(secret))
+	files := os.Args[1:]
+	// If no files are specified, read from standard input.
+	if len(files) == 0 {
+		x.encrypt(os.Stdin)
+		return
+	}
+	for _, name := range files {
+		f, err := os.Open(name)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			continue
+		}
+		x.encrypt(f)
+		f.Close()
+	}
 }
