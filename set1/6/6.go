@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math"
 	"math/bits"
 	"os"
 )
@@ -29,92 +28,94 @@ func HammingDistance(b1, b2 []byte) (int, error) {
 	return res, nil
 }
 
-// MakeBlocks takes a buffer and returns chunks of length blockSize.
-func MakeBlocks(blockSize int, buf []byte) ([][]byte, error) {
-	n := len(buf) / blockSize
-	if n == 0 {
-		return nil, errors.New("MakeBlocks: buffer length must be greater than block size")
-	}
-	res := make([][]byte, n)
-	for i := 0; i < n; i++ {
-		res[i] = make([]byte, blockSize)
-		if m := copy(res[i], buf[i*blockSize:]); m != blockSize {
-			panic("MakeBlocks: insufficient data copied")
-		}
-	}
-	return res, nil
+// Blocks contains buffers guaranteed to be of equal length.
+type Blocks struct {
+	data [][]byte
 }
 
-// AverageHammingDistance returns the average edit distance between consecutive blocks.
-func AverageHammingDistance(blocks [][]byte) (float64, error) {
-	n := len(blocks) - 1
-	if n <= 0 {
-		return 0.0, errors.New("AverageHammingDistance: need more than 1 block")
+// NewBlocks generates at least 2 blocks of the given size from a buffer.
+func NewBlocks(buf []byte, blockSize int) (*Blocks, error) {
+	if blockSize <= 0 {
+		return nil, errors.New("NewBlocks: block size must be at least 1")
 	}
+	count := len(buf) / blockSize
+	if count < 2 {
+		return nil, errors.New("NewBlocks: must create at least 2 blocks")
+	}
+	data := make([][]byte, count)
+	for i := 0; i < count; i++ {
+		data[i] = make([]byte, blockSize)
+		copy(data[i], buf[i*blockSize:])
+	}
+	return &Blocks{data}, nil
+}
+
+// BlockSize returns the block size.
+func (b *Blocks) BlockSize() int {
+	return len(b.data[0])
+}
+
+// Count returns the number of blocks.
+func (b *Blocks) Count() int {
+	return len(b.data)
+}
+
+// NormalizedDistance returns the normalized edit distance between consecutive blocks.
+func (b *Blocks) NormalizedDistance() float64 {
 	var res float64
-	for i := 0; i < n; i++ {
-		m, err := HammingDistance(blocks[i], blocks[i+1])
-		if err != nil {
-			return 0.0, err
-		}
-		res += float64(m) / float64(n)
+
+	// At least two blocks are needed for cryptanalysis.
+	// We should have used NewBlocks(), so panic if this is not the case.
+	if b.Count() < 2 {
+		panic("NormalizedDistance: must have at least 2 blocks")
 	}
-	return res, nil
+	numPairs := b.Count() - 1
+	for i := 0; i < numPairs; i++ {
+		// No need to check for an error, since blocks have equal length.
+		distance, _ := HammingDistance(b.data[i], b.data[i+1])
+		res += float64(distance) / float64(numPairs) / float64(b.BlockSize())
+	}
+	return res
 }
 
-// breakBlockSize takes an encrypted buffer and returns blocks of the most likely size.
-func breakBlockSize(buf []byte) ([][]byte, error) {
+// keySizeBlocks takes an encrypted buffer and returns blocks of the most likely key size.
+func keySizeBlocks(buf []byte) (*Blocks, error) {
 	// Guess lower and upper bounds for the key size.
 	const lower = 2
 	const upper = 64
 
-	best := math.NaN()
-	var res [][]byte
+	// Set best to an impossibly high value.
+	best := float64(8 * len(buf))
+	var res *Blocks
+
 	for blockSize := lower; blockSize <= upper; blockSize++ {
 		// If the block size is too large, stop and use what we have so far.
-		blocks, err := MakeBlocks(blockSize, buf)
+		b, err := NewBlocks(buf, blockSize)
 		if err != nil {
 			break
 		}
-		distance, err := AverageHammingDistance(blocks)
-		if err != nil {
-			break
-		}
-		if math.IsNaN(best) || distance < best {
+		if distance := b.NormalizedDistance(); distance < best {
 			best = distance
-			res = blocks
+			res = b
 		}
 	}
-	if math.IsNaN(best) {
+	if res == nil {
 		return nil, errors.New("breakBlockSize: nothing found")
 	}
 	return res, nil
 }
 
-// TransposeBlocks makes a block out of the first byte of every block,
+// Transpose makes a block out of the first byte of every block,
 // another block out of the second byte of every block, and so on.
-func TransposeBlocks(blocks [][]byte) [][]byte {
-	// Errors should have been caught already, so panic.
-	if len(blocks) <= 1 {
-		panic("TransposeBlocks: need more than 1 block")
-	}
-	blockSize := len(blocks[0])
-	if blockSize == 0 {
-		panic("TransposeBlocks: block size must be nonzero")
-	}
-	for _, buf := range blocks {
-		if len(buf) != blockSize {
-			panic("TransposeBlocks: blocks must have equal length")
+func (b *Blocks) Transpose() *Blocks {
+	data := make([][]byte, b.BlockSize())
+	for i := 0; i < b.BlockSize(); i++ {
+		data[i] = make([]byte, b.Count())
+		for j := 0; j < b.Count(); j++ {
+			data[i][j] = b.data[j][i]
 		}
 	}
-	res := make([][]byte, blockSize)
-	for i := 0; i < blockSize; i++ {
-		res[i] = make([]byte, len(blocks))
-		for j := 0; j < len(blocks); j++ {
-			res[i][j] = blocks[j][i]
-		}
-	}
-	return res
+	return &Blocks{data}
 }
 
 // SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
@@ -160,8 +161,8 @@ func allXORByteBuffers(buf []byte) (res [256][]byte) {
 	return
 }
 
-// breakTransposedBlock returns the most likely single-byte key for a transposed block.
-func breakTransposedBlock(buf []byte, scoreFunc func([]byte) float64) byte {
+// breakSingleXOR takes an encrypted buffer and returns the single-byte key.
+func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
 	var best float64
 	var res byte
 	for i, try := range allXORByteBuffers(buf) {
@@ -175,14 +176,18 @@ func breakTransposedBlock(buf []byte, scoreFunc func([]byte) float64) byte {
 
 // breakRepeatingXOR takes an encrypted buffer and returns the key.
 func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, error) {
-	blocks, err := breakBlockSize(buf)
+	// Each block should have the same size as the key.
+	b, err := keySizeBlocks(buf)
 	if err != nil {
 		return nil, err
 	}
-	keyBlocks := TransposeBlocks(blocks)
-	key := make([]byte, len(keyBlocks))
-	for i := 0; i < len(keyBlocks); i++ {
-		key[i] = breakTransposedBlock(keyBlocks[i], scoreFunc)
+
+	// The number of transposed blocks is equal to the key size,
+	// and each block is encrypted with single byte XOR.
+	keyBlocks := b.Transpose()
+	key := make([]byte, keyBlocks.Count())
+	for i := 0; i < keyBlocks.Count(); i++ {
+		key[i] = breakSingleXOR(keyBlocks.data[i], scoreFunc)
 	}
 	return key, nil
 }

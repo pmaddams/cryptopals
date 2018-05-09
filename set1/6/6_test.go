@@ -13,7 +13,7 @@ import (
 func TestHammingDistance(t *testing.T) {
 	cases := []struct {
 		b1, b2 []byte
-		want int
+		want   int
 	}{
 		{
 			[]byte("this is a test"),
@@ -32,7 +32,8 @@ func TestHammingDistance(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got, _ := HammingDistance(c.b1, c.b2); if got != c.want {
+		got, _ := HammingDistance(c.b1, c.b2)
+		if got != c.want {
 			t.Errorf("HammingDistance(%v, %v) == %v, want %v",
 				c.b1, c.b2, got, c.want)
 		}
@@ -40,14 +41,7 @@ func TestHammingDistance(t *testing.T) {
 }
 
 /*
-func TestMakeBlocks(t *testing.T) {
-}
-
-func TestAverageHammingDistance(t *testing.T) {
-}
-
-func TestTransposeBlocks(t *testing.T) {
-}
+TODO: FINISH TESTING
 */
 
 func TestSymbolFrequencies(t *testing.T) {
