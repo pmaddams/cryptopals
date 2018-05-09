@@ -2,10 +2,19 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"math/bits"
+	"os"
 )
+
+// sample is a file with symbol frequencies similar to the expected plaintext.
+const sample = "alice.txt"
+
+// scoreFunc must be generated at runtime from the sample file.
+var scoreFunc func([]byte) float64
 
 // HammingDistance returns the number of differing bits between two equal-length buffers.
 func HammingDistance(b1, b2 []byte) (int, error) {
@@ -29,7 +38,7 @@ func MakeBlocks(blockSize int, buf []byte) ([][]byte, error) {
 	for i := 0; i < n; i++ {
 		res[i] = make([]byte, blockSize)
 		if m := copy(res[i], buf[i*blockSize:]); m != blockSize {
-			return nil, errors.New("MakeBlocks: insufficient data copied")
+			panic("MakeBlocks: insufficient data copied")
 		}
 	}
 	return res, nil
@@ -48,6 +57,35 @@ func AverageHammingDistance(blocks [][]byte) (float64, error) {
 			return 0.0, err
 		}
 		res += float64(m) / float64(n)
+	}
+	return res, nil
+}
+
+// breakBlockSize takes an encrypted buffer and returns blocks of the most likely size.
+func breakBlockSize(buf []byte) ([][]byte, error) {
+	// Guess lower and upper bounds for the key size.
+	const lower = 2
+	const upper = 64
+
+	best := math.NaN()
+	var res [][]byte
+	for blockSize := lower; blockSize <= upper; blockSize++ {
+		// If the block size is too large, stop and use what we have so far.
+		blocks, err := MakeBlocks(blockSize, buf)
+		if err != nil {
+			break
+		}
+		distance, err := AverageHammingDistance(blocks)
+		if err != nil {
+			break
+		}
+		if math.IsNaN(best) || distance < best {
+			best = distance
+			res = blocks
+		}
+	}
+	if math.IsNaN(best) {
+		return nil, errors.New("breakBlockSize: nothing found")
 	}
 	return res, nil
 }
@@ -121,17 +159,77 @@ func allXORByteBuffers(buf []byte) (res [256][]byte) {
 	return
 }
 
-// BreakTransposedBlock returns the most likely single-byte key for a transposed block.
-func BreakTransposedBlock(buf []byte, scoreFunc func([]byte) float64) byte {
+// breakTransposedBlock returns the most likely single-byte key for a transposed block.
+func breakTransposedBlock(buf []byte, scoreFunc func([]byte) float64) byte {
 	var best float64
-	var key byte
+	var res byte
 	for i, try := range allXORByteBuffers(buf) {
 		if score := scoreFunc(try); score > best {
 			best = score
-			key = byte(i)
+			res = byte(i)
 		}
 	}
-	return key
+	return res
+}
+
+// breakRepeatingXOR takes an encrypted buffer and returns the key.
+func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, error) {
+	blocks, err := breakBlockSize(buf)
+	if err != nil {
+		return nil, err
+	}
+	keyBlocks := TransposeBlocks(blocks)
+	key := make([]byte, len(keyBlocks))
+	for i := 0; i < len(keyBlocks); i++ {
+		key[i] = breakTransposedBlock(keyBlocks[i], scoreFunc)
+	}
+	return key, nil
+}
+
+/*
+// XORCipher is a repeating XOR cipher.
+type XORCipher struct {
+	key []byte
+}
+
+// NewCipher creates a new XOR cipher.
+func NewCipher(key []byte) *XORCipher {
+	return &XORCipher{key}
+}
+
+// Crypt encrypts or decrypts a buffer.
+func (x *XORCipher) Crypt(dst, src []byte) {
+	for {
+		n := XORBytes(dst, src, x.key)
+		if n == 0 {
+			break
+		}
+		src = src[n:]
+		dst = dst[n:]
+	}
+}
+*/
+
+func init() {
+	// Generate scoreFunc from the sample file.
+	var f *os.File
+	var err error
+	f, err = os.Open(sample)
+	defer f.Close()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	// The frequency map is retained in a closure.
+	var m map[rune]float64
+	m, err = SymbolFrequencies(f)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	scoreFunc = func(buf []byte) float64 {
+		return Score(m, buf)
+	}
 }
 
 func main() {
