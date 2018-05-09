@@ -50,5 +50,31 @@ func AverageHammingDistance(blocks [][]byte) (float64, error) {
 	return res, nil
 }
 
+// TransposeBlocks makes a block out of the first byte of every block,
+// another block out of the second byte of every block, and so on.
+func TransposeBlocks(blocks [][]byte) [][]byte {
+	// Errors should have been caught already, so panic.
+	if len(blocks) <= 1 {
+		panic("TransposeBlocks: need more than 1 block")
+	}
+	blockSize := len(blocks[0])
+	if blockSize == 0 {
+		panic("TransposeBlocks: block size must be nonzero")
+	}
+	for _, buf := range blocks {
+		if len(buf) != blockSize {
+			panic("TransposeBlocks: blocks must have equal length")
+		}
+	}
+	res := make([][]byte, blockSize)
+	for i := 0; i < blockSize; i++ {
+		res[i] = make([]byte, len(blocks))
+		for j := 0; j < len(blocks); j++ {
+			res[i][j] = blocks[j][i]
+		}
+	}
+	return res
+}
+
 func main() {
 }
