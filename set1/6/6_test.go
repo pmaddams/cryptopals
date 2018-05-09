@@ -40,9 +40,63 @@ func TestHammingDistance(t *testing.T) {
 	}
 }
 
-/*
-TODO: FINISH TESTING
-*/
+func newBlocks(buf []byte, blockSize int) *Blocks {
+	b, _ := NewBlocks(buf, blockSize)
+	return b
+}
+
+func TestNormalizedDistance(t *testing.T) {
+	cases := []struct {
+		b *Blocks
+		want float64
+	}{
+		// Divide the sum of the Hamming distances by the
+		// number of pairs and again by the block size.
+		{
+			newBlocks([]byte{0, 1, 2, 3}, 2),
+			float64(1 + 1) / float64(1) / float64(2),
+		},
+		{
+			newBlocks([]byte{0, 1, 2, 3, 4, 5}, 2),
+			float64(1 + 1 + 2 + 2) / float64(2) / float64(2),
+		},
+		{
+			newBlocks([]byte{0, 1, 2, 3, 4, 5}, 3),
+			float64(2 + 2 + 3) / float64(1) / float64(3),
+		},
+	}
+	for _, c := range cases {
+		got := c.b.NormalizedDistance(); if got != c.want {
+			t.Errorf("(%v).NormalizedDistance() == %v, want %v",
+				c.b, got, c.want)
+		}
+	}
+}
+
+func TestTranspose(t *testing.T) {
+	cases := []struct {
+		b, want *Blocks
+	}{
+		{
+			newBlocks([]byte{0, 1, 2, 3}, 2),
+			newBlocks([]byte{0, 2, 1, 3}, 2),
+		},
+		{
+			newBlocks([]byte{0, 1, 2, 3, 4, 5}, 2),
+			newBlocks([]byte{0, 2, 4, 1, 3, 5}, 3),
+		},
+		{
+			newBlocks([]byte{0, 1, 2, 3, 4, 5}, 3),
+			newBlocks([]byte{0, 3, 1, 4, 2, 5}, 2),
+		},
+	}
+	for _, c := range cases {
+		got := c.b.Transpose(); if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("(%v).Transpose() == %v, want %v",
+				c.b, got, c.want)
+		}
+	}
+}
 
 func TestSymbolFrequencies(t *testing.T) {
 	cases := []struct {

@@ -50,27 +50,27 @@ func NewBlocks(buf []byte, blockSize int) (*Blocks, error) {
 	return &Blocks{data}, nil
 }
 
-// BlockSize returns the block size.
-func (b *Blocks) BlockSize() int {
+// blockSize returns the block size.
+func (b *Blocks) blockSize() int {
 	return len(b.data[0])
 }
 
-// Count returns the number of blocks.
-func (b *Blocks) Count() int {
+// count returns the number of blocks.
+func (b *Blocks) count() int {
 	return len(b.data)
 }
 
 // NormalizedDistance returns the normalized edit distance between consecutive blocks.
 func (b *Blocks) NormalizedDistance() float64 {
 	var res float64
-	if b.Count() < 2 {
+	if b.count() < 2 {
 		panic("NormalizedDistance: must have at least 2 blocks")
 	}
-	numPairs := b.Count() - 1
+	numPairs := b.count() - 1
 	for i := 0; i < numPairs; i++ {
 		// No need to check for an error, since blocks have equal length.
 		distance, _ := HammingDistance(b.data[i], b.data[i+1])
-		res += float64(distance) / float64(numPairs) / float64(b.BlockSize())
+		res += float64(distance) / float64(numPairs) / float64(b.blockSize())
 	}
 	return res
 }
@@ -105,10 +105,10 @@ func keySizeBlocks(buf []byte) (*Blocks, error) {
 // Transpose makes a block out of the first byte of every block,
 // another block out of the second byte of every block, and so on.
 func (b *Blocks) Transpose() *Blocks {
-	data := make([][]byte, b.BlockSize())
-	for i := 0; i < b.BlockSize(); i++ {
-		data[i] = make([]byte, b.Count())
-		for j := 0; j < b.Count(); j++ {
+	data := make([][]byte, b.blockSize())
+	for i := 0; i < b.blockSize(); i++ {
+		data[i] = make([]byte, b.count())
+		for j := 0; j < b.count(); j++ {
 			data[i][j] = b.data[j][i]
 		}
 	}
@@ -181,8 +181,8 @@ func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, erro
 	// The number of transposed blocks is equal to the key size,
 	// and each block is encrypted with single byte XOR.
 	keyBlocks := b.Transpose()
-	key := make([]byte, keyBlocks.Count())
-	for i := 0; i < keyBlocks.Count(); i++ {
+	key := make([]byte, keyBlocks.count())
+	for i := 0; i < keyBlocks.count(); i++ {
 		key[i] = breakSingleXOR(keyBlocks.data[i], scoreFunc)
 	}
 	return key, nil
