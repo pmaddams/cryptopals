@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
-	"math/rand"
+	weak "math/rand"
 	"testing"
 	"time"
 )
@@ -43,7 +43,7 @@ func TestXORBytes(t *testing.T) {
 }
 
 // randRange generates a pseudo-random integer in [lo, hi).
-func randRange(rng *rand.Rand, lo int, hi int) int {
+func randRange(rng *weak.Rand, lo int, hi int) int {
 	if lo < 0 || lo >= hi {
 		panic("randRange: invalid range")
 	}
@@ -67,15 +67,15 @@ I go crazy when I hear a cymbal`
 		t.Error("Crypt: default test case failed")
 	}
 
-	// Generate additional pseudo-random test cases using weak RNG for speed.
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	// Generate additional pseudo-random test cases using weak RNG.
+	rng := weak.New(weak.NewSource(time.Now().UnixNano()))
 	for i := 0; i < 10; i++ {
-		// Pick a number between 100 and 1000.
+		// Generate a random buffer between 100 and 1000 bytes long.
 		n := randRange(rng, 100, 1000)
 		src, dst, want := make([]byte, n), make([]byte, n), make([]byte, n)
 		rng.Read(src)
 
-		// Pick a number between 10 and n.
+		// Generate a random key between 10 and n bytes long.
 		m := randRange(rng, 10, n)
 		key := make([]byte, m)
 		rng.Read(key)
