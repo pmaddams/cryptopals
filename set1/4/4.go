@@ -9,7 +9,11 @@ import (
 	"os"
 )
 
+// sample is a file with symbol frequencies similar to the expected plaintext.
 const sample = "alice.txt"
+
+// scoreFunc must be generated at runtime from the sample file.
+var scoreFunc func([]byte) float64
 
 // SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
 func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
@@ -93,29 +97,29 @@ func detectXORByteCipher(in io.Reader, scoreFunc func([]byte) float64) {
 	fmt.Print(string(msg))
 }
 
+func init() {
+	// Generate scoreFunc from the sample file.
+	var f *os.File
+	var err error
+	f, err = os.Open(sample)
+	defer f.Close()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	// The frequency map is retained in a closure.
+	var m map[rune]float64
+	m, err = SymbolFrequencies(f)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	scoreFunc = func(buf []byte) float64 {
+		return Score(m, buf)
+	}
+}
+
 func main() {
-	// Generate a scoring function from a sample file.
-	scoreFunc := func() func([]byte) float64 {
-		var f *os.File
-		var err error
-
-		f, err = os.Open(sample)
-		defer f.Close()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		var m map[rune]float64
-		m, err = SymbolFrequencies(f)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			os.Exit(1)
-		}
-		return func(buf []byte) float64 {
-			return Score(m, buf)
-		}
-	}()
-
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
