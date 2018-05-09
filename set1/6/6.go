@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -186,7 +187,23 @@ func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, erro
 	return key, nil
 }
 
-/*
+// min returns the smaller of two integers.
+func min(n, m int) int {
+	if n < m {
+		return n
+	}
+	return m
+}
+
+// XORBytes produces the XOR combination of two buffers.
+func XORBytes(dst, b1, b2 []byte) int {
+	n := min(len(b1), len(b2))
+	for i := 0; i < n; i++ {
+		dst[i] = b1[i] ^ b2[i]
+	}
+	return n
+}
+
 // XORCipher is a repeating XOR cipher.
 type XORCipher struct {
 	key []byte
@@ -208,7 +225,39 @@ func (x *XORCipher) Crypt(dst, src []byte) {
 		dst = dst[n:]
 	}
 }
-*/
+
+// ReadBase64 reads base64-encoded data and returns a decoded buffer.
+func ReadBase64(in io.Reader) ([]byte, error) {
+	dec := base64.NewDecoder(base64.StdEncoding, in)
+	buf, err := ioutil.ReadAll(dec)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
+}
+
+// readAndDecryptBase64 reads base64-encoded data encrypted with a
+// repeating XOR cipher, breaks the cipher, and prints the plaintext.
+func readAndDecryptBase64(in io.Reader, scoreFunc func([]byte) float64) {
+	var buf, key []byte
+	var err error
+	buf, err = ReadBase64(in)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	key, err = breakRepeatingXOR(buf, scoreFunc)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	// Generate a new cipher from the key.
+	x := NewCipher(key)
+
+	// Decrypt the data in place.
+	x.Crypt(buf, buf)
+	fmt.Println(string(buf))
+}
 
 func init() {
 	// Generate scoreFunc from the sample file.
@@ -233,4 +282,18 @@ func init() {
 }
 
 func main() {
+	files := os.Args[1:]
+	// If no files are specified, read from standard input.
+	if len(files) == 0 {
+		readAndDecryptBase64(os.Stdin, scoreFunc)
+	}
+	for _, name := range files {
+		f, err := os.Open(name)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			continue
+		}
+		readAndDecryptBase64(f, scoreFunc)
+		f.Close()
+	}
 }
