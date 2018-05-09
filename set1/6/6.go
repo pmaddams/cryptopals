@@ -63,9 +63,6 @@ func (b *Blocks) Count() int {
 // NormalizedDistance returns the normalized edit distance between consecutive blocks.
 func (b *Blocks) NormalizedDistance() float64 {
 	var res float64
-
-	// At least two blocks are needed for cryptanalysis.
-	// We should have used NewBlocks(), so panic if this is not the case.
 	if b.Count() < 2 {
 		panic("NormalizedDistance: must have at least 2 blocks")
 	}
@@ -78,7 +75,7 @@ func (b *Blocks) NormalizedDistance() float64 {
 	return res
 }
 
-// keySizeBlocks takes an encrypted buffer and returns blocks of the most likely key size.
+// keySizeBlocks takes an encrypted buffer and returns blocks of the probable key size.
 func keySizeBlocks(buf []byte) (*Blocks, error) {
 	// Guess lower and upper bounds for the key size.
 	const lower = 2
@@ -100,7 +97,7 @@ func keySizeBlocks(buf []byte) (*Blocks, error) {
 		}
 	}
 	if res == nil {
-		return nil, errors.New("breakBlockSize: nothing found")
+		return nil, errors.New("keySizeBlocks: nothing found")
 	}
 	return res, nil
 }
@@ -181,7 +178,6 @@ func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, erro
 	if err != nil {
 		return nil, err
 	}
-
 	// The number of transposed blocks is equal to the key size,
 	// and each block is encrypted with single byte XOR.
 	keyBlocks := b.Transpose()
