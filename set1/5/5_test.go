@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/hex"
-	"math/big"
+	"math/rand"
 	"testing"
+	"time"
 )
 
 func decodeString(s string) []byte {
@@ -42,13 +42,12 @@ func TestXORBytes(t *testing.T) {
 	}
 }
 
-func randomBytes(max *big.Int) []byte {
-	// Generate a random bigint up to the given maximum.
-	n, err := rand.Int(rand.Reader, max)
-	if err != nil {
-		panic(err.Error())
+// randRange generates a pseudo-random integer in [lo, hi).
+func randRange(rng *rand.Rand, lo int, hi int) int {
+	if lo < 0 || lo >= hi {
+		panic("randRange: invalid range")
 	}
-	return n.Bytes()
+	return rng.Intn(hi-lo) + lo
 }
 
 func TestCrypt(t *testing.T) {
@@ -68,16 +67,19 @@ I go crazy when I hear a cymbal`
 		t.Error("Crypt: default test case failed")
 	}
 
-	// Generate additional pseudo-random test cases.
-	max, err := rand.Prime(rand.Reader, 1024)
-	if err != nil {
-		panic(err.Error())
-	}
-	for i := 0; i < 3; i++ {
-		src := randomBytes(max)
-		dst, want := make([]byte, len(src)), make([]byte, len(src))
+	// Generate additional pseudo-random test cases using weak RNG for speed.
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < 10; i++ {
+		// Pick a number between 100 and 1000.
+		n := randRange(rng, 100, 1000)
+		src, dst, want := make([]byte, n), make([]byte, n), make([]byte, n)
+		rng.Read(src)
 
-		key := randomBytes(max)
+		// Pick a number between 10 and n.
+		m := randRange(rng, 10, n)
+		key := make([]byte, m)
+		rng.Read(key)
+
 		for i := 0; i < len(want); i += len(key) {
 			XORBytes(want[i:], src[i:], key)
 		}
