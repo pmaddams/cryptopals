@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"io"
+	"io/ioutil"
 	"math/bits"
 )
 
@@ -74,6 +76,62 @@ func TransposeBlocks(blocks [][]byte) [][]byte {
 		}
 	}
 	return res
+}
+
+// SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
+func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
+	buf, err := ioutil.ReadAll(in)
+	if err != nil {
+		return nil, err
+	}
+	runes := []rune(string(buf))
+	m := make(map[rune]float64)
+
+	for _, r := range runes {
+		m[r] += 1.0 / float64(len(runes))
+	}
+	return m, nil
+}
+
+// Score adds up the frequencies for UTF-8 symbols encoded in the buffer.
+func Score(m map[rune]float64, buf []byte) (res float64) {
+	runes := []rune(string(buf))
+	for _, r := range runes {
+		f, _ := m[r]
+		res += f
+	}
+	return
+}
+
+// XORByte produces the XOR combination of a buffer with a single byte.
+func XORByte(out, buf []byte, b byte) int {
+	n := len(buf)
+	for i := 0; i < n; i++ {
+		out[i] = buf[i] ^ b
+	}
+	return n
+}
+
+// allXORByteBuffers returns all single-byte XOR products of a buffer.
+func allXORByteBuffers(buf []byte) (res [256][]byte) {
+	for i := 0; i < len(res); i++ {
+		res[i] = make([]byte, len(buf))
+		XORByte(res[i], buf, byte(i))
+	}
+	return
+}
+
+// BreakTransposedBlock returns the most likely single-byte key for a transposed block.
+func BreakTransposedBlock(buf []byte, scoreFunc func([]byte) float64) byte {
+	var best float64
+	var key byte
+	for i, try := range allXORByteBuffers(buf) {
+		if score := scoreFunc(try); score > best {
+			best = score
+			key = byte(i)
+		}
+	}
+	return key
 }
 
 func main() {
