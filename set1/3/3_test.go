@@ -35,7 +35,7 @@ func TestSymbolFrequencies(t *testing.T) {
 	}
 }
 
-func symbols(s string) map[rune]float64 {
+func symbolFrequencies(s string) map[rune]float64 {
 	m, _ := SymbolFrequencies(strings.NewReader(s))
 	return m
 }
@@ -47,12 +47,12 @@ func TestScore(t *testing.T) {
 		want float64
 	}{
 		{
-			symbols("hello world"),
+			symbolFrequencies("hello world"),
 			"hola",
 			1.0/11.0 + 2.0/11.0 + 3.0/11.0,
 		},
 		{
-			symbols("你好世界"),
+			symbolFrequencies("你好世界"),
 			"世界再见",
 			1.0/4.0 + 1.0/4.0,
 		},
