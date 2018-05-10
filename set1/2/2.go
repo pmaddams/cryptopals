@@ -28,7 +28,7 @@ func XORBytes(dst, b1, b2 []byte) int {
 // xorTwoLines reads two hex-encoded lines and prints their XOR combination.
 func xorTwoLines(in io.Reader) {
 	input := bufio.NewScanner(in)
-	var b1, b2, out []byte
+	var b1, b2 []byte
 	var err error
 
 	// Read two lines and exit if either one is empty or invalid.
@@ -48,13 +48,14 @@ func xorTwoLines(in io.Reader) {
 	}
 
 	// Write the data in place to the shorter buffer.
+	var dst []byte
 	if len(b1) < len(b2) {
-		out = b1
+		dst = b1
 	} else {
-		out = b2
+		dst = b2
 	}
-	XORBytes(out, b1, b2)
-	fmt.Printf("%x\n", out)
+	XORBytes(dst, b1, b2)
+	fmt.Printf("%x\n", dst)
 }
 
 func main() {
