@@ -140,17 +140,16 @@ func Score(m map[rune]float64, buf []byte) (res float64) {
 	return
 }
 
-// XORByte produces the XOR combination of a buffer with a single byte.
-func XORByte(dst, buf []byte, b byte) int {
-	n := len(buf)
-	for i := 0; i < n; i++ {
-		dst[i] = buf[i] ^ b
+// XORSingleByte produces the XOR combination of a buffer with a single byte.
+func XORSingleByte(dst, src []byte, b byte) {
+	// Panic if dst is smaller than src.
+	for i := 0; i < len(src); i++ {
+		dst[i] = src[i] ^ b
 	}
-	return n
 }
 
-// breakXORByte returns the key used to encrypt a buffer with single byte XOR.
-func breakXORByte(buf []byte, scoreFunc func([]byte) float64) byte {
+// breakSingleXOR returns the key used to encrypt a buffer with single byte XOR.
+func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
 
@@ -160,7 +159,7 @@ func breakXORByte(buf []byte, scoreFunc func([]byte) float64) byte {
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i < 256; i++ {
 		b := byte(i)
-		XORByte(tmp, buf, b)
+		XORSingleByte(tmp, buf, b)
 		if score := scoreFunc(tmp); score > best {
 			best = score
 			key = b
@@ -181,7 +180,7 @@ func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, erro
 	keyBlocks := b.Transpose()
 	key := make([]byte, keyBlocks.count())
 	for i := 0; i < keyBlocks.count(); i++ {
-		key[i] = breakXORByte(keyBlocks.data[i], scoreFunc)
+		key[i] = breakSingleXOR(keyBlocks.data[i], scoreFunc)
 	}
 	return key, nil
 }

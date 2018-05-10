@@ -40,17 +40,16 @@ func Score(m map[rune]float64, buf []byte) (res float64) {
 	return
 }
 
-// XORByte produces the XOR combination of a buffer with a single byte.
-func XORByte(dst, buf []byte, b byte) int {
-	n := len(buf)
-	for i := 0; i < n; i++ {
-		dst[i] = buf[i] ^ b
+// XORSingleByte produces the XOR combination of a buffer with a single byte.
+func XORSingleByte(dst, src []byte, b byte) {
+	// Panic if dst is smaller than src.
+	for i := 0; i < len(src); i++ {
+		dst[i] = src[i] ^ b
 	}
-	return n
 }
 
-// xorByteScore returns the key and highest score for a decryption attempt.
-func xorByteScore(buf []byte, scoreFunc func([]byte) float64) (byte, float64) {
+// bestSingleXOR returns the key and highest score for a decryption attempt.
+func bestSingleXOR(buf []byte, scoreFunc func([]byte) float64) (byte, float64) {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
 
@@ -60,7 +59,7 @@ func xorByteScore(buf []byte, scoreFunc func([]byte) float64) (byte, float64) {
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i < 256; i++ {
 		b := byte(i)
-		XORByte(tmp, buf, b)
+		XORSingleByte(tmp, buf, b)
 		if score := scoreFunc(tmp); score > best {
 			best = score
 			key = b
@@ -83,10 +82,10 @@ func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
 			fmt.Fprintln(os.Stderr, err.Error())
 			return
 		}
-		if key, score := xorByteScore(line, scoreFunc); score > best {
+		if key, score := bestSingleXOR(line, scoreFunc); score > best {
 			best = score
 			msg = make([]byte, len(line))
-			XORByte(msg, line, key)
+			XORSingleByte(msg, line, key)
 		}
 	}
 	if err := input.Err(); err != nil {
