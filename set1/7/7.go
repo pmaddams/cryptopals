@@ -13,6 +13,7 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
+// ecb embeds cipher.Block.
 type ecb struct{ cipher.Block }
 
 // min returns the smaller of two integers.
@@ -23,31 +24,41 @@ func min(n, m int) int {
 	return m
 }
 
-// cryptBlocks unsafely attempts to operate on multiple blocks.
-func (x ecb) cryptBlocks(dst, src []byte, f func([]byte, []byte)) {
+// cryptBlocks unsafely attempts to execute a cipher on multiple blocks.
+func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
 	for n := x.BlockSize(); len(src) >= n; {
-		f(dst[:n], src[:n])
+		crypt(dst[:n], src[:n])
 		dst = dst[n:]
 		src = src[n:]
 	}
 }
 
+// ecbEncrypter embeds ecb.
 type ecbEncrypter struct{ ecb }
 
+// NewECBEncrypter returns a BlockMode that encrypts in ECB mode.
 func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
 	return ecbEncrypter{ecb{b}}
 }
 
+// ecbEncrypter.CryptBlocks implements ECB encryption for multiple blocks.
+// In this case, it intentionally violates the cipher.BlockMode specification
+// by allowing the source buffer to not be a multiple of the block size.
 func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
 	x.cryptBlocks(dst, src, x.Encrypt)
 }
 
+// ecbDecrypter embeds ecb.
 type ecbDecrypter struct{ ecb }
 
+// NewECBDecrypter returns a BlockMode that decrypts in ECB mode.
 func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
 	return ecbDecrypter{ecb{b}}
 }
 
+// ecbDecrypter.CryptBlocks implements ECB decryption for multiple blocks.
+// In this case, it intentionally violates the cipher.BlockMode specification
+// by allowing the source buffer to not be a multiple of the block size.
 func (x ecbDecrypter) CryptBlocks(dst, src []byte) {
 	x.cryptBlocks(dst, src, x.Decrypt)
 }
