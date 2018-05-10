@@ -149,26 +149,24 @@ func XORByte(dst, buf []byte, b byte) int {
 	return n
 }
 
-// allXORByteBuffers returns all single-byte XOR products of a buffer.
-func allXORByteBuffers(buf []byte) (res [256][]byte) {
-	for i := 0; i < len(res); i++ {
-		res[i] = make([]byte, len(buf))
-		XORByte(res[i], buf, byte(i))
-	}
-	return
-}
+// breakXORByte returns the key used to encrypt a buffer with single byte XOR.
+func breakXORByte(buf []byte, scoreFunc func([]byte) float64) byte {
+	// Don't stomp on the original data.
+	tmp := make([]byte, len(buf))
 
-// breakSingleXOR takes an encrypted buffer and returns the single-byte key.
-func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
 	var best float64
-	var res byte
-	for i, try := range allXORByteBuffers(buf) {
-		if score := scoreFunc(try); score > best {
+	var key byte
+
+	// Use an integer as the loop variable to avoid overflow.
+	for i := 0; i < 256; i++ {
+		b := byte(i)
+		XORByte(tmp, buf, b)
+		if score := scoreFunc(tmp); score > best {
 			best = score
-			res = byte(i)
+			key = b
 		}
 	}
-	return res
+	return key
 }
 
 // breakRepeatingXOR takes an encrypted buffer and returns the key.
@@ -183,7 +181,7 @@ func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, erro
 	keyBlocks := b.Transpose()
 	key := make([]byte, keyBlocks.count())
 	for i := 0; i < keyBlocks.count(); i++ {
-		key[i] = breakSingleXOR(keyBlocks.data[i], scoreFunc)
+		key[i] = breakXORByte(keyBlocks.data[i], scoreFunc)
 	}
 	return key, nil
 }
@@ -227,9 +225,9 @@ func (x *XORCipher) Crypt(dst, src []byte) {
 	}
 }
 
-// readAndDecryptBase64 reads base64-encoded data encrypted with a
+// decryptAndPrint reads base64-encoded data encrypted with a
 // repeating XOR cipher, breaks the cipher, and prints the plaintext.
-func readAndDecryptBase64(in io.Reader, scoreFunc func([]byte) float64) {
+func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
 	var buf, key []byte
 	var err error
 	buf, err = ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
@@ -276,7 +274,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		readAndDecryptBase64(os.Stdin, scoreFunc)
+		decryptAndPrint(os.Stdin, scoreFunc)
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -284,7 +282,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		readAndDecryptBase64(f, scoreFunc)
+		decryptAndPrint(f, scoreFunc)
 		f.Close()
 	}
 }

@@ -49,46 +49,45 @@ func XORByte(dst, buf []byte, b byte) int {
 	return n
 }
 
-// allXORByteBuffers returns all single-byte XOR products of a buffer.
-func allXORByteBuffers(buf []byte) (res [256][]byte) {
-	for i := 0; i < len(res); i++ {
-		res[i] = make([]byte, len(buf))
-		XORByte(res[i], buf, byte(i))
-	}
-	return
-}
+// breakXORByte returns the key used to encrypt a buffer with single byte XOR.
+func breakXORByte(buf []byte, scoreFunc func([]byte) float64) byte {
+	// Don't stomp on the original data.
+	tmp := make([]byte, len(buf))
 
-// bestXORByteBuffer takes a buffer and a scoring function, and returns
-// the message and single-byte key corresponding to the highest score.
-func bestXORByteBuffer(buf []byte, scoreFunc func([]byte) float64) (msg []byte, key byte) {
 	var best float64
-	for i, try := range allXORByteBuffers(buf) {
-		if score := scoreFunc(try); score > best {
+	var key byte
+
+	// Use an integer as the loop variable to avoid overflow.
+	for i := 0; i < 256; i++ {
+		b := byte(i)
+		XORByte(tmp, buf, b)
+		if score := scoreFunc(tmp); score > best {
 			best = score
-			msg = try
-			key = byte(i)
+			key = b
 		}
 	}
-	return
+	return key
 }
 
-// breakXORByteCipher reads hex-encoded, encrypted data and breaks the cipher
-// using a scoring function, printing the message and key to standard output.
-func breakXORByteCipher(in io.Reader, scoreFunc func([]byte) float64) {
+// decryptAndPrint reads hex-encoded ciphertext and prints plaintext.
+func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
 	input := bufio.NewScanner(in)
+	var buf []byte
 	for input.Scan() {
-		buf, err := hex.DecodeString(input.Text())
+		line, err := hex.DecodeString(input.Text())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			return
 		}
-		msg, key := bestXORByteBuffer(buf, scoreFunc)
-		fmt.Printf("MESSAGE: %s\nKEY: 0x%x\n", msg, key)
+		buf = append(buf, line...)
 	}
 	if err := input.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
+		return
 	}
-	return
+	key := breakXORByte(buf, scoreFunc)
+	XORByte(buf, buf, key)
+	fmt.Println(string(buf))
 }
 
 func init() {
@@ -117,7 +116,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		breakXORByteCipher(os.Stdin, scoreFunc)
+		decryptAndPrint(os.Stdin, scoreFunc)
 		return
 	}
 	for _, name := range files {
@@ -126,7 +125,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		breakXORByteCipher(f, scoreFunc)
+		decryptAndPrint(f, scoreFunc)
 		f.Close()
 	}
 }
