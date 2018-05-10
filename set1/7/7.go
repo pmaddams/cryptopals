@@ -13,15 +13,7 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
-// ECB wraps cipher.Block.
-type ECB struct {
-	cipher.Block
-}
-
-// NewECB creates a new ECB block mode.
-func NewECB(b cipher.Block) ECB {
-	return ECB{b}
-}
+type ecb struct{ cipher.Block }
 
 // min returns the smaller of two integers.
 func min(n, m int) int {
@@ -32,63 +24,71 @@ func min(n, m int) int {
 }
 
 // cryptBlocks unsafely attempts to operate on multiple blocks.
-func (x ECB) cryptBlocks(dst, src []byte, f func([]byte, []byte)) {
-	for i := 0; i < min(len(dst), len(src))/x.BlockSize(); i++ {
-		f(dst[i*x.BlockSize():], src[i*x.BlockSize():])
+func (x ecb) cryptBlocks(dst, src []byte, f func([]byte, []byte)) {
+	for n := x.BlockSize(); len(src) >= n; {
+		f(dst[:n], src[:n])
+		dst = dst[n:]
+		src = src[n:]
 	}
 }
 
-// EncryptBlocks encrypts with cryptBlocks.
-func (x ECB) EncryptBlocks(dst, src []byte) {
+type ecbEncrypter struct{ ecb }
+
+func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{ecb{b}}
+}
+
+func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
 	x.cryptBlocks(dst, src, x.Encrypt)
 }
 
-// DecryptBlocks decrypts with cryptBlocks.
-func (x ECB) DecryptBlocks(dst, src []byte) {
+type ecbDecrypter struct{ ecb }
+
+func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
+	return ecbDecrypter{ecb{b}}
+}
+
+func (x ecbDecrypter) CryptBlocks(dst, src []byte) {
 	x.cryptBlocks(dst, src, x.Decrypt)
 }
 
 // encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func (x ECB) encryptAndPrint(in io.Reader) {
+func encryptAndPrint(in io.Reader, b cipher.Block) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	// Encrypt in place.
-	x.EncryptBlocks(buf, buf)
+	NewECBEncrypter(b).CryptBlocks(buf, buf)
 	fmt.Println(base64.StdEncoding.EncodeToString(buf))
 }
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func (x ECB) decryptAndPrint(in io.Reader) {
+func decryptAndPrint(in io.Reader, b cipher.Block) {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	// Decrypt in place.
-	x.DecryptBlocks(buf, buf)
+	NewECBDecrypter(b).CryptBlocks(buf, buf)
 	fmt.Println(string(buf))
 }
 
 var e = flag.Bool("e", false, "encrypt")
 
 func main() {
-	b, err := aes.NewCipher([]byte(secret))
+	block, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 	}
-	x := NewECB(b)
-
 	flag.Parse()
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if *e {
-			x.encryptAndPrint(os.Stdin)
+			encryptAndPrint(os.Stdin, block)
 		} else {
-			x.decryptAndPrint(os.Stdin)
+			decryptAndPrint(os.Stdin, block)
 		}
 	}
 	for _, name := range files {
@@ -98,9 +98,9 @@ func main() {
 			continue
 		}
 		if *e {
-			x.encryptAndPrint(f)
+			encryptAndPrint(f, block)
 		} else {
-			x.decryptAndPrint(f)
+			decryptAndPrint(f, block)
 		}
 		f.Close()
 	}
