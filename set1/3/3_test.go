@@ -68,7 +68,7 @@ func TestScore(t *testing.T) {
 
 func TestXORByte(t *testing.T) {
 	cases := []struct {
-		out, buf []byte
+		dst, buf []byte
 		b        byte
 		want     []byte
 	}{
@@ -86,10 +86,10 @@ func TestXORByte(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		XORByte(c.out, c.buf, c.b)
-		if !bytes.Equal(c.out, c.want) {
+		XORByte(c.dst, c.buf, c.b)
+		if !bytes.Equal(c.dst, c.want) {
 			t.Errorf("XORByte(%v, %v, %v), want %v",
-				c.out, c.buf, c.b, c.want)
+				c.dst, c.buf, c.b, c.want)
 		}
 	}
 }

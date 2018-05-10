@@ -41,10 +41,10 @@ func Score(m map[rune]float64, buf []byte) (res float64) {
 }
 
 // XORByte produces the XOR combination of a buffer with a single byte.
-func XORByte(out, buf []byte, b byte) int {
+func XORByte(dst, buf []byte, b byte) int {
 	n := len(buf)
 	for i := 0; i < n; i++ {
-		out[i] = buf[i] ^ b
+		dst[i] = buf[i] ^ b
 	}
 	return n
 }
