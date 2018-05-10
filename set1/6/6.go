@@ -227,22 +227,12 @@ func (x *XORCipher) Crypt(dst, src []byte) {
 	}
 }
 
-// ReadBase64 reads base64-encoded data and returns a decoded buffer.
-func ReadBase64(in io.Reader) ([]byte, error) {
-	dec := base64.NewDecoder(base64.StdEncoding, in)
-	buf, err := ioutil.ReadAll(dec)
-	if err != nil {
-		return nil, err
-	}
-	return buf, nil
-}
-
 // readAndDecryptBase64 reads base64-encoded data encrypted with a
 // repeating XOR cipher, breaks the cipher, and prints the plaintext.
 func readAndDecryptBase64(in io.Reader, scoreFunc func([]byte) float64) {
 	var buf, key []byte
 	var err error
-	buf, err = ReadBase64(in)
+	buf, err = ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
