@@ -92,7 +92,7 @@ func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	fmt.Println(string(msg))
+	fmt.Print(string(msg))
 }
 
 func init() {
