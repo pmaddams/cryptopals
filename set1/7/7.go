@@ -13,15 +13,12 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
-// ecb embeds cipher.Block.
-type ecb struct{ cipher.Block }
+// ecb embeds cipher.Block, hiding its methods.
+type ecb struct{ b cipher.Block }
 
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
-	}
-	return m
+// BlockSize returns the block size of the cipher.
+func (x ecb) BlockSize() int {
+	return x.b.BlockSize()
 }
 
 // cryptBlocks unsafely attempts to execute a cipher on multiple blocks.
@@ -36,52 +33,52 @@ func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
 // ecbEncrypter embeds ecb.
 type ecbEncrypter struct{ ecb }
 
-// NewECBEncrypter returns a BlockMode that encrypts in ECB mode.
-func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{ecb{b}}
+// NewECBEncrypter returns a cipher.BlockMode that encrypts in ECB mode.
+func NewECBEncrypter(block cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{ecb{block}}
 }
 
 // ecbEncrypter.CryptBlocks implements ECB encryption for multiple blocks.
 // In this case, it intentionally violates the cipher.BlockMode specification
 // by allowing the source buffer to not be a multiple of the block size.
-func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
-	x.cryptBlocks(dst, src, x.Encrypt)
+func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
+	mode.cryptBlocks(dst, src, mode.b.Encrypt)
 }
 
 // ecbDecrypter embeds ecb.
 type ecbDecrypter struct{ ecb }
 
 // NewECBDecrypter returns a BlockMode that decrypts in ECB mode.
-func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
-	return ecbDecrypter{ecb{b}}
+func NewECBDecrypter(block cipher.Block) cipher.BlockMode {
+	return ecbDecrypter{ecb{block}}
 }
 
 // ecbDecrypter.CryptBlocks implements ECB decryption for multiple blocks.
 // In this case, it intentionally violates the cipher.BlockMode specification
 // by allowing the source buffer to not be a multiple of the block size.
-func (x ecbDecrypter) CryptBlocks(dst, src []byte) {
-	x.cryptBlocks(dst, src, x.Decrypt)
+func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
+	mode.cryptBlocks(dst, src, mode.b.Decrypt)
 }
 
 // encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func encryptAndPrint(in io.Reader, b cipher.Block) {
+func encryptAndPrint(in io.Reader, block cipher.Block) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	NewECBEncrypter(b).CryptBlocks(buf, buf)
+	NewECBEncrypter(block).CryptBlocks(buf, buf)
 	fmt.Println(base64.StdEncoding.EncodeToString(buf))
 }
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, b cipher.Block) {
+func decryptAndPrint(in io.Reader, block cipher.Block) {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	NewECBDecrypter(b).CryptBlocks(buf, buf)
+	NewECBDecrypter(block).CryptBlocks(buf, buf)
 	fmt.Println(string(buf))
 }
 
