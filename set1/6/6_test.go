@@ -168,9 +168,9 @@ func TestScore(t *testing.T) {
 
 func TestXORSingleByte(t *testing.T) {
 	cases := []struct {
-		src []byte
-		b        byte
-		want     []byte
+		src  []byte
+		b    byte
+		want []byte
 	}{
 		{
 			[]byte{0, 1, 2, 3, 4, 5},
