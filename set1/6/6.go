@@ -72,8 +72,8 @@ func findKeySize(buf []byte) (int, error) {
 	return res, nil
 }
 
-// Transpose creates a number of buffers equal to the key size,
-// where each buffer is encrypted with a single byte of the key.
+// Transpose creates keySize buffers, where each buffer is encrypted
+// with single byte XOR using the corresponding byte of the key.
 func Transpose(buf []byte, keySize int) [][]byte {
 	if keySize == 0 {
 		panic("Transpose: key size can't be zero")
