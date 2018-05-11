@@ -21,7 +21,7 @@ func (x ecb) BlockSize() int {
 	return x.b.BlockSize()
 }
 
-// cryptBlocks unsafely attempts to execute a cipher on multiple blocks.
+// cryptBlocks unsafely attempts to operate on multiple blocks.
 func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
 	for n := x.BlockSize(); len(src) >= n; {
 		crypt(dst[:n], src[:n])
