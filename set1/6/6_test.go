@@ -159,7 +159,7 @@ func TestScore(t *testing.T) {
 
 func TestXORSingleByte(t *testing.T) {
 	cases := []struct {
-		dst, buf []byte
+		dst, src []byte
 		b        byte
 		want     []byte
 	}{
@@ -177,10 +177,10 @@ func TestXORSingleByte(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		XORSingleByte(c.dst, c.buf, c.b)
+		XORSingleByte(c.dst, c.src, c.b)
 		if !bytes.Equal(c.dst, c.want) {
 			t.Errorf("XORSingleByte(%v, %v, %v), want %v",
-				c.dst, c.buf, c.b, c.want)
+				c.dst, c.src, c.b, c.want)
 		}
 	}
 }
