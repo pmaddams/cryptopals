@@ -8,7 +8,7 @@ import (
 
 func TestXORKeyStream(t *testing.T) {
 	cases := []struct {
-		stream cipher.Stream
+		stream    cipher.Stream
 		src, want []byte
 	}{
 		{
