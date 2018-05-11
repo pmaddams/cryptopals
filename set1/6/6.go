@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/cipher"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -17,102 +18,74 @@ const sample = "alice.txt"
 var scoreFunc func([]byte) float64
 
 // HammingDistance returns the number of differing bits between two equal-length buffers.
-func HammingDistance(b1, b2 []byte) (int, error) {
+func HammingDistance(b1, b2 []byte) int {
 	if len(b1) != len(b2) {
-		return 0, errors.New("HammingDistance: buffers must have equal length")
+		panic("HammingDistance: buffers must have equal length")
 	}
 	var res int
 	for i := 0; i < len(b1); i++ {
 		res += bits.OnesCount8(b1[i] ^ b2[i])
 	}
-	return res, nil
-}
-
-// Blocks contains buffers guaranteed to be of equal length.
-type Blocks struct {
-	data [][]byte
-}
-
-// NewBlocks generates at least 2 blocks of the given size from a buffer.
-func NewBlocks(buf []byte, blockSize int) (*Blocks, error) {
-	if blockSize <= 0 {
-		return nil, errors.New("NewBlocks: block size must be at least 1")
-	}
-	count := len(buf) / blockSize
-	if count < 2 {
-		return nil, errors.New("NewBlocks: must create at least 2 blocks")
-	}
-	data := make([][]byte, count)
-	for i := 0; i < count; i++ {
-		data[i] = make([]byte, blockSize)
-		copy(data[i], buf[i*blockSize:])
-	}
-	return &Blocks{data}, nil
-}
-
-// blockSize returns the block size.
-func (b *Blocks) blockSize() int {
-	return len(b.data[0])
-}
-
-// count returns the number of blocks.
-func (b *Blocks) count() int {
-	return len(b.data)
-}
-
-// NormalizedDistance returns the normalized edit distance between consecutive blocks.
-func (b *Blocks) NormalizedDistance() float64 {
-	var res float64
-	if b.count() < 2 {
-		panic("NormalizedDistance: must have at least 2 blocks")
-	}
-	numPairs := b.count() - 1
-	for i := 0; i < numPairs; i++ {
-		// No need to check for an error, since blocks have equal length.
-		distance, _ := HammingDistance(b.data[i], b.data[i+1])
-		res += float64(distance) / float64(numPairs) / float64(b.blockSize())
-	}
 	return res
 }
 
-// keySizeBlocks takes an encrypted buffer and returns blocks of the probable key size.
-func keySizeBlocks(buf []byte) (*Blocks, error) {
-	// Guess lower and upper bounds for the key size.
+// NormalizedDistance returns the normalized edit distance between pairs of blocks.
+func NormalizedDistance(buf []byte, blockSize int) (float64, error) {
+	// We need at least 2 blocks.
+	if len(buf) < 2*blockSize {
+		return 0.0, errors.New("NormalizedDistance: need at least 2 blocks")
+	}
+	// Keep the number of pairs to normalize the result, along with the block size.
+	numPairs := len(buf)/blockSize - 1
+
+	var res float64
+	for len(buf) >= 2*blockSize {
+		distance := HammingDistance(buf[:blockSize], buf[blockSize:2*blockSize])
+		buf = buf[blockSize:]
+		res += float64(distance) / float64(numPairs) / float64(blockSize)
+	}
+	return res, nil
+}
+
+// findKeySize returns the probable key size of a buffer encrypted with repeating XOR.
+func findKeySize(buf []byte) (int, error) {
+	// Guess lower and upper bounds.
 	const lower = 2
 	const upper = 64
 
 	// Set best to an impossibly high value.
 	best := float64(8 * len(buf))
-	var res *Blocks
+	var res int
 
 	for blockSize := lower; blockSize <= upper; blockSize++ {
-		// If the block size is too large, stop and use what we have so far.
-		b, err := NewBlocks(buf, blockSize)
-		if err != nil {
+		// If the block size is too large, stop.
+		if distance, err := NormalizedDistance(buf, blockSize); err != nil {
+			if res < lower {
+				return 0, errors.New("keySize: nothing found")
+			}
 			break
-		}
-		if distance := b.NormalizedDistance(); distance < best {
+		} else if distance < best {
 			best = distance
-			res = b
+			res = blockSize
 		}
-	}
-	if res == nil {
-		return nil, errors.New("keySizeBlocks: nothing found")
 	}
 	return res, nil
 }
 
-// Transpose makes a block out of the first byte of every block,
-// another block out of the second byte of every block, and so on.
-func (b *Blocks) Transpose() *Blocks {
-	data := make([][]byte, b.blockSize())
-	for i := 0; i < b.blockSize(); i++ {
-		data[i] = make([]byte, b.count())
-		for j := 0; j < b.count(); j++ {
-			data[i][j] = b.data[j][i]
-		}
+// Transpose creates a number of buffers equal to the key size,
+// where each buffer is encrypted with a single byte of the key.
+func Transpose(buf []byte, keySize int) [][]byte {
+	if keySize == 0 {
+		panic("Transpose: key size can't be zero")
 	}
-	return &Blocks{data}
+	res := make([][]byte, keySize)
+	for len(buf) >= keySize {
+		for i := 0; i < keySize; i++ {
+			res[i] = append(res[i], buf[i])
+		}
+		buf = buf[keySize:]
+	}
+	return res
 }
 
 // SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
@@ -168,64 +141,45 @@ func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
 	return key
 }
 
-// breakRepeatingXOR takes an encrypted buffer and returns the key.
+// breakRepeatingXOR returns the key used to encrypt a buffer with repeating XOR.
 func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, error) {
-	// Each block should have the same size as the key.
-	b, err := keySizeBlocks(buf)
+	keySize, err := findKeySize(buf)
 	if err != nil {
 		return nil, err
 	}
-	// The number of transposed blocks is equal to the key size,
-	// and each block is encrypted with single byte XOR.
-	keyBlocks := b.Transpose()
-	key := make([]byte, keyBlocks.count())
-	for i := 0; i < keyBlocks.count(); i++ {
-		key[i] = breakSingleXOR(keyBlocks.data[i], scoreFunc)
+	key := make([]byte, keySize)
+	for i, block := range Transpose(buf, keySize) {
+		key[i] = breakSingleXOR(block, scoreFunc)
 	}
 	return key, nil
 }
 
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
-	}
-	return m
-}
-
-// XORBytes produces the XOR combination of two buffers.
-func XORBytes(dst, b1, b2 []byte) int {
-	n := min(len(b1), len(b2))
-	for i := 0; i < n; i++ {
-		dst[i] = b1[i] ^ b2[i]
-	}
-	return n
-}
-
-// XORCipher is a repeating XOR cipher.
-type XORCipher struct {
+// xorCipher is a repeating XOR stream cipher.
+type xorCipher struct {
 	key []byte
+	pos int
 }
 
-// NewCipher creates a new XOR cipher.
-func NewCipher(key []byte) *XORCipher {
-	return &XORCipher{key}
+// NewXORCipher creates a new repeating XOR cipher.
+func NewXORCipher(key []byte) cipher.Stream {
+	return &xorCipher{key, 0}
 }
 
-// Crypt encrypts or decrypts a buffer.
-func (x *XORCipher) Crypt(dst, src []byte) {
-	for {
-		n := XORBytes(dst, src, x.key)
-		if n == 0 {
-			break
+// XORKeyStream encrypts a buffer with repeating XOR.
+func (stream *xorCipher) XORKeyStream(dst, src []byte) {
+	// Panic if dst is smaller than src.
+	for i := 0; i < len(src); i++ {
+		dst[i] = src[i] ^ stream.key[stream.pos]
+		stream.pos++
+
+		// At the end of the key, reset position.
+		if stream.pos >= len(stream.key) {
+			stream.pos = 0
 		}
-		src = src[n:]
-		dst = dst[n:]
 	}
 }
 
-// decryptAndPrint reads base64-encoded data encrypted with a
-// repeating XOR cipher, breaks the cipher, and prints the plaintext.
+// decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
 func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
 	var buf, key []byte
 	var err error
@@ -239,12 +193,9 @@ func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	// Generate a new cipher from the key.
-	x := NewCipher(key)
-
-	// Decrypt the data in place.
-	x.Crypt(buf, buf)
-	fmt.Println(string(buf))
+	stream := NewXORCipher(key)
+	stream.XORKeyStream(buf, buf)
+	fmt.Print(string(buf))
 }
 
 func init() {
