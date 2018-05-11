@@ -116,6 +116,15 @@ func TestSymbolFrequencies(t *testing.T) {
 				'd': 1.0 / 11.0,
 			},
 		},
+		{
+			"你好世界",
+			map[rune]float64{
+				'你': 1.0 / 4.0,
+				'好': 1.0 / 4.0,
+				'世': 1.0 / 4.0,
+				'界': 1.0 / 4.0,
+			},
+		},
 	}
 	for _, c := range cases {
 		got, _ := SymbolFrequencies(strings.NewReader(c.s))
@@ -159,28 +168,32 @@ func TestScore(t *testing.T) {
 
 func TestXORSingleByte(t *testing.T) {
 	cases := []struct {
-		dst, src []byte
+		src []byte
 		b        byte
 		want     []byte
 	}{
 		{
-			make([]byte, 11),
-			[]byte("hello world"),
-			0,
-			[]byte("hello world"),
+			[]byte{0, 1, 2, 3, 4, 5},
+			1,
+			[]byte{1, 0, 3, 2, 5, 4},
 		},
 		{
-			make([]byte, 4),
-			[]byte{0, 0, 0, 0},
-			1,
-			[]byte{1, 1, 1, 1},
+			[]byte{0, 1, 2, 3, 4, 5},
+			2,
+			[]byte{2, 3, 0, 1, 6, 7},
+		},
+		{
+			[]byte{0, 1, 2, 3, 4, 5},
+			3,
+			[]byte{3, 2, 1, 0, 7, 6},
 		},
 	}
+	dst := make([]byte, 6)
 	for _, c := range cases {
-		XORSingleByte(c.dst, c.src, c.b)
-		if !bytes.Equal(c.dst, c.want) {
+		XORSingleByte(dst, c.src, c.b)
+		if !bytes.Equal(dst, c.want) {
 			t.Errorf("XORSingleByte(%v, %v, %v), want %v",
-				c.dst, c.src, c.b, c.want)
+				dst, c.src, c.b, c.want)
 		}
 	}
 }
