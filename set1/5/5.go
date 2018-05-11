@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"crypto/cipher"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,66 +13,75 @@ import (
 
 const secret = "ICE"
 
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
-	}
-	return m
-}
-
-// XORBytes produces the XOR combination of two buffers.
-func XORBytes(dst, b1, b2 []byte) int {
-	n := min(len(b1), len(b2))
-	for i := 0; i < n; i++ {
-		dst[i] = b1[i] ^ b2[i]
-	}
-	return n
-}
-
-// XORCipher is a repeating XOR cipher.
-type XORCipher struct {
+// xorCipher is a repeating XOR stream cipher.
+type xorCipher struct {
 	key []byte
+	pos int
 }
 
-// NewCipher creates a new XOR cipher.
-func NewCipher(key []byte) *XORCipher {
-	return &XORCipher{key}
+// NewXORCipher creates a new repeating XOR cipher.
+func NewXORCipher(key []byte) cipher.Stream {
+	return &xorCipher{key, 0}
 }
 
-// Crypt encrypts or decrypts a buffer.
-func (x *XORCipher) Crypt(dst, src []byte) {
-	for {
-		n := XORBytes(dst, src, x.key)
-		if n == 0 {
-			break
+// XORKeyStream encrypts a buffer with repeating XOR.
+func (stream *xorCipher) XORKeyStream(dst, src []byte) {
+	// Panic if dst is smaller than src.
+	for i := 0; i < len(src); i++ {
+		dst[i] = src[i] ^ stream.key[stream.pos]
+		stream.pos++
+
+		// At the end of the key, reset position.
+		if stream.pos >= len(stream.key) {
+			stream.pos = 0
 		}
-		src = src[n:]
-		dst = dst[n:]
 	}
 }
 
-// printEncrypted reads plaintext and prints hex-encoded ciphertext.
-func (x *XORCipher) printEncrypted(in io.Reader) {
+// encryptAndPrint reads plaintext and prints hex-encoded ciphertext.
+func encryptAndPrint(in io.Reader, stream cipher.Stream) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	// Encrypt the data in place.
-	x.Crypt(buf, buf)
-
-	// Print the hex-encoded buffer.
+	stream.XORKeyStream(buf, buf)
 	fmt.Println(hex.EncodeToString(buf))
 }
 
+// decryptAndPrint reads hex-encoded ciphertext and prints plaintext.
+func decryptAndPrint(in io.Reader, stream cipher.Stream) {
+	input := bufio.NewScanner(in)
+	var buf []byte
+	for input.Scan() {
+		line, err := hex.DecodeString(input.Text())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			return
+		}
+		buf = append(buf, line...)
+	}
+	if err := input.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	stream.XORKeyStream(buf, buf)
+	fmt.Print(string(buf))
+}
+
+var d = flag.Bool("d", false, "decrypt")
+
 func main() {
-	x := NewCipher([]byte(secret))
-	files := os.Args[1:]
+	flag.Parse()
+	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		x.printEncrypted(os.Stdin)
-		return
+		stream := NewXORCipher([]byte(secret))
+		if *d {
+			decryptAndPrint(os.Stdin, stream)
+		} else {
+			encryptAndPrint(os.Stdin, stream)
+		}
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -77,7 +89,13 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		x.printEncrypted(f)
+		// Since the stream is stateful, we have to re-initialize it.
+		stream := NewXORCipher([]byte(secret))
+		if *d {
+			decryptAndPrint(f, stream)
+		} else {
+			encryptAndPrint(f, stream)
+		}
 		f.Close()
 	}
 }
