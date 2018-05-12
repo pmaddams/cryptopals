@@ -18,8 +18,8 @@ func HexToB64(s string) (string, error) {
 	return base64.StdEncoding.EncodeToString(buf), nil
 }
 
-// convert reads hexadecimal input and writes base64.
-func convert(out io.Writer, in io.Reader) {
+// convertAndPrint reads hex-encoded input and prints base64.
+func convertAndPrint(in io.Reader) {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		s, err := HexToB64(input.Text())
@@ -27,7 +27,7 @@ func convert(out io.Writer, in io.Reader) {
 			fmt.Fprintln(os.Stderr, err.Error())
 			return
 		}
-		fmt.Fprintln(out, s)
+		fmt.Println(s)
 	}
 	if err := input.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -38,7 +38,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		convert(os.Stdout, os.Stdin)
+		convertAndPrint(os.Stdin)
 		return
 	}
 	for _, name := range files {
@@ -47,7 +47,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		convert(os.Stdout, f)
+		convertAndPrint(f)
 		f.Close()
 	}
 }
