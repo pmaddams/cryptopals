@@ -38,7 +38,7 @@ func TestPKCS7Pad(t *testing.T) {
 
 func TestFormatBytes(t *testing.T) {
 	cases := []struct {
-		buf []byte
+		buf  []byte
 		want string
 	}{
 		{
