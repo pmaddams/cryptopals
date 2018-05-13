@@ -28,15 +28,15 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 
 // FormatBytes converts a buffer to a string with non-printing characters hex-encoded.
 func FormatBytes(buf []byte) string {
-        var out []rune
-        for _, r := range []rune(string(buf)) {
-                if strconv.IsPrint(r) {
-                        out = append(out, r)
-                } else {
-                        out = append(out, []rune(fmt.Sprintf("\\x%02x", r))...)
-                }
-        }
-        return string(out)
+	var out []rune
+	for _, r := range []rune(string(buf)) {
+		if strconv.IsPrint(r) {
+			out = append(out, r)
+		} else {
+			out = append(out, []rune(fmt.Sprintf("\\x%02x", r))...)
+		}
+	}
+	return string(out)
 }
 
 // padAndPrint reads lines of text and prints them with PKCS#7 padding.
