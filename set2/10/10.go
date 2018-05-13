@@ -13,6 +13,7 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
+// AES always has a block size of 128 bits (16 bytes).
 const aesBlockSize = 16
 
 // min returns the smaller of two integers.
@@ -38,12 +39,15 @@ type cbc struct {
 	iv []byte
 }
 
+// BlockSize returns the block size of the cipher.
 func (x cbc) BlockSize() int {
 	return x.b.BlockSize()
 }
 
+// cbcEncrypter embeds cbc.
 type cbcEncrypter struct{ cbc }
 
+// NewCBCEncrypter returns a cipher.BlockMode that encrypts in CBC mode.
 func NewCBCEncrypter(block cipher.Block, iv []byte) cipher.BlockMode {
 	if block.BlockSize() != len(iv) {
 		panic("NewCBCEncrypter: initialization vector length must equal block size")
@@ -51,6 +55,9 @@ func NewCBCEncrypter(block cipher.Block, iv []byte) cipher.BlockMode {
 	return cbcEncrypter{cbc{block, iv}}
 }
 
+// cbcEncrypter.CryptBlocks implements CBC encryption for multiple blocks.
+// In this case, it intentionally violates the cipher.BlockMode specification
+// by allowing the source buffer to not be a multiple of the block size.
 func (mode cbcEncrypter) CryptBlocks(dst, src []byte) {
 	for n := mode.BlockSize(); len(src) >= n; {
 		XORBytes(dst, src, mode.iv)
@@ -60,8 +67,10 @@ func (mode cbcEncrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
+// cbcDecrypter embeds cbc.
 type cbcDecrypter struct{ cbc }
 
+// NewCBCDecrypter returns a cipher.BlockMode that decrypts in CBC mode.
 func NewCBCDecrypter(block cipher.Block, iv []byte) cipher.BlockMode {
 	if block.BlockSize() != len(iv) {
 		panic("NewCBCDecrypter: initialization vector length must equal block size")
@@ -69,6 +78,9 @@ func NewCBCDecrypter(block cipher.Block, iv []byte) cipher.BlockMode {
 	return cbcDecrypter{cbc{block, iv}}
 }
 
+// cbcDecrypter.CryptBlocks implements CBC decryption for multiple blocks.
+// In this case, it intentionally violates the cipher.BlockMode specification
+// by allowing the source buffer to not be a multiple of the block size.
 func (mode cbcDecrypter) CryptBlocks(dst, src []byte) {
 	n := mode.BlockSize()
 	tmp := make([]byte, n)
