@@ -108,7 +108,7 @@ func evilBuffer() []byte {
 	return bytes.Repeat([]byte{'a'}, 3*aesBlockSize)
 }
 
-// detectMode detects whether a black-box encryption function uses ECB or CBC mode.
+// detectMode detects whether the encryption function uses ECB or CBC mode.
 func detectMode(encrypt func([]byte) []byte) string {
 	buf := encrypt(evilBuffer())
 	// Because the evil buffer consists of the same repeated byte,
