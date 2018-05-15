@@ -61,7 +61,7 @@ func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
 	mode.cryptBlocks(dst, src, mode.b.Decrypt)
 }
 
-// PKCS7Pad returns a copy of a buffer with PKCS#7 padding.
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
 	var n int
 
@@ -78,7 +78,7 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	return buf
 }
 
-// PKCS7Unpad returns a copy of a buffer with PKCS#7 padding removed.
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
 func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	// Examine the value of the last byte.
 	b := buf[len(buf)-1]
