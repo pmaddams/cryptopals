@@ -25,9 +25,6 @@ func (x ecb) BlockSize() int {
 
 // cryptBlocks encrypts or decrypts multiple blocks.
 func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
-	if len(src)%x.BlockSize() != 0 {
-		panic("cryptBlocks: input not full blocks")
-	}
 	for n := x.BlockSize(); len(src) > 0; {
 		crypt(dst[:n], src[:n])
 		dst = dst[n:]
