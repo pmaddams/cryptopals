@@ -1,42 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"crypto/cipher"
 	"reflect"
 	"testing"
 )
-
-func TestRandomBytes(t *testing.T) {
-	cases := []struct {
-		min, max int
-	}{
-		{0, 0},
-		{5, 10},
-		{20, 30},
-	}
-	for _, c := range cases {
-		got := RandomBytes(c.min, c.max)
-		if len(got) < c.min || len(got) > c.max {
-			t.Errorf("RandomBytes(%v, %v) == %v, length out of range",
-				c.min, c.max, got)
-		}
-	}
-}
-
-func TestAddRandomBytes(t *testing.T) {
-	cases := [][]byte{
-		RandomBytes(0, 0),
-		RandomBytes(5, 10),
-		RandomBytes(20, 30),
-	}
-	for _, c := range cases {
-		got := AddRandomBytes(c)
-		if len(got)%aesBlockSize != 0 {
-			t.Errorf("AddRandomBytes(%v) == %v, length not a multiple of block size",
-				c, got)
-		}
-	}
-}
 
 func TestRandomCipher(t *testing.T) {
 	cases := []cipher.Block{}
@@ -63,4 +32,52 @@ func TestRandomEncrypter(t *testing.T) {
 		}
 	}
 	t.Error("RandomEncrypter created the same block mode 10 times")
+}
+
+func TestRandomBytes(t *testing.T) {
+	cases := []struct {
+		min, max int
+	}{
+		{0, 0},
+		{5, 10},
+		{20, 30},
+	}
+	for _, c := range cases {
+		got := RandomBytes(c.min, c.max)
+		if len(got) < c.min || len(got) > c.max {
+			t.Errorf("RandomBytes(%v, %v) == %v, length out of range",
+				c.min, c.max, got)
+		}
+	}
+}
+
+func TestPKCS7Pad(t *testing.T) {
+	cases := []struct {
+		buf       []byte
+		blockSize int
+		want      []byte
+	}{
+		{
+			[]byte{0},
+			3,
+			[]byte{0, 2, 2},
+		},
+		{
+			[]byte{0, 0},
+			3,
+			[]byte{0, 0, 1},
+		},
+		{
+			[]byte{0, 0, 0},
+			3,
+			[]byte{0, 0, 0, 3, 3, 3},
+		},
+	}
+	for _, c := range cases {
+		got := PKCS7Pad(c.buf, c.blockSize)
+		if !bytes.Equal(got, c.want) {
+			t.Errorf("PKCS7Pad(%v, %v) == %v, want %v",
+				c.buf, c.blockSize, got, c.want)
+		}
+	}
 }
