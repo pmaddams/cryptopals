@@ -82,7 +82,7 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	return buf
 }
 
-// encryptFunc returns a function that encrypts data in ECB mode,
+// encryptFunc returns a function that encrypts data in ECB mode
 // with a random prefix and secret message added to the end.
 func encryptFunc() func([]byte) []byte {
 	mode := NewECBEncrypter(RandomCipher())
@@ -102,11 +102,11 @@ func encryptFunc() func([]byte) []byte {
 
 // detectBlockSize detects the encryption function block size.
 func detectBlockSize(encrypt func([]byte) []byte) int {
-	buf := []byte{}
-	initLen := len(encrypt(buf))
+	attack := []byte{}
+	initLen := len(encrypt(attack))
 	for {
-		buf = append(buf, 'a')
-		nextLen := len(encrypt(buf))
+		attack = append(attack, 'a')
+		nextLen := len(encrypt(attack))
 		if nextLen > initLen {
 			return nextLen - initLen
 		}
@@ -127,6 +127,31 @@ func detectMode(blockSize int, encrypt func([]byte) []byte) string {
 		return "ecb"
 	}
 	return "cbc"
+}
+
+// encryptWithoutPrefix takes an encryption function and returns
+// a function that encrypts data in ECB mode without the prefix.
+func encryptWithoutPrefix(blockSize int, encrypt func([]byte) []byte) func([]byte) []byte {
+	attack := []byte{}
+	initBuf := encrypt(attack)
+	initLen := len(initBuf)
+	prevBuf := initBuf
+	for {
+		attack = append(attack, 'a')
+		nextBuf := encrypt(attack)
+
+		// If the last block of the initial buffer no longer changes,
+		// we have gone past the end and need to step back one byte.
+		if bytes.Equal(prevBuf[initLen-blockSize:initLen],
+			nextBuf[initLen-blockSize:initLen]) {
+			attack = attack[:len(attack)-1]
+			return func(buf []byte) []byte {
+				// Now the prefix will magically disappear.
+				return encrypt(append(attack, buf...))[initLen:]
+			}
+		}
+		prevBuf = nextBuf
+	}
 }
 
 func main() {
