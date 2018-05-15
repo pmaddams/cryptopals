@@ -12,7 +12,7 @@ import (
 // AES always has a block size of 128 bits (16 bytes).
 const aesBlockSize = 16
 
-// IdenticalBlocks returns true if a block in the buffer repeats.
+// IdenticalBlocks returns true if any block in the buffer appears more than once.
 func IdenticalBlocks(buf []byte, blockSize int) bool {
 	for ; len(buf) >= 2*blockSize; buf = buf[blockSize:] {
 		for p := buf[blockSize:]; len(p) >= blockSize; p = p[blockSize:] {
