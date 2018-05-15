@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-// PKCS7Pad returns a copy of a buffer with PKCS#7 padding.
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
 	var n int
 
@@ -39,7 +39,7 @@ func FormatBytes(buf []byte) string {
 	return string(out)
 }
 
-// padAndPrint reads lines of text and prints them with PKCS#7 padding.
+// padAndPrint reads lines of text and displays them with PKCS#7 padding added.
 func padAndPrint(in io.Reader, blockSize int) {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
