@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -47,7 +49,7 @@ func (x cbc) BlockSize() int {
 // cbcEncrypter embeds cbc.
 type cbcEncrypter struct{ cbc }
 
-// NewCBCEncrypter returns a cipher.BlockMode that encrypts in CBC mode.
+// NewCBCEncrypter returns a block mode for CBC encryption.
 func NewCBCEncrypter(block cipher.Block, iv []byte) cipher.BlockMode {
 	if block.BlockSize() != len(iv) {
 		panic("NewCBCEncrypter: initialization vector length must equal block size")
@@ -55,11 +57,11 @@ func NewCBCEncrypter(block cipher.Block, iv []byte) cipher.BlockMode {
 	return cbcEncrypter{cbc{block, iv}}
 }
 
-// cbcEncrypter.CryptBlocks implements CBC encryption for multiple blocks.
-// In this case, it intentionally violates the cipher.BlockMode specification
-// by allowing the source buffer to not be a multiple of the block size.
+// cbcEncrypter.CryptBlocks encrypts a buffer in CBC mode.
 func (mode cbcEncrypter) CryptBlocks(dst, src []byte) {
-	for n := mode.BlockSize(); len(src) >= n; {
+	// The src buffer length must be a multiple of the block size,
+	// and the dst buffer must be at least the length of src.
+	for n := mode.BlockSize(); len(src) > 0; {
 		XORBytes(dst, src, mode.iv)
 		mode.b.Encrypt(dst[:n], src[:n])
 		copy(mode.iv, dst[:n])
@@ -70,7 +72,7 @@ func (mode cbcEncrypter) CryptBlocks(dst, src []byte) {
 // cbcDecrypter embeds cbc.
 type cbcDecrypter struct{ cbc }
 
-// NewCBCDecrypter returns a cipher.BlockMode that decrypts in CBC mode.
+// NewCBCDecrypter returns a block mode for CBC decryption.
 func NewCBCDecrypter(block cipher.Block, iv []byte) cipher.BlockMode {
 	if block.BlockSize() != len(iv) {
 		panic("NewCBCDecrypter: initialization vector length must equal block size")
@@ -78,14 +80,14 @@ func NewCBCDecrypter(block cipher.Block, iv []byte) cipher.BlockMode {
 	return cbcDecrypter{cbc{block, iv}}
 }
 
-// cbcDecrypter.CryptBlocks implements CBC decryption for multiple blocks.
-// In this case, it intentionally violates the cipher.BlockMode specification
-// by allowing the source buffer to not be a multiple of the block size.
+// cbcDecrypter.CryptBlocks decrypts a buffer in CBC mode.
 func (mode cbcDecrypter) CryptBlocks(dst, src []byte) {
 	n := mode.BlockSize()
 	tmp := make([]byte, n)
 
-	for len(src) >= n {
+	// The src buffer length must be a multiple of the block size,
+	// and the dst buffer must be at least the length of src.
+	for len(src) > 0 {
 		// Save the ciphertext as the new initialization vector.
 		copy(tmp, src[:n])
 		mode.b.Decrypt(dst[:n], src[:n])
@@ -95,6 +97,34 @@ func (mode cbcDecrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
+func PKCS7Pad(buf []byte, blockSize int) []byte {
+	var n int
+
+	// If the buffer length is a multiple of the block size,
+	// add a number of padding bytes equal to the block size.
+	if rem := len(buf) % blockSize; rem == 0 {
+		n = blockSize
+	} else {
+		n = blockSize - rem
+	}
+	for i := 0; i < n; i++ {
+		buf = append(buf, byte(n))
+	}
+	return buf
+}
+
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	if int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
+		return nil, errors.New("PKCS7Unpad: invalid padding")
+	}
+	return buf[:len(buf)-int(b)], nil
+}
+
 // encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
 func encryptAndPrint(in io.Reader, mode cipher.BlockMode) {
 	buf, err := ioutil.ReadAll(in)
@@ -102,6 +132,7 @@ func encryptAndPrint(in io.Reader, mode cipher.BlockMode) {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
+	buf = PKCS7Pad(buf, mode.BlockSize())
 	mode.CryptBlocks(buf, buf)
 	fmt.Println(base64.StdEncoding.EncodeToString(buf))
 }
@@ -114,7 +145,11 @@ func decryptAndPrint(in io.Reader, mode cipher.BlockMode) {
 		return
 	}
 	mode.CryptBlocks(buf, buf)
-	fmt.Println(string(buf))
+	if buf, err = PKCS7Unpad(buf, mode.BlockSize()); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	fmt.Print(string(buf))
 }
 
 var e = flag.Bool("e", false, "encrypt")
