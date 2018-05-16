@@ -6,7 +6,10 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
+	"fmt"
 	weak "math/rand"
+	"os"
 	"time"
 )
 
@@ -82,77 +85,203 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	return buf
 }
 
-// encryptFunc returns a function that encrypts data in ECB mode
-// with a random prefix and secret message added to the end.
-func encryptFunc() func([]byte) []byte {
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	if int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
+		return nil, errors.New("PKCS7Unpad: invalid padding")
+	}
+	return buf[:len(buf)-int(b)], nil
+}
+
+// ecbEncryptionOracleWithPrefix returns an ECB encryption oracle function with prefix.
+func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
 	mode := NewECBEncrypter(RandomCipher())
 	prefix := RandomBytes(5, 10)
-	msg, err := base64.StdEncoding.DecodeString(secret)
+	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
 		panic(err.Error())
 	}
 	return func(buf []byte) []byte {
-		// Don't stomp on the original data.
-		res := append(prefix, append(buf, msg...)...)
-		res = PKCS7Pad(res, mode.BlockSize())
-		mode.CryptBlocks(res, res)
-		return res
+		buf = append(prefix, append(buf, decoded...)...)
+		buf = PKCS7Pad(buf, mode.BlockSize())
+		mode.CryptBlocks(buf, buf)
+		return buf
 	}
 }
 
-// detectBlockSize detects the encryption function block size.
-func detectBlockSize(encrypt func([]byte) []byte) int {
-	attack := []byte{}
-	initLen := len(encrypt(attack))
-	for {
-		attack = append(attack, 'a')
-		nextLen := len(encrypt(attack))
-		if nextLen > initLen {
-			return nextLen - initLen
+// ecbBreaker contains the data necessary to analyze an ECB encryption oracle.
+type ecbBreaker struct {
+	oracle    func([]byte) []byte
+	a         byte
+	blockSize int
+	secretLen int
+}
+
+// detectBlockSize detects the block size.
+func (x *ecbBreaker) detectBlockSize() error {
+	probe := []byte{}
+	initLen := len(x.oracle(probe))
+	for padLen := 0; ; padLen++ {
+		if padLen > aesBlockSize {
+			return errors.New("detectBlockSize: block size greater than 16")
+		}
+		probe = append(probe, x.a)
+		if nextLen := len(x.oracle(probe)); nextLen > initLen {
+			x.blockSize = nextLen - initLen
+			return nil
 		}
 	}
 }
 
-// evilBuffer returns a buffer that makes it easy to detect ECB.
-func evilBuffer(blockSize int) []byte {
-	return bytes.Repeat([]byte{'a'}, 3*blockSize)
-}
-
-// detectMode detects whether the encryption function uses ECB or CBC mode.
-func detectMode(encrypt func([]byte) []byte, blockSize int) string {
-	buf := encrypt(evilBuffer(blockSize))
-	// Because the evil buffer consists of the same repeated byte,
-	// the encrypted blocks in the middle are identical.
-	if n := aesBlockSize; bytes.Equal(buf[n:2*n], buf[2*n:3*n]) {
-		return "ecb"
+// IdenticalBlocks returns true if any block in the buffer appears more than once.
+func IdenticalBlocks(buf []byte, blockSize int) bool {
+	for ; len(buf) >= 2*blockSize; buf = buf[blockSize:] {
+		for p := buf[blockSize:]; len(p) >= blockSize; p = p[blockSize:] {
+			if bytes.Equal(buf[:blockSize], p[:blockSize]) {
+				return true
+			}
+		}
 	}
-	return "cbc"
+	return false
 }
 
-// encryptWithoutPrefix takes an encryption function and returns
-// a function that encrypts data in ECB mode without the prefix.
-func encryptWithoutPrefix(encrypt func([]byte) []byte, blockSize int) func([]byte) []byte {
-	attack := []byte{}
-	initBuf := encrypt(attack)
+// ecbProbe returns a buffer that can be used to detect ECB mode.
+func (x *ecbBreaker) ecbProbe() []byte {
+	return bytes.Repeat([]byte{x.a}, 3*x.blockSize)
+}
+
+// detectECB returns an error if the encryption oracle is not using ECB mode.
+func (x *ecbBreaker) detectECB() error {
+	if !IdenticalBlocks(x.oracle(x.ecbProbe()), x.blockSize) {
+		return errors.New("detectECB: ECB mode not detected")
+	}
+	return nil
+}
+
+// removeOraclePrefix replaces the oracle with a wrapper that removes the prefix.
+func (x *ecbBreaker) removeOraclePrefix() error {
+	probe := []byte{}
+	initBuf := x.oracle(probe)
 	initLen := len(initBuf)
 	prevBuf := initBuf
 	for {
-		attack = append(attack, 'a')
-		nextBuf := encrypt(attack)
+		if len(probe) > initLen {
+			return errors.New("removeOraclePrefix: failed to remove prefix")
+		}
+		probe = append(probe, x.a)
+		newBuf := x.oracle(probe)
 
 		// If the last block of the initial buffer no longer changes,
 		// we have gone past the end and need to step back one byte.
-		if bytes.Equal(prevBuf[initLen-blockSize:initLen],
-			nextBuf[initLen-blockSize:initLen]) {
-			attack = attack[:len(attack)-1]
-			return func(buf []byte) []byte {
-				// Now the prefix will magically disappear.
-				return encrypt(append(attack, buf...))[initLen:]
+		if bytes.Equal(prevBuf[initLen-x.blockSize:initLen],
+			newBuf[initLen-x.blockSize:initLen]) {
+			probe = probe[:len(probe)-1]
+			oracle := x.oracle
+			x.oracle = func(buf []byte) []byte {
+				return oracle(append(probe, buf...))[initLen:]
 			}
+			return nil
 		}
-		prevBuf = nextBuf
+		prevBuf = newBuf
 	}
 }
 
+// detectSecretLength detects the secret length.
+func (x *ecbBreaker) detectSecretLength() error {
+	probe := []byte{}
+	initLen := len(x.oracle(probe))
+	for padLen := 0; padLen <= x.blockSize; padLen++ {
+		probe = append(probe, x.a)
+		if nextLen := len(x.oracle(probe)); nextLen > initLen {
+			x.secretLen = initLen - padLen
+			return nil
+		}
+	}
+	return errors.New("detectSecretLength: invalid length")
+}
+
+// newECBBreaker takes an ECB encryption oracle and returns a breaker.
+func newECBBreaker(oracle func([]byte) []byte) (*ecbBreaker, error) {
+	x := &ecbBreaker{oracle: oracle, a: 'a'}
+	if err := x.detectBlockSize(); err != nil {
+		return nil, err
+	}
+	if err := x.detectECB(); err != nil {
+		return nil, err
+	}
+	if err := x.removeOraclePrefix(); err != nil {
+		return nil, err
+	}
+	if err := x.detectSecretLength(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// scanBlocks generates a sequence of blocks for decrypting the secret.
+func (x *ecbBreaker) scanBlocks() [][]byte {
+	initLen := len(x.oracle([]byte{}))
+	probe := bytes.Repeat([]byte{x.a}, initLen-1)
+
+	// Each block enables decryption of a single byte.
+	blocks := make([][]byte, x.secretLen)
+	for i := range blocks {
+		buf := x.oracle(probe)
+		blocks[i] = buf[initLen-x.blockSize : initLen]
+		// Shift the secret forward one byte.
+		probe = probe[:len(probe)-1]
+	}
+	return blocks
+}
+
+// breakByte returns the byte that produces the given encrypted block.
+func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
+	for i := 0; i < 256; i++ {
+		b := byte(i)
+		probe[x.blockSize-1] = b
+		buf := x.oracle(probe)
+		if bytes.Equal(buf[:x.blockSize], block) {
+			// Shift the probe forward one byte.
+			copy(probe, probe[1:])
+			return b, nil
+		}
+	}
+	return 0, errors.New("breakByte: invalid block")
+}
+
+// breakOracle breaks the encryption oracle and returns the secret.
+func (x *ecbBreaker) breakOracle() ([]byte, error) {
+	var buf []byte
+	probe := bytes.Repeat([]byte{x.a}, x.blockSize)
+	for _, block := range x.scanBlocks() {
+		b, err := x.breakByte(probe, block)
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, b)
+	}
+	res, err := PKCS7Unpad(buf, x.blockSize)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 func main() {
+	oracle := ecbEncryptionOracleWithPrefix()
+	var x *ecbBreaker
+	var err error
+	if x, err = newECBBreaker(oracle); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	var buf []byte
+	if buf, err = x.breakOracle(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	fmt.Print(string(buf))
 }
