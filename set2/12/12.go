@@ -195,7 +195,7 @@ func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
 	return 0, errors.New("breakByte: invalid block")
 }
 
-// breakOracle breaks the oracle function and returns the secret.
+// breakOracle breaks the encryption oracle and returns the secret.
 func (x *ecbBreaker) breakOracle() ([]byte, error) {
 	var buf []byte
 	probe := bytes.Repeat([]byte{x.a}, x.blockSize)
