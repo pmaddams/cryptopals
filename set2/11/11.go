@@ -92,8 +92,8 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	return buf
 }
 
-// encryptFunc returns a black-box encryption function using the given mode.
-func encryptFunc(mode cipher.BlockMode) func([]byte) []byte {
+// ecbModeOracle returns an ECB/CBC mode oracle function.
+func ecbModeOracle(mode cipher.BlockMode) func([]byte) []byte {
 	prefix, suffix := RandomBytes(5, 10), RandomBytes(5, 10)
 	return func(buf []byte) []byte {
 		buf = append(prefix, append(buf, suffix...)...)
@@ -103,33 +103,38 @@ func encryptFunc(mode cipher.BlockMode) func([]byte) []byte {
 	}
 }
 
-// evilBuffer returns a buffer that makes it easy to detect ECB.
-func evilBuffer() []byte {
+// IdenticalBlocks returns true if any block in the buffer appears more than once.
+func IdenticalBlocks(buf []byte, blockSize int) bool {
+	for ; len(buf) >= 2*blockSize; buf = buf[blockSize:] {
+		for p := buf[blockSize:]; len(p) >= blockSize; p = p[blockSize:] {
+			if bytes.Equal(buf[:blockSize], p[:blockSize]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ecbProbe returns a buffer that can be used to detect ECB mode.
+func ecbProbe() []byte {
 	return bytes.Repeat([]byte{'a'}, 3*aesBlockSize)
 }
 
-// detectMode detects whether the encryption function uses ECB or CBC mode.
-func detectMode(encrypt func([]byte) []byte) string {
-	buf := encrypt(evilBuffer())
-	// Because the evil buffer consists of the same repeated byte,
-	// the encrypted blocks in the middle are identical.
-	if n := aesBlockSize; bytes.Equal(buf[n:2*n], buf[2*n:3*n]) {
-		return "ecb"
-	}
-	return "cbc"
+// detectECB returns true if the mode oracle is using ECB mode.
+func detectECB(oracle func([]byte) []byte) bool {
+	return IdenticalBlocks(oracle(ecbProbe()), aesBlockSize)
 }
 
 func main() {
 	mode := RandomEncrypter()
-	switch detectMode(encryptFunc(mode)) {
-	case "ecb":
+	if detectECB(ecbModeOracle(mode)) {
 		fmt.Print("Detected ECB mode...")
 		if _, ok := mode.(ecbEncrypter); ok {
 			fmt.Println("correct.")
 		} else {
 			fmt.Println("incorrect.")
 		}
-	case "cbc":
+	} else {
 		fmt.Print("Detected CBC mode...")
 		if _, ok := mode.(ecbEncrypter); ok {
 			fmt.Println("incorrect.")
