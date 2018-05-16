@@ -85,15 +85,25 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	return buf
 }
 
-// ecbEncryptionOracle returns an ECB encryption oracle function.
-func ecbEncryptionOracle() func([]byte) []byte {
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	if int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
+		return nil, errors.New("PKCS7Unpad: invalid padding")
+	}
+	return buf[:len(buf)-int(b)], nil
+}
+
+// oracleFunc returns an ECB encryption oracle function.
+func oracleFunc() func([]byte) []byte {
 	mode := NewECBEncrypter(RandomCipher())
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
 		panic(err.Error())
 	}
 	return func(buf []byte) []byte {
-		// Don't stomp on the original data.
 		res := append(buf, decoded...)
 		res = PKCS7Pad(res, mode.BlockSize())
 		mode.CryptBlocks(res, res)
@@ -107,7 +117,6 @@ type ecbBreaker struct {
 	a         byte
 	blockSize int
 	secretLen int
-	probe     []byte
 }
 
 // detectParameters detects the block size and secret length.
@@ -155,61 +164,67 @@ func newECBBreaker(oracle func([]byte) []byte) (*ecbBreaker, error) {
 	return x, nil
 }
 
-// scan generates a sequence of block-sized buffers for decrypting the secret.
-func (x *ecbBreaker) scan() [][]byte {
+// scanBlocks generates a sequence of blocks for decrypting the secret.
+func (x *ecbBreaker) scanBlocks() [][]byte {
 	initLen := len(x.oracle([]byte{}))
 	probe := bytes.Repeat([]byte{x.a}, initLen-1)
-	seq := make([][]byte, x.secretLen)
-	for i := range seq {
+
+	// Each block enables decryption of a single byte.
+	blocks := make([][]byte, x.secretLen)
+	for i := range blocks {
 		buf := x.oracle(probe)
-		seq[i] = buf[initLen-x.blockSize : initLen]
-		// Scan the secret one byte at a time.
+		blocks[i] = buf[initLen-x.blockSize : initLen]
+		// Shift the secret forward one byte.
 		probe = probe[:len(probe)-1]
 	}
-	return seq
+	return blocks
 }
 
-// Shift shifts a buffer forward.
-func Shift(buf []byte) {
-	copy(buf, buf[1:])
-}
-
-func (x *ecbBreaker) breakByte(next []byte) byte {
-	for i := 0; ; i++ {
-		if i > 256 {
-			panic("something bad happened")
-		}
+// breakByte returns the byte that produces the given encrypted block.
+func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
+	for i := 0; i < 256; i++ {
 		b := byte(i)
-		x.probe[x.blockSize-1] = b
-		buf := x.oracle(x.probe)[:x.blockSize]
-		if bytes.Equal(buf, next) {
-			Shift(x.probe)
-			return b
+		probe[x.blockSize-1] = b
+		buf := x.oracle(probe)
+		if bytes.Equal(buf[:x.blockSize], block) {
+			// Shift the probe forward one byte.
+			copy(probe, probe[1:])
+			return b, nil
 		}
 	}
+	return 0, errors.New("breakByte: invalid block")
 }
 
-// Break the oracle function and return the decrypted message.
-func (x *ecbBreaker) Break() []byte {
-	var res []byte
-	seq := x.scan()
-	if len(seq) != x.secretLen {
-		panic("something bad happened")
+// breakOracle breaks the oracle function and returns the secret.
+func (x *ecbBreaker) breakOracle() ([]byte, error) {
+	var buf []byte
+	probe := bytes.Repeat([]byte{x.a}, x.blockSize)
+	for _, block := range x.scanBlocks() {
+		b, err := x.breakByte(probe, block)
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, b)
 	}
-	x.probe = bytes.Repeat([]byte{x.a}, x.blockSize)
-	for _, next := range seq {
-		b := x.breakByte(next)
-		res = append(res, b)
+	res, err := PKCS7Unpad(buf, x.blockSize)
+	if err != nil {
+		return nil, err
 	}
-	return res
+	return res, nil
 }
 
 func main() {
-	oracle := ecbEncryptionOracle()
-	breaker, err := newECBBreaker(oracle)
-	if err != nil {
+	oracle := oracleFunc()
+	var x *ecbBreaker
+	var err error
+	if x, err = newECBBreaker(oracle); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
-	fmt.Println(string(breaker.Break()))
+	var buf []byte
+	if buf, err = x.breakOracle(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	fmt.Print(string(buf))
 }
