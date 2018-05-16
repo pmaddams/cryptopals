@@ -96,8 +96,8 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return buf[:len(buf)-int(b)], nil
 }
 
-// oracleFunc returns an ECB encryption oracle function.
-func oracleFunc() func([]byte) []byte {
+// ecbEncryptionOracle returns an ECB encryption oracle function.
+func ecbEncryptionOracle() func([]byte) []byte {
 	mode := NewECBEncrypter(RandomCipher())
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
@@ -136,6 +136,18 @@ func (x *ecbBreaker) detectParameters() error {
 	}
 }
 
+// IdenticalBlocks returns true if any block in the buffer appears more than once.
+func IdenticalBlocks(buf []byte, blockSize int) bool {
+	for ; len(buf) >= 2*blockSize; buf = buf[blockSize:] {
+		for p := buf[blockSize:]; len(p) >= blockSize; p = p[blockSize:] {
+			if bytes.Equal(buf[:blockSize], p[:blockSize]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // ecbProbe returns a buffer that can be used to detect ECB mode.
 func (x *ecbBreaker) ecbProbe() []byte {
 	return bytes.Repeat([]byte{x.a}, 3*x.blockSize)
@@ -143,13 +155,10 @@ func (x *ecbBreaker) ecbProbe() []byte {
 
 // detectECB returns an error if the encryption oracle is not using ECB mode.
 func (x *ecbBreaker) detectECB() error {
-	buf := x.oracle(x.ecbProbe())
-	// Because the probe consists of the same repeated byte,
-	// the encrypted blocks in the middle are identical.
-	if n := x.blockSize; bytes.Equal(buf[n:2*n], buf[2*n:3*n]) {
-		return nil
+	if !IdenticalBlocks(x.oracle(x.ecbProbe()), x.blockSize) {
+		return errors.New("detectECB: ECB mode not detected")
 	}
-	return errors.New("detectECB: ECB mode not detected")
+	return nil
 }
 
 // newECBBreaker takes an ECB encryption oracle and returns a breaker.
@@ -214,7 +223,7 @@ func (x *ecbBreaker) breakOracle() ([]byte, error) {
 }
 
 func main() {
-	oracle := oracleFunc()
+	oracle := ecbEncryptionOracle()
 	var x *ecbBreaker
 	var err error
 	if x, err = newECBBreaker(oracle); err != nil {
