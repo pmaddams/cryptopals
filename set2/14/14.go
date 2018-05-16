@@ -119,7 +119,7 @@ func evilBuffer(blockSize int) []byte {
 }
 
 // detectMode detects whether the encryption function uses ECB or CBC mode.
-func detectMode(blockSize int, encrypt func([]byte) []byte) string {
+func detectMode(encrypt func([]byte) []byte, blockSize int) string {
 	buf := encrypt(evilBuffer(blockSize))
 	// Because the evil buffer consists of the same repeated byte,
 	// the encrypted blocks in the middle are identical.
@@ -131,7 +131,7 @@ func detectMode(blockSize int, encrypt func([]byte) []byte) string {
 
 // encryptWithoutPrefix takes an encryption function and returns
 // a function that encrypts data in ECB mode without the prefix.
-func encryptWithoutPrefix(blockSize int, encrypt func([]byte) []byte) func([]byte) []byte {
+func encryptWithoutPrefix(encrypt func([]byte) []byte, blockSize int) func([]byte) []byte {
 	attack := []byte{}
 	initBuf := encrypt(attack)
 	initLen := len(initBuf)
