@@ -7,7 +7,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	weak "math/rand"
+	"os"
 	"time"
 )
 
@@ -86,14 +88,13 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 // ecbEncryptionOracle returns an ECB encryption oracle function.
 func ecbEncryptionOracle() func([]byte) []byte {
 	mode := NewECBEncrypter(RandomCipher())
-	prefix := RandomBytes(5, 10)
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
 		panic(err.Error())
 	}
 	return func(buf []byte) []byte {
 		// Don't stomp on the original data.
-		res := append(prefix, append(buf, decoded...)...)
+		res := append(buf, decoded...)
 		res = PKCS7Pad(res, mode.BlockSize())
 		mode.CryptBlocks(res, res)
 		return res
@@ -102,10 +103,11 @@ func ecbEncryptionOracle() func([]byte) []byte {
 
 // ecbBreaker contains the data necessary to analyze an ECB encryption oracle.
 type ecbBreaker struct {
-	oracle func([]byte) []byte
-	a byte
+	oracle    func([]byte) []byte
+	a         byte
 	blockSize int
 	secretLen int
+	probe     []byte
 }
 
 // detectParameters detects the block size and secret length.
@@ -141,8 +143,8 @@ func (x *ecbBreaker) detectECB() error {
 	return errors.New("detectECB: ECB mode not detected")
 }
 
-// NewECBBreaker takes an ECB encryption oracle and returns a breaker.
-func NewECBBreaker(oracle func([]byte) []byte) (*ecbBreaker, error) {
+// newECBBreaker takes an ECB encryption oracle and returns a breaker.
+func newECBBreaker(oracle func([]byte) []byte) (*ecbBreaker, error) {
 	x := &ecbBreaker{oracle: oracle, a: 'a'}
 	if err := x.detectParameters(); err != nil {
 		return nil, err
@@ -153,5 +155,61 @@ func NewECBBreaker(oracle func([]byte) []byte) (*ecbBreaker, error) {
 	return x, nil
 }
 
+// scan generates a sequence of block-sized buffers for decrypting the secret.
+func (x *ecbBreaker) scan() [][]byte {
+	initLen := len(x.oracle([]byte{}))
+	probe := bytes.Repeat([]byte{x.a}, initLen-1)
+	seq := make([][]byte, x.secretLen)
+	for i := range seq {
+		buf := x.oracle(probe)
+		seq[i] = buf[initLen-x.blockSize : initLen]
+		// Scan the secret one byte at a time.
+		probe = probe[:len(probe)-1]
+	}
+	return seq
+}
+
+// Shift shifts a buffer forward.
+func Shift(buf []byte) {
+	copy(buf, buf[1:])
+}
+
+func (x *ecbBreaker) breakByte(next []byte) byte {
+	for i := 0; ; i++ {
+		if i > 256 {
+			panic("something bad happened")
+		}
+		b := byte(i)
+		x.probe[x.blockSize-1] = b
+		buf := x.oracle(x.probe)[:x.blockSize]
+		if bytes.Equal(buf, next) {
+			Shift(x.probe)
+			return b
+		}
+	}
+}
+
+// Break the oracle function and return the decrypted message.
+func (x *ecbBreaker) Break() []byte {
+	var res []byte
+	seq := x.scan()
+	if len(seq) != x.secretLen {
+		panic("something bad happened")
+	}
+	x.probe = bytes.Repeat([]byte{x.a}, x.blockSize)
+	for _, next := range seq {
+		b := x.breakByte(next)
+		res = append(res, b)
+	}
+	return res
+}
+
 func main() {
+	oracle := ecbEncryptionOracle()
+	breaker, err := newECBBreaker(oracle)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	fmt.Println(string(breaker.Break()))
 }
