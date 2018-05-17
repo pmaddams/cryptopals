@@ -120,6 +120,11 @@ type ecbBreaker struct {
 	secretLen int
 }
 
+// newECBBreaker takes an ECB encryption oracle and returns a breaker.
+func newECBBreaker(oracle func([]byte) []byte) *ecbBreaker {
+	return &ecbBreaker{oracle: oracle, a: 'a'}
+}
+
 // detectBlockSize detects the block size.
 func (x *ecbBreaker) detectBlockSize() error {
 	probe := []byte{}
@@ -155,6 +160,9 @@ func (x *ecbBreaker) ecbProbe() []byte {
 
 // detectECB returns an error if the encryption oracle is not using ECB mode.
 func (x *ecbBreaker) detectECB() error {
+	if x.blockSize == 0 {
+		return errors.New("detectECB: invalid block size")
+	}
 	if !IdenticalBlocks(x.oracle(x.ecbProbe()), x.blockSize) {
 		return errors.New("detectECB: ECB mode not detected")
 	}
@@ -163,6 +171,9 @@ func (x *ecbBreaker) detectECB() error {
 
 // removeOraclePrefix replaces the oracle with a wrapper that removes the prefix.
 func (x *ecbBreaker) removeOraclePrefix() error {
+	if x.blockSize == 0 {
+		return errors.New("removeOraclePrefix: invalid block size")
+	}
 	probe := []byte{}
 	initBuf := x.oracle(probe)
 	initLen := len(initBuf)
@@ -191,6 +202,9 @@ func (x *ecbBreaker) removeOraclePrefix() error {
 
 // detectSecretLength detects the secret length.
 func (x *ecbBreaker) detectSecretLength() error {
+	if x.blockSize == 0 {
+		return errors.New("detectSecretLength: invalid block size")
+	}
 	probe := []byte{}
 	initLen := len(x.oracle(probe))
 	for padLen := 0; padLen <= x.blockSize; padLen++ {
@@ -201,24 +215,6 @@ func (x *ecbBreaker) detectSecretLength() error {
 		}
 	}
 	return errors.New("detectSecretLength: invalid length")
-}
-
-// newECBBreaker takes an ECB encryption oracle and returns a breaker.
-func newECBBreaker(oracle func([]byte) []byte) (*ecbBreaker, error) {
-	x := &ecbBreaker{oracle: oracle, a: 'a'}
-	if err := x.detectBlockSize(); err != nil {
-		return nil, err
-	}
-	if err := x.detectECB(); err != nil {
-		return nil, err
-	}
-	if err := x.removeOraclePrefix(); err != nil {
-		return nil, err
-	}
-	if err := x.detectSecretLength(); err != nil {
-		return nil, err
-	}
-	return x, nil
 }
 
 // scanBlocks generates a sequence of blocks for decrypting the secret.
@@ -254,6 +250,11 @@ func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
 
 // breakOracle breaks the encryption oracle and returns the secret.
 func (x *ecbBreaker) breakOracle() ([]byte, error) {
+	if x.blockSize == 0 {
+		return nil, errors.New("scanBlocks: invalid block size")
+	} else if x.secretLen == 0 {
+		return nil, errors.New("scanBlocks: invalid secret length")
+	}
 	var buf []byte
 	probe := bytes.Repeat([]byte{x.a}, x.blockSize)
 	for _, block := range x.scanBlocks() {
@@ -271,10 +272,21 @@ func (x *ecbBreaker) breakOracle() ([]byte, error) {
 }
 
 func main() {
-	oracle := ecbEncryptionOracleWithPrefix()
-	var x *ecbBreaker
+	x := newECBBreaker(ecbEncryptionOracleWithPrefix())
 	var err error
-	if x, err = newECBBreaker(oracle); err != nil {
+	if err = x.detectBlockSize(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	if err = x.detectECB(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	if err = x.removeOraclePrefix(); err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	if err = x.detectSecretLength(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
