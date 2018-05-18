@@ -6,13 +6,14 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"net/url"
 )
 
 // AES always has a block size of 128 bits (16 bytes).
 const aesBlockSize = 16
 
-// ProfileFor returns a query string identifying the email address as a user.
+// ProfileFor returns a query string identifying an email address as a user.
 func ProfileFor(email string) string {
 	return url.Values{
 		"email": {email},
@@ -20,7 +21,7 @@ func ProfileFor(email string) string {
 	}.Encode()
 }
 
-// IsAdmin returns true if a valid query string contains "role=admin".
+// IsAdmin returns true if a query string is valid and contains "role=admin".
 func IsAdmin(query string) bool {
 	v, err := url.ParseQuery(query)
 	if err != nil {
@@ -112,5 +113,33 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return buf[:len(buf)-int(b)], nil
 }
 
+// encryptedProfileFor returns an encrypted user profile for an email address.
+func encryptedProfileFor(email string, enc cipher.BlockMode) []byte {
+	buf := PKCS7Pad([]byte(ProfileFor(email)), enc.BlockSize())
+	enc.CryptBlocks(buf, buf)
+	return buf
+}
+
+// encryptedIsAdmin returns true if an encrypted query string contains "role=admin".
+func encryptedIsAdmin(buf []byte, dec cipher.BlockMode) bool {
+	dec.CryptBlocks(buf, buf)
+	var err error
+	if buf, err = PKCS7Unpad(buf, dec.BlockSize()); err != nil {
+		return false
+	}
+	return IsAdmin(string(buf))
+}
+
 func main() {
+	block := RandomCipher()
+	enc, dec := NewECBEncrypter(block), NewECBDecrypter(block)
+
+	toCut := encryptedProfileFor("XXXXXXXXXXadmin", enc)
+	toPaste := encryptedProfileFor("anonymous.coward@guerrillamail.com", enc)
+
+	cut := toCut[len(toCut)-aesBlockSize:]
+	paste := toPaste[:len(toPaste)-aesBlockSize]
+	if encryptedIsAdmin(append(paste, cut...), dec) {
+		fmt.Println("success")
+	}
 }
