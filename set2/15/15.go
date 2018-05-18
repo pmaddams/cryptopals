@@ -54,13 +54,13 @@ func unpadAndPrint(in io.Reader, blockSize int) {
 	var buf []byte
 	for !eof {
 		s, err = input.ReadString('\n')
-		if err == io.EOF {
-			eof = true
-		} else if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			return
-		} else {
+		if err == nil {
 			s = s[:len(s)-1]
+		} else if err == io.EOF {
+			eof = true
+		} else {
+			fmt.Fprintln(os.Stderr, err.Error())
+			continue
 		}
 		s, err = strconv.Unquote("\"" + s + "\"")
 		if err != nil {
