@@ -21,8 +21,8 @@ func ProfileFor(email string) string {
 	}.Encode()
 }
 
-// IsAdmin returns true if a query string is valid and contains "role=admin".
-func IsAdmin(query string) bool {
+// RoleAdmin returns true if a query string is valid and contains "role=admin".
+func RoleAdmin(query string) bool {
 	v, err := url.ParseQuery(query)
 	if err != nil {
 		return false
@@ -123,14 +123,14 @@ func encryptedProfileFor(email string, enc cipher.BlockMode) []byte {
 	return buf
 }
 
-// encryptedIsAdmin returns true if an encrypted query string contains "role=admin".
-func encryptedIsAdmin(buf []byte, dec cipher.BlockMode) bool {
+// decryptedRoleAdmin returns true if a decrypted query string contains "role=admin".
+func decryptedRoleAdmin(buf []byte, dec cipher.BlockMode) bool {
 	dec.CryptBlocks(buf, buf)
 	var err error
 	if buf, err = PKCS7Unpad(buf, dec.BlockSize()); err != nil {
 		return false
 	}
-	return IsAdmin(string(buf))
+	return RoleAdmin(string(buf))
 }
 
 func main() {
@@ -142,7 +142,7 @@ func main() {
 
 	cut := toCut[len(toCut)-aesBlockSize:]
 	paste := toPaste[:len(toPaste)-aesBlockSize]
-	if encryptedIsAdmin(append(paste, cut...), dec) {
+	if decryptedRoleAdmin(append(paste, cut...), dec) {
 		fmt.Println("success")
 	}
 }

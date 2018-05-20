@@ -32,7 +32,7 @@ func TestProfileFor(t *testing.T) {
 	}
 }
 
-func TestIsAdmin(t *testing.T) {
+func TestRoleAdmin(t *testing.T) {
 	cases := []struct {
 		query string
 		want  bool
@@ -51,8 +51,8 @@ func TestIsAdmin(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		if got := IsAdmin(c.query); got != c.want {
-			t.Errorf("IsAdmin(%v) == %v, want %v",
+		if got := RoleAdmin(c.query); got != c.want {
+			t.Errorf("RoleAdmin(%v) == %v, want %v",
 				c.query, got, c.want)
 		}
 	}
