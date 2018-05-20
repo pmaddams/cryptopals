@@ -6,10 +6,29 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
+	"net/url"
+	"strings"
 )
 
 // AES always has a block size of 128 bits (16 bytes).
 const aesBlockSize = 16
+
+// UserData returns a string with arbitrary data inserted in the middle.
+func UserData(s string) string {
+	const prefix = "comment1=cooking%20MCs;userdata="
+	const suffix = ";comment2=%20like%20a%20pound%20of%20bacon"
+	return prefix + url.QueryEscape(s) + suffix
+}
+
+// AdminTrue returns true if a semicolon-separated string contains "admin=true".
+func AdminTrue(s string) bool {
+	for _, v := range strings.Split(s, ";") {
+		if v == "admin=true" {
+			return true
+		}
+	}
+	return false
+}
 
 // RandomCipher returns an AES cipher with a random key.
 func RandomCipher() cipher.Block {

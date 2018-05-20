@@ -7,6 +7,58 @@ import (
 	"testing"
 )
 
+func TestUserData(t *testing.T) {
+	cases := []struct {
+		s, want string
+	}{
+		{
+			"",
+			"comment1=cooking%20MCs;userdata=;comment2=%20like%20a%20pound%20of%20bacon",
+		},
+		{
+			";admin=true",
+			"comment1=cooking%20MCs;userdata=%3Badmin%3Dtrue;comment2=%20like%20a%20pound%20of%20bacon",
+		},
+		{
+			"\";admin=true\"",
+			"comment1=cooking%20MCs;userdata=%22%3Badmin%3Dtrue%22;comment2=%20like%20a%20pound%20of%20bacon",
+		},
+	}
+	for _, c := range cases {
+		if got := UserData(c.s); got != c.want {
+			t.Errorf("UserData(%v) == %v, want %v",
+				c.s, got, c.want)
+		}
+	}
+}
+
+func TestAdminTrue(t *testing.T) {
+	cases := []struct {
+		s    string
+		want bool
+	}{
+		{
+			"comment1=cooking%20MCs;userdata=%3Badmin%3Dtrue;comment2=%20like%20a%20pound%20of%20bacon",
+			false,
+		},
+		{
+			"comment1=cooking%20MCs;userdata=%22%3Badmin%3Dtrue%22;comment2=%20like%20a%20pound%20of%20bacon",
+			false,
+		},
+		{
+			"comment1=cooking%20MCs;userdata=;admin=true;comment2=%20like%20a%20pound%20of%20bacon",
+			true,
+		},
+	}
+	for _, c := range cases {
+		if got := AdminTrue(c.s); got != c.want {
+			t.Errorf("AdminTrue(%v) == %v, want %v",
+				c.s, got, c.want)
+		}
+	}
+
+}
+
 func TestRandomCipher(t *testing.T) {
 	cases := []cipher.Block{}
 	for i := 0; i < 5; i++ {
