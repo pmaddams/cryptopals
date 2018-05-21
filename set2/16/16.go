@@ -6,7 +6,9 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -73,7 +75,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 
 // encryptedUserData returns an encrypted string with arbitrary data inserted in the middle.
 func encryptedUserData(s string, enc cipher.BlockMode) []byte {
-	buf := PKCS7Pad([]byte(UserData(string)), enc.BlockSize())
+	buf := PKCS7Pad([]byte(UserData(s)), enc.BlockSize())
 	enc.CryptBlocks(buf, buf)
 	return buf
 }
@@ -88,8 +90,8 @@ func decryptedAdminTrue(buf []byte, dec cipher.BlockMode) bool {
 	return AdminTrue(string(buf))
 }
 
-// ByteMask returns an XOR mask that prevents query escaping for the target byte.
-func ByteMask(b byte) byte {
+// byteMask returns an XOR mask that prevents query escaping for the target byte.
+func byteMask(b byte) byte {
 	var res byte
 	for i := 0; i < 256; i++ {
 		s := string(b ^ byte(i))
@@ -108,10 +110,50 @@ func blockMask(buf []byte, blockSize int) ([]byte, error) {
 	}
 	res := make([]byte, blockSize)
 	for i := 0; i < blockSize; i++ {
-		res[i] = ByteMask(buf[i])
+		res[i] = byteMask(buf[i])
 	}
 	return res, nil
 }
 
+// min returns the smaller of two integers.
+func min(n, m int) int {
+	if n < m {
+		return n
+	}
+	return m
+}
+
+// XORBytes produces the XOR combination of two buffers.
+func XORBytes(dst, b1, b2 []byte) int {
+	n := min(len(b1), len(b2))
+	for i := 0; i < n; i++ {
+		dst[i] = b1[i] ^ b2[i]
+	}
+	return n
+}
+
 func main() {
+	block := RandomCipher()
+	iv := make([]byte, aesBlockSize)
+	if _, err := rand.Read(iv); err != nil {
+		panic(err.Error())
+	}
+	enc := cipher.NewCBCEncrypter(block, iv)
+	dec := cipher.NewCBCDecrypter(block, iv)
+
+	data := []byte("XXXXX;admin=true")
+	mask, err := blockMask(data, aesBlockSize)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
+	}
+	XORBytes(data, data, mask)
+
+	buf := encryptedUserData(string(data), enc)
+	target := buf[aesBlockSize : 2*aesBlockSize]
+	XORBytes(target, target, mask)
+
+	if decryptedAdminTrue(buf, dec) {
+		fmt.Println("success")
+	}
 }
