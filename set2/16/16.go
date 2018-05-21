@@ -71,5 +71,47 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return buf[:len(buf)-int(b)], nil
 }
 
+// encryptedUserData returns an encrypted string with arbitrary data inserted in the middle.
+func encryptedUserData(s string, enc cipher.BlockMode) []byte {
+	buf := PKCS7Pad([]byte(UserData(string)), enc.BlockSize())
+	enc.CryptBlocks(buf, buf)
+	return buf
+}
+
+// decryptedAdminTrue returns true if a decrypted semicolon-separated string contains "admin=true".
+func decryptedAdminTrue(buf []byte, dec cipher.BlockMode) bool {
+	dec.CryptBlocks(buf, buf)
+	var err error
+	if buf, err = PKCS7Unpad(buf, dec.BlockSize()); err != nil {
+		return false
+	}
+	return AdminTrue(string(buf))
+}
+
+// ByteMask returns an XOR mask that prevents query escaping for the target byte.
+func ByteMask(b byte) byte {
+	var res byte
+	for i := 0; i < 256; i++ {
+		s := string(b ^ byte(i))
+		if s == url.QueryEscape(s) {
+			res = byte(i)
+			break
+		}
+	}
+	return res
+}
+
+// blockMask returns an XOR mask that prevents query escaping for the target block.
+func blockMask(buf []byte, blockSize int) ([]byte, error) {
+	if len(buf) != blockSize {
+		return nil, errors.New("blockMask: buffer length must be equal to block size")
+	}
+	res := make([]byte, blockSize)
+	for i := 0; i < blockSize; i++ {
+		res[i] = ByteMask(buf[i])
+	}
+	return res, nil
+}
+
 func main() {
 }
