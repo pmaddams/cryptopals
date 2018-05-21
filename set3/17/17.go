@@ -3,9 +3,9 @@ package main
 import (
 	"bufio"
 	"bytes"
-	_ "crypto/aes"
+	"crypto/aes"
 	"crypto/cipher"
-	_ "crypto/rand"
+	"crypto/rand"
 	"encoding/base64"
 	"errors"
 	weak "math/rand"
@@ -34,6 +34,16 @@ func randomLine(filename string) ([]byte, error) {
 	s := lines[weak.Intn(len(lines))]
 
 	return base64.StdEncoding.DecodeString(s)
+}
+
+// RandomCipher returns an AES cipher with a random key.
+func RandomCipher() cipher.Block {
+	key := make([]byte, aesBlockSize)
+	if _, err := rand.Read(key); err != nil {
+		panic(err.Error())
+	}
+	block, _ := aes.NewCipher(key)
+	return block
 }
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
