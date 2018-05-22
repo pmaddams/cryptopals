@@ -8,9 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	weak "math/rand"
 	"os"
-	"time"
 )
 
 const secret = `Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg
@@ -49,23 +47,10 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 func RandomCipher() cipher.Block {
 	key := make([]byte, aesBlockSize)
 	if _, err := rand.Read(key); err != nil {
-		panic(err.Error())
+		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
 	}
 	block, _ := aes.NewCipher(key)
 	return block
-}
-
-// RandomBytes returns a random buffer with length in [min, max].
-func RandomBytes(min, max int) []byte {
-	if min < 0 || min > max {
-		panic("RandomBytes: invalid range")
-	}
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	res := make([]byte, min+weak.Intn(max-min+1))
-	if _, err := rand.Read(res); err != nil {
-		panic(err.Error())
-	}
-	return res
 }
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
@@ -104,7 +89,7 @@ func ecbEncryptionOracle() func([]byte) []byte {
 	mode := NewECBEncrypter(RandomCipher())
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
-		panic(err.Error())
+		panic(fmt.Sprintf("ecbEncryptionOracle: %s", err.Error()))
 	}
 	return func(buf []byte) []byte {
 		buf = append(buf, decoded...)

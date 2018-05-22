@@ -79,7 +79,7 @@ func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
 func RandomCipher() cipher.Block {
 	key := make([]byte, aesBlockSize)
 	if _, err := rand.Read(key); err != nil {
-		panic(err.Error())
+		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
 	}
 	block, _ := aes.NewCipher(key)
 	return block

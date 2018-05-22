@@ -20,23 +20,6 @@ func TestRandomCipher(t *testing.T) {
 	}
 }
 
-func TestRandomBytes(t *testing.T) {
-	cases := []struct {
-		min, max int
-	}{
-		{0, 0},
-		{5, 10},
-		{20, 30},
-	}
-	for _, c := range cases {
-		got := RandomBytes(c.min, c.max)
-		if len(got) < c.min || len(got) > c.max {
-			t.Errorf("RandomBytes(%v, %v) == %v, length out of range",
-				c.min, c.max, got)
-		}
-	}
-}
-
 func TestPKCS7Pad(t *testing.T) {
 	cases := []struct {
 		buf       []byte

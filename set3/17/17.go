@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	weak "math/rand"
 	"os"
 	"time"
@@ -40,7 +41,7 @@ func randomLine(filename string) ([]byte, error) {
 func RandomCipher() cipher.Block {
 	key := make([]byte, aesBlockSize)
 	if _, err := rand.Read(key); err != nil {
-		panic(err.Error())
+		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
 	}
 	block, _ := aes.NewCipher(key)
 	return block

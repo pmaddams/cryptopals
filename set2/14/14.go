@@ -49,21 +49,27 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 func RandomCipher() cipher.Block {
 	key := make([]byte, aesBlockSize)
 	if _, err := rand.Read(key); err != nil {
-		panic(err.Error())
+		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
 	}
 	block, _ := aes.NewCipher(key)
 	return block
 }
 
-// RandomBytes returns a random buffer with length in [min, max].
-func RandomBytes(min, max int) []byte {
-	if min < 0 || min > max {
-		panic("RandomBytes: invalid range")
+// RandomInt returns a pseudo-random non-negative integer in [lo, hi].
+// The output should not be used in a security-sensitive context.
+func RandomInt(lo, hi int) int {
+	if lo < 0 || lo > hi {
+		panic("RandomInt: invalid range")
 	}
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	res := make([]byte, min+weak.Intn(max-min+1))
+	return lo + weak.Intn(hi-lo+1)
+}
+
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(length int) []byte {
+	res := make([]byte, length)
 	if _, err := rand.Read(res); err != nil {
-		panic(err.Error())
+		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
 	}
 	return res
 }
@@ -102,10 +108,10 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 // ecbEncryptionOracleWithPrefix returns an ECB encryption oracle function with prefix.
 func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
 	mode := NewECBEncrypter(RandomCipher())
-	prefix := RandomBytes(5, 10)
+	prefix := RandomBytes(RandomInt(5, 10))
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
-		panic(err.Error())
+		panic(fmt.Sprintf("ecbEncryptionOracleWithPrefix: %s", err.Error()))
 	}
 	return func(buf []byte) []byte {
 		buf = append(prefix, append(buf, decoded...)...)

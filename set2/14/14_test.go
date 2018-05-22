@@ -20,19 +20,35 @@ func TestRandomCipher(t *testing.T) {
 	}
 }
 
-func TestRandomBytes(t *testing.T) {
+func TestRandomInt(t *testing.T) {
 	cases := []struct {
-		min, max int
+		lo, hi int
 	}{
 		{0, 0},
 		{5, 10},
 		{20, 30},
 	}
 	for _, c := range cases {
-		got := RandomBytes(c.min, c.max)
-		if len(got) < c.min || len(got) > c.max {
-			t.Errorf("RandomBytes(%v, %v) == %v, length out of range",
-				c.min, c.max, got)
+		for i := 0; i < 10; i++ {
+			got := RandomInt(c.lo, c.hi)
+			if got < c.lo || got > c.hi {
+				t.Errorf("RandomInt(%v, %v) == %v, value out of range",
+					c.lo, c.hi, got)
+			}
+		}
+	}
+}
+
+func TestRandomBytes(t *testing.T) {
+	const length = 10
+	cases := [][]byte{}
+	for i := 0; i < 5; i++ {
+		cases = append(cases, RandomBytes(length))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(cases[i], cases[j]) {
+				t.Errorf("RandomBytes created identical buffers %v and %v",
+					cases[i], cases[j])
+			}
 		}
 	}
 }
