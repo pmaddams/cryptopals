@@ -153,7 +153,7 @@ func (x *cbcBreaker) breakPaddingByte(tmp, buf []byte, v int) (byte, error) {
 	for i := 0; i < 256; i++ {
 		b := byte(i)
 		tmp[aesBlockSize-v] ^= b
-		if err := x.oracle(tmp, buf); err != nil {
+		if err := x.oracle(tmp, buf); err == nil {
 			return b, nil
 		}
 		tmp[aesBlockSize-v] ^= b
