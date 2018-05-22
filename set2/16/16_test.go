@@ -73,6 +73,20 @@ func TestRandomCipher(t *testing.T) {
 	}
 }
 
+func TestRandomBytes(t *testing.T) {
+	const length = 10
+	cases := [][]byte{}
+	for i := 0; i < 5; i++ {
+		cases = append(cases, RandomBytes(length))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(cases[i], cases[j]) {
+				t.Errorf("RandomBytes created identical buffers %v and %v",
+					cases[i], cases[j])
+			}
+		}
+	}
+}
+
 func TestPKCS7Pad(t *testing.T) {
 	cases := []struct {
 		buf       []byte

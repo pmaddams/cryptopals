@@ -47,21 +47,6 @@ func RandomCipher() cipher.Block {
 	return block
 }
 
-// RandomEncrypter returns either ECB or CBC encryption mode with a random key.
-func RandomEncrypter() cipher.BlockMode {
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	switch weak.Intn(2) {
-	case 0:
-		return NewECBEncrypter(RandomCipher())
-	default:
-		iv := make([]byte, aesBlockSize)
-		if _, err := rand.Read(iv); err != nil {
-			panic(fmt.Sprintf("RandomEncrypter: %s", err.Error()))
-		}
-		return cipher.NewCBCEncrypter(RandomCipher(), iv)
-	}
-}
-
 // RandomInt returns a pseudo-random non-negative integer in [lo, hi].
 // The output should not be used in a security-sensitive context.
 func RandomInt(lo, hi int) int {
@@ -79,6 +64,16 @@ func RandomBytes(length int) []byte {
 		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
 	}
 	return res
+}
+
+// RandomEncrypter returns either ECB or CBC encryption mode with a random key.
+func RandomEncrypter() cipher.BlockMode {
+	switch RandomInt(0, 1) {
+	case 0:
+		return NewECBEncrypter(RandomCipher())
+	default:
+		return cipher.NewCBCEncrypter(RandomCipher(), RandomBytes(aesBlockSize))
+	}
 }
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.

@@ -20,20 +20,6 @@ func TestRandomCipher(t *testing.T) {
 	}
 }
 
-func TestRandomEncrypter(t *testing.T) {
-	cases := []cipher.BlockMode{}
-	for i := 0; i < 10; i++ {
-		cases = append(cases, RandomEncrypter())
-	}
-	_, isECB := cases[0].(ecbEncrypter)
-	for i := 1; i < 10; i++ {
-		if _, ok := cases[i].(ecbEncrypter); ok != isECB {
-			return
-		}
-	}
-	t.Error("RandomEncrypter created the same block mode 10 times")
-}
-
 func TestRandomInt(t *testing.T) {
 	cases := []struct {
 		lo, hi int
@@ -65,6 +51,20 @@ func TestRandomBytes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestRandomEncrypter(t *testing.T) {
+	cases := []cipher.BlockMode{}
+	for i := 0; i < 10; i++ {
+		cases = append(cases, RandomEncrypter())
+	}
+	_, isECB := cases[0].(ecbEncrypter)
+	for i := 1; i < 10; i++ {
+		if _, ok := cases[i].(ecbEncrypter); ok != isECB {
+			return
+		}
+	}
+	t.Error("RandomEncrypter created the same block mode 10 times")
 }
 
 func TestPKCS7Pad(t *testing.T) {

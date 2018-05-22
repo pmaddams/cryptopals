@@ -42,6 +42,15 @@ func RandomCipher() cipher.Block {
 	return block
 }
 
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(length int) []byte {
+	res := make([]byte, length)
+	if _, err := rand.Read(res); err != nil {
+		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
+	}
+	return res
+}
+
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
 	var n int
@@ -134,10 +143,8 @@ func XORBytes(dst, b1, b2 []byte) int {
 
 func main() {
 	block := RandomCipher()
-	iv := make([]byte, aesBlockSize)
-	if _, err := rand.Read(iv); err != nil {
-		panic(err.Error())
-	}
+	iv := RandomBytes(aesBlockSize)
+
 	enc := cipher.NewCBCEncrypter(block, iv)
 	dec := cipher.NewCBCDecrypter(block, iv)
 
