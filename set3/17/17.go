@@ -37,16 +37,6 @@ func randomLine(filename string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(s)
 }
 
-// RandomCipher returns an AES cipher with a random key.
-func RandomCipher() cipher.Block {
-	key := make([]byte, aesBlockSize)
-	if _, err := rand.Read(key); err != nil {
-		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
-	}
-	block, _ := aes.NewCipher(key)
-	return block
-}
-
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
 	var n int
@@ -86,6 +76,25 @@ func ValidPadding(buf []byte, blockSize int) bool {
 	return true
 }
 
+// RandomCipher returns an AES cipher with a random key.
+func RandomCipher() cipher.Block {
+	key := make([]byte, aesBlockSize)
+	if _, err := rand.Read(key); err != nil {
+		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
+	}
+	block, _ := aes.NewCipher(key)
+	return block
+}
+
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(length int) []byte {
+	res := make([]byte, length)
+	if _, err := rand.Read(res); err != nil {
+		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
+	}
+	return res
+}
+
 // encryptedRandomLine returns an encrypted line from a file of base64-encoded text.
 func encryptedRandomLine(filename string, enc cipher.BlockMode) ([]byte, error) {
 	buf, err := randomLine(filename)
@@ -102,6 +111,45 @@ func decryptedValidPadding(buf []byte, dec cipher.BlockMode) bool {
 	// NOTE: Modifying the buffer in place might be a bad idea!
 	dec.CryptBlocks(buf, buf)
 	return ValidPadding(buf, dec.BlockSize())
+}
+
+// cbcPaddingOracle returns a CBC padding oracle function, initialization vector, and ciphertext.
+func cbcPaddingOracle(filename string) (func([]byte, []byte) error, []byte, []byte, error) {
+	block := RandomCipher()
+	serverIV := RandomBytes(aesBlockSize)
+
+	enc := cipher.NewCBCEncrypter(block, serverIV)
+	ciphertext, err := encryptedRandomLine(filename, enc)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	oracle := func(clientIV, buf []byte) error {
+		dec := cipher.NewCBCDecrypter(block, clientIV)
+		if !decryptedValidPadding(buf, dec) {
+			return errors.New("invalid padding")
+		}
+		return nil
+	}
+	return oracle, serverIV, ciphertext, nil
+}
+
+// cbcBreaker stores information for attacking a CBC padding oracle.
+type cbcBreaker struct {
+	oracle     func([]byte, []byte) error
+	iv         []byte
+	ciphertext []byte
+}
+
+// newCBCBreaker generates a CBC padding oracle from a file containing base64-encoded strings.
+func newCBCBreaker(filename string) (*cbcBreaker, error) {
+	oracle, iv, ciphertext, err := cbcPaddingOracle(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &cbcBreaker{oracle, iv, ciphertext}, nil
+}
+
+func (*cbcBreaker) breakBlock(iv, buf []byte) {
 }
 
 func main() {

@@ -7,19 +7,6 @@ import (
 	"testing"
 )
 
-func TestRandomCipher(t *testing.T) {
-	cases := []cipher.Block{}
-	for i := 0; i < 5; i++ {
-		cases = append(cases, RandomCipher())
-		for j := 0; j < i; j++ {
-			if reflect.DeepEqual(cases[i], cases[j]) {
-				t.Errorf("RandomCipher created identical ciphers %v and %v",
-					cases[i], cases[j])
-			}
-		}
-	}
-}
-
 func TestPKCS7Pad(t *testing.T) {
 	cases := []struct {
 		buf       []byte
@@ -78,6 +65,33 @@ func TestPKCS7Unpad(t *testing.T) {
 		if !bytes.Equal(got, c.want) {
 			t.Errorf("PKCS7Unpad(%v, %v) == %v, want %v",
 				c.buf, c.blockSize, got, c.want)
+		}
+	}
+}
+
+func TestRandomCipher(t *testing.T) {
+	cases := []cipher.Block{}
+	for i := 0; i < 5; i++ {
+		cases = append(cases, RandomCipher())
+		for j := 0; j < i; j++ {
+			if reflect.DeepEqual(cases[i], cases[j]) {
+				t.Errorf("RandomCipher created identical ciphers %v and %v",
+					cases[i], cases[j])
+			}
+		}
+	}
+}
+
+func TestRandomBytes(t *testing.T) {
+	const length = 10
+	cases := [][]byte{}
+	for i := 0; i < 5; i++ {
+		cases = append(cases, RandomBytes(length))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(cases[i], cases[j]) {
+				t.Errorf("RandomBytes created identical buffers %v and %v",
+					cases[i], cases[j])
+			}
 		}
 	}
 }
