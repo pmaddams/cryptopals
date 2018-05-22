@@ -17,14 +17,14 @@ import (
 // AES always has a block size of 128 bits (16 bytes).
 const aesBlockSize = 16
 
-// randomLine returns a line at random from a file of base64-encoded text.
+// randomLine returns a random line from a file containing base64-encoded strings.
 func randomLine(filename string) ([]byte, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	lines := []string{}
 	input := bufio.NewScanner(f)
+	var lines []string
 	for input.Scan() {
 		lines = append(lines, input.Text())
 	}
@@ -95,7 +95,7 @@ func RandomBytes(length int) []byte {
 	return res
 }
 
-// encryptedRandomLine returns an encrypted line from a file of base64-encoded text.
+// encryptedRandomLine returns an encrypted random line from a file containing base64-encoded strings.
 func encryptedRandomLine(filename string, enc cipher.BlockMode) ([]byte, error) {
 	buf, err := randomLine(filename)
 	if err != nil {
