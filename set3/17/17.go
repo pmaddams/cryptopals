@@ -116,21 +116,18 @@ func decryptedValidPadding(buf []byte, dec cipher.BlockMode) bool {
 // cbcPaddingOracle returns a CBC padding oracle function, initialization vector, and ciphertext.
 func cbcPaddingOracle(filename string) (func([]byte, []byte) error, []byte, []byte, error) {
 	block := RandomCipher()
-	serverIV := RandomBytes(aesBlockSize)
-
-	enc := cipher.NewCBCEncrypter(block, serverIV)
-	ciphertext, err := encryptedRandomLine(filename, enc)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	oracle := func(clientIV, buf []byte) error {
-		dec := cipher.NewCBCDecrypter(block, clientIV)
-		if !decryptedValidPadding(buf, dec) {
-			return errors.New("invalid padding")
+	oracle := func(iv, buf []byte) error {
+		if !decryptedValidPadding(buf, cipher.NewCBCDecrypter(block, iv)) {
+			return errors.New("psst...invalid padding")
 		}
 		return nil
 	}
-	return oracle, serverIV, ciphertext, nil
+	iv := RandomBytes(aesBlockSize)
+	ciphertext, err := encryptedRandomLine(filename, cipher.NewCBCEncrypter(block, iv))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return oracle, iv, ciphertext, nil
 }
 
 // cbcBreaker stores information for attacking a CBC padding oracle.
@@ -149,8 +146,23 @@ func newCBCBreaker(filename string) (*cbcBreaker, error) {
 	return &cbcBreaker{oracle, iv, ciphertext}, nil
 }
 
+/*
+func (*cbcBreaker) breakPaddingByte() byte {
+}
+
 func (*cbcBreaker) breakBlock(iv, buf []byte) {
 }
 
+func (*cbcBreaker) breakOracle() []byte {
+}
+*/
+
 func main() {
+	/*
+		x, err := newCBCBreaker("17.txt")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+	*/
 }
