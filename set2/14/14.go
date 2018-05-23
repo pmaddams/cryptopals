@@ -121,7 +121,7 @@ func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
 	}
 }
 
-// ecbBreaker contains the data necessary to analyze an ECB encryption oracle.
+// ecbBreaker contains data necessary to attack the ECB encryption oracle.
 type ecbBreaker struct {
 	oracle    func([]byte) []byte
 	a         byte
