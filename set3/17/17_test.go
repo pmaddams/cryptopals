@@ -70,6 +70,36 @@ func TestPKCS7Unpad(t *testing.T) {
 	}
 }
 
+func TestValidPadding(t *testing.T) {
+	cases := []struct {
+		buf       []byte
+		blockSize int
+		want      bool
+	}{
+		{
+			[]byte{3, 2, 1},
+			3,
+			true,
+		},
+		{
+			[]byte{3, 2, 2},
+			3,
+			true,
+		},
+		{
+			[]byte{6, 6, 6, 4, 4, 4},
+			6,
+			false,
+		},
+	}
+	for _, c := range cases {
+		if got := ValidPadding(c.buf, c.blockSize); got != c.want {
+			t.Errorf("ValidPadding(%v, %v) == %v, want %v",
+				c.buf, c.blockSize, got, c.want)
+		}
+	}
+}
+
 func TestRandomCipher(t *testing.T) {
 	cases := []cipher.Block{}
 	for i := 0; i < 5; i++ {
