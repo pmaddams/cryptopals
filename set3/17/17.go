@@ -108,7 +108,6 @@ func encryptedRandomLine(filename string, enc cipher.BlockMode) ([]byte, error) 
 
 // decryptedValidPadding returns true if a decrypted buffer has valid PKCS#7 padding.
 func decryptedValidPadding(buf []byte, dec cipher.BlockMode) bool {
-	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
 	copy(tmp, buf)
 	dec.CryptBlocks(tmp, tmp)
@@ -120,7 +119,7 @@ func cbcPaddingOracle(filename string) (func([]byte, []byte) error, []byte, []by
 	block := RandomCipher()
 	oracle := func(clientIV, buf []byte) error {
 		if !decryptedValidPadding(buf, cipher.NewCBCDecrypter(block, clientIV)) {
-			return errors.New("psst...invalid padding")
+			return errors.New("invalid padding")
 		}
 		return nil
 	}
@@ -132,11 +131,12 @@ func cbcPaddingOracle(filename string) (func([]byte, []byte) error, []byte, []by
 	return oracle, serverIV, ciphertext, nil
 }
 
-// cbcBreaker contains necessary data for attacking the CBC padding oracle.
+// cbcBreaker contains data necessary to attack the CBC padding oracle.
 type cbcBreaker struct {
 	oracle     func([]byte, []byte) error
 	serverIV   []byte
 	ciphertext []byte
+	blockSize  int
 }
 
 // newCBCBreaker generates a CBC padding oracle from a file containing base64-encoded strings.
@@ -145,18 +145,23 @@ func newCBCBreaker(filename string) (*cbcBreaker, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &cbcBreaker{oracle, serverIV, ciphertext}, nil
+	return &cbcBreaker{
+		oracle:     oracle,
+		serverIV:   serverIV,
+		ciphertext: ciphertext,
+		blockSize:  len(serverIV),
+	}, nil
 }
 
 // breakPaddingByte returns the plaintext byte for the given padding value.
 func (x *cbcBreaker) breakPaddingByte(tmp, buf []byte, v int) (byte, error) {
+	b := tmp[x.blockSize-v]
 	for i := 0; i < 256; i++ {
-		b := byte(i)
-		tmp[aesBlockSize-v] ^= b
+		tmp[x.blockSize-v] = b ^ byte(i)
+		// If the oracle fails to return an error, we have found a byte of plaintext.
 		if err := x.oracle(tmp, buf); err == nil {
-			return b, nil
+			return byte(i), nil
 		}
-		tmp[aesBlockSize-v] ^= b
 	}
 	return byte(0), errors.New("breakPaddingByte: nothing found")
 }
@@ -180,31 +185,31 @@ func XORBytes(dst, b1, b2 []byte) int {
 
 // breakBlock takes an initialization vector and ciphertext block, and returns the plaintext.
 func (x *cbcBreaker) breakBlock(iv, buf []byte) ([]byte, error) {
-	res, tmp := make([]byte, aesBlockSize), make([]byte, aesBlockSize)
+	res, tmp := make([]byte, x.blockSize), make([]byte, x.blockSize)
 
 	// Iterate over padding values.
-	for v := 1; v <= aesBlockSize; v++ {
+	for v := 1; v <= x.blockSize; v++ {
 		// XOR the initialization vector by the known plaintext bytes.
 		XORBytes(tmp, iv, res)
 
 		// XOR the initialization vector by the desired padding bytes.
-		XORBytes(tmp[aesBlockSize-v:], tmp[aesBlockSize-v:], bytes.Repeat([]byte{byte(v)}, v))
+		XORBytes(tmp[x.blockSize-v:], tmp[x.blockSize-v:], bytes.Repeat([]byte{byte(v)}, v))
 
 		b, err := x.breakPaddingByte(tmp, buf, v)
 		if err != nil {
 			return nil, err
 		}
-		res[aesBlockSize-v] = b
+		res[x.blockSize-v] = b
 	}
 	return res, nil
 }
 
 // breakOracle breaks the padding oracle and returns the plaintext.
 func (x *cbcBreaker) breakOracle() ([]byte, error) {
-	n := len(x.ciphertext) / aesBlockSize
+	n := len(x.ciphertext) / x.blockSize
 	blocks := make([][]byte, n)
 	for i := 0; i < n; i++ {
-		blocks[i] = x.ciphertext[i*aesBlockSize : (i+1)*aesBlockSize]
+		blocks[i] = x.ciphertext[i*x.blockSize : (i+1)*x.blockSize]
 	}
 	var res []byte
 	buf, err := x.breakBlock(x.serverIV, blocks[0])
