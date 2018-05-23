@@ -28,21 +28,21 @@ func XORBytes(dst, b1, b2 []byte) int {
 // xorTwoLines reads two hex-encoded lines and prints their XOR combination.
 func xorTwoLines(in io.Reader) {
 	input := bufio.NewScanner(in)
-	var b1, b2 []byte
-	var err error
 
 	// Read two lines and exit if either one is empty or invalid.
 	if !input.Scan() || len(input.Text()) == 0 {
 		return
 	}
-	if b1, err = hex.DecodeString(input.Text()); err != nil {
+	b1, err := hex.DecodeString(input.Text())
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
 	if !input.Scan() || len(input.Text()) == 0 {
 		return
 	}
-	if b2, err = hex.DecodeString(input.Text()); err != nil {
+	b2, err := hex.DecodeString(input.Text())
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}

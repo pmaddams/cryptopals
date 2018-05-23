@@ -212,13 +212,10 @@ func (x *cbcBreaker) breakOracle() ([]byte, error) {
 	for i := 0; i < n; i++ {
 		blocks[i] = x.ciphertext[i*x.blockSize : (i+1)*x.blockSize]
 	}
-	var buf, res []byte
-	var err error
-	buf, err = x.breakBlock(x.iv, blocks[0])
+	res, err := x.breakBlock(x.iv, blocks[0])
 	if err != nil {
 		return nil, err
 	}
-	res = append(res, buf...)
 	for i := 1; i < n; i++ {
 		buf, err := x.breakBlock(blocks[i-1], blocks[i])
 		if err != nil {

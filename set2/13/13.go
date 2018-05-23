@@ -126,8 +126,8 @@ func encryptedProfileFor(email string, enc cipher.BlockMode) []byte {
 // decryptedRoleAdmin returns true if a decrypted query string contains "role=admin".
 func decryptedRoleAdmin(buf []byte, dec cipher.BlockMode) bool {
 	dec.CryptBlocks(buf, buf)
-	var err error
-	if buf, err = PKCS7Unpad(buf, dec.BlockSize()); err != nil {
+	buf, err := PKCS7Unpad(buf, dec.BlockSize())
+	if err != nil {
 		return false
 	}
 	return RoleAdmin(string(buf))

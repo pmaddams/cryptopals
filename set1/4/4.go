@@ -97,17 +97,13 @@ func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
 
 func init() {
 	// Generate scoreFunc from the sample file.
-	var f *os.File
-	var err error
-	f, err = os.Open(sample)
+	f, err := os.Open(sample)
 	defer f.Close()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
-	// The frequency map is retained in a closure.
-	var m map[rune]float64
-	m, err = SymbolFrequencies(f)
+	m, err := SymbolFrequencies(f)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)

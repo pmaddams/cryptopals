@@ -92,8 +92,8 @@ func encryptedUserData(s string, enc cipher.BlockMode) []byte {
 // decryptedAdminTrue returns true if a decrypted semicolon-separated string contains "admin=true".
 func decryptedAdminTrue(buf []byte, dec cipher.BlockMode) bool {
 	dec.CryptBlocks(buf, buf)
-	var err error
-	if buf, err = PKCS7Unpad(buf, dec.BlockSize()); err != nil {
+	buf, err := PKCS7Unpad(buf, dec.BlockSize())
+	if err != nil {
 		return false
 	}
 	return AdminTrue(string(buf))

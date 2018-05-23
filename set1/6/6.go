@@ -181,14 +181,12 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
 func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
-	var buf, key []byte
-	var err error
-	buf, err = ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
+	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	key, err = breakRepeatingXOR(buf, scoreFunc)
+	key, err := breakRepeatingXOR(buf, scoreFunc)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
@@ -200,17 +198,13 @@ func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
 
 func init() {
 	// Generate scoreFunc from the sample file.
-	var f *os.File
-	var err error
-	f, err = os.Open(sample)
+	f, err := os.Open(sample)
 	defer f.Close()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
-	// The frequency map is retained in a closure.
-	var m map[rune]float64
-	m, err = SymbolFrequencies(f)
+	m, err := SymbolFrequencies(f)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
