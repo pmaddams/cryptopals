@@ -77,19 +77,19 @@ func TestValidPadding(t *testing.T) {
 		want      bool
 	}{
 		{
-			[]byte{3, 2, 1},
+			[]byte{0, 0, 0},
 			3,
-			true,
-		},
-		{
-			[]byte{3, 2, 2},
-			3,
-			true,
-		},
-		{
-			[]byte{6, 6, 6, 4, 4, 4},
-			6,
 			false,
+		},
+		{
+			[]byte{4, 4, 4},
+			3,
+			false,
+		},
+		{
+			[]byte{5, 5, 5, 5, 5, 5},
+			6,
+			true,
 		},
 	}
 	for _, c := range cases {

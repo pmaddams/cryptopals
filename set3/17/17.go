@@ -61,7 +61,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	}
 	// Examine the value of the last byte.
 	b := buf[len(buf)-1]
-	if int(b) > blockSize ||
+	if int(b) == 0 || int(b) > blockSize ||
 		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
 		return nil, errors.New("PKCS7Unpad: invalid padding")
 	}
@@ -95,7 +95,7 @@ func RandomBytes(length int) []byte {
 	return res
 }
 
-// encryptedRandomLine returns an encrypted random line from a file containing base64-encoded strings.
+// encryptedRandomLine returns an encrypted line from a file containing base64-encoded strings.
 func encryptedRandomLine(filename string, enc cipher.BlockMode) ([]byte, error) {
 	buf, err := randomLine(filename)
 	if err != nil {
@@ -156,9 +156,14 @@ func newCBCBreaker(filename string) (*cbcBreaker, error) {
 // breakPaddingByte returns the plaintext byte for the given padding value.
 func (x *cbcBreaker) breakPaddingByte(tmp, buf []byte, v int) (byte, error) {
 	b := tmp[x.blockSize-v]
-	for i := 0; i < 256; i++ {
+
+	// We have to iterate backwards to avoid restoring
+	// an original padding byte in the final block.
+	for i := 255; i >= 0; i-- {
 		tmp[x.blockSize-v] = b ^ byte(i)
-		// If the oracle fails to return an error, we have found a byte of plaintext.
+
+		// If the oracle does not return an error,
+		// we have found a byte of plaintext.
 		if err := x.oracle(tmp, buf); err == nil {
 			return byte(i), nil
 		}
@@ -224,6 +229,7 @@ func (x *cbcBreaker) breakOracle() ([]byte, error) {
 		}
 		res = append(res, buf...)
 	}
+	res, _ = PKCS7Unpad(res, x.blockSize)
 	return res, nil
 }
 

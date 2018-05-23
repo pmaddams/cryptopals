@@ -77,7 +77,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	}
 	// Examine the value of the last byte.
 	b := buf[len(buf)-1]
-	if int(b) > blockSize ||
+	if int(b) == 0 || int(b) > blockSize ||
 		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
 		return nil, errors.New("PKCS7Unpad: invalid padding")
 	}
