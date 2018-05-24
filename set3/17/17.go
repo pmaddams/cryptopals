@@ -111,12 +111,9 @@ func encryptedRandomLine(filename string, block cipher.Block) ([]byte, []byte, e
 
 // decryptedValidPadding returns true if a decrypted buffer has valid PKCS#7 padding.
 func decryptedValidPadding(iv, buf []byte, block cipher.Block) bool {
-	// Don't stomp on the original data.
-	tmp := make([]byte, len(buf))
-	copy(tmp, buf)
-
 	mode := cipher.NewCBCDecrypter(block, iv)
-	mode.CryptBlocks(tmp, tmp)
+	tmp := make([]byte, len(buf))
+	mode.CryptBlocks(tmp, buf)
 	return ValidPadding(tmp, mode.BlockSize())
 }
 

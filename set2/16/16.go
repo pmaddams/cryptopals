@@ -91,12 +91,13 @@ func encryptedUserData(s string, enc cipher.BlockMode) []byte {
 
 // decryptedAdminTrue returns true if a decrypted semicolon-separated string contains "admin=true".
 func decryptedAdminTrue(buf []byte, dec cipher.BlockMode) bool {
-	dec.CryptBlocks(buf, buf)
-	buf, err := PKCS7Unpad(buf, dec.BlockSize())
+	tmp := make([]byte, len(buf))
+	dec.CryptBlocks(tmp, buf)
+	tmp, err := PKCS7Unpad(tmp, dec.BlockSize())
 	if err != nil {
 		return false
 	}
-	return AdminTrue(string(buf))
+	return AdminTrue(string(tmp))
 }
 
 // byteMask returns an XOR mask that prevents query escaping for the target byte.

@@ -93,12 +93,17 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	return buf
 }
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
 // ecbModeOracle returns an ECB/CBC mode oracle function.
 func ecbModeOracle(mode cipher.BlockMode) func([]byte) []byte {
 	prefix := RandomBytes(RandomInt(5, 10))
 	suffix := RandomBytes(RandomInt(5, 10))
 	return func(buf []byte) []byte {
-		buf = append(prefix, append(buf, suffix...)...)
+		buf = append(prefix, append(dup(buf), suffix...)...)
 		buf = PKCS7Pad(buf, mode.BlockSize())
 		mode.CryptBlocks(buf, buf)
 		return buf

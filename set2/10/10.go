@@ -49,12 +49,17 @@ func (x cbc) BlockSize() int {
 // cbcEncrypter embeds cbc.
 type cbcEncrypter struct{ cbc }
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
 // NewCBCEncrypter returns a block mode for CBC encryption.
 func NewCBCEncrypter(block cipher.Block, iv []byte) cipher.BlockMode {
 	if block.BlockSize() != len(iv) {
 		panic("NewCBCEncrypter: initialization vector length must equal block size")
 	}
-	return cbcEncrypter{cbc{block, iv}}
+	return cbcEncrypter{cbc{block, dup(iv)}}
 }
 
 // cbcEncrypter.CryptBlocks encrypts a buffer in CBC mode.

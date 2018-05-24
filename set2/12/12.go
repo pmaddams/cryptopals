@@ -84,6 +84,11 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return buf[:len(buf)-int(b)], nil
 }
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
 // ecbEncryptionOracle returns an ECB encryption oracle function.
 func ecbEncryptionOracle() func([]byte) []byte {
 	mode := NewECBEncrypter(RandomCipher())
@@ -92,7 +97,7 @@ func ecbEncryptionOracle() func([]byte) []byte {
 		panic(fmt.Sprintf("ecbEncryptionOracle: %s", err.Error()))
 	}
 	return func(buf []byte) []byte {
-		buf = append(buf, decoded...)
+		buf = append(dup(buf), decoded...)
 		buf = PKCS7Pad(buf, mode.BlockSize())
 		mode.CryptBlocks(buf, buf)
 		return buf
