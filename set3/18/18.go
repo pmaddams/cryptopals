@@ -17,46 +17,29 @@ const secret = "YELLOW SUBMARINE"
 // AES always has a block size of 128 bits (16 bytes).
 const aesBlockSize = 16
 
-// counter is a 128-bit unsigned counter.
-type counter struct {
-	lo, hi uint64
-}
-
-func newCounter(iv []byte) *counter {
-	if len(iv) != aesBlockSize {
-		panic("newCounter: initialization vector length must equal block size")
+// BytesToUint64 converts a buffer to a slice of unsigned 64-bit integers.
+func BytesToUint64(buf []byte) []uint64 {
+	res := make([]uint64, len(buf)/8)
+	for i := 0; i < len(res); i++ {
+		res[i] = binary.LittleEndian.Uint64(buf[8*i:])
 	}
-	hi, _ := binary.Uvarint(iv[:aesBlockSize/2])
-	lo, _ := binary.Uvarint(iv[aesBlockSize/2:])
-	return &counter{lo, hi}
+	return res
 }
 
-// inc increments the counter.
-func (c *counter) inc() {
-	c.lo++
-	if c.lo == 0 {
-		c.hi++
+// Uint64ToBytes converts a slice of unsigned 64-bit integers to a buffer.
+func Uint64ToBytes(nums []uint64) []byte {
+	res := make([]byte, len(nums)*8)
+	for i := 0; i < len(nums); i++ {
+		binary.LittleEndian.PutUint64(res[8*i:], nums[i])
 	}
-}
-
-// bytes returns a buffer representation of the counter.
-func (c *counter) bytes() []byte {
-	res := make([]byte, aesBlockSize)
-	binary.PutUvarint(res[:aesBlockSize/2], c.hi)
-	binary.PutUvarint(res[aesBlockSize/2:], c.lo)
 	return res
 }
 
 // ctr contains a block cipher and initialization vector.
 type ctr struct {
 	b   cipher.Block
-	ctr *counter
+	ctr []uint64
 	pos int
-}
-
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
 }
 
 // NewCTR returns a CTR mode stream cipher.
@@ -64,11 +47,10 @@ func NewCTR(block cipher.Block, iv []byte) cipher.Stream {
 	if block.BlockSize() != len(iv) {
 		panic("NewCTR: initialization vector length must equal block size")
 	}
-	return ctr{block, newCounter(iv), 0}
+	return ctr{block, BytesToUint64(iv), 0}
 }
 
-/*
-// inc increments the counter using unsigned integer arithmetic.
+// inc increments the counter.
 func (stream ctr) inc() {
 	for i := len(stream.ctr) - 1; i >= 0; i-- {
 		stream.ctr[i]++
@@ -77,13 +59,12 @@ func (stream ctr) inc() {
 		}
 	}
 }
-*/
 
 // XORKeyStream encrypts a buffer with the CTR keystream.
 func (stream ctr) XORKeyStream(dst, src []byte) {
 	for {
 		tmp := make([]byte, stream.b.BlockSize())
-		stream.b.Encrypt(tmp, stream.ctr.bytes())
+		stream.b.Encrypt(tmp, Uint64ToBytes(stream.ctr))
 
 		// Panic if dst is smaller than src.
 		for len(src) > 0 && stream.pos < stream.b.BlockSize() {
@@ -94,7 +75,7 @@ func (stream ctr) XORKeyStream(dst, src []byte) {
 		}
 		if stream.pos == stream.b.BlockSize() {
 			stream.pos = 0
-			stream.ctr.inc()
+			stream.inc()
 		} else {
 			break
 		}
