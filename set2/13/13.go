@@ -65,7 +65,7 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 // ecbDecrypter embeds ecb.
 type ecbDecrypter struct{ ecb }
 
-// NewECBEncrypter returns a block mode for ECB decryption.
+// NewECBDecrypter returns a block mode for ECB decryption.
 func NewECBDecrypter(block cipher.Block) cipher.BlockMode {
 	return ecbDecrypter{ecb{block}}
 }
