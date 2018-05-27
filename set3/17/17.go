@@ -92,7 +92,7 @@ func encryptedRandomLine(filename string, block cipher.Block) ([]byte, []byte, e
 	if err != nil {
 		return nil, nil, err
 	}
-	iv := RandomBytes(aesBlockSize)
+	iv := RandomBytes(block.BlockSize())
 	mode := cipher.NewCBCEncrypter(block, iv)
 	buf = PKCS7Pad(buf, mode.BlockSize())
 	mode.CryptBlocks(buf, buf)
@@ -222,7 +222,7 @@ func main() {
 	iv, ciphertext, err := encryptedRandomLine("17.txt", block)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		return
 	}
 	oracle := cbcPaddingOracle(block)
 	x := newCBCBreaker(oracle, iv, ciphertext)
@@ -230,7 +230,7 @@ func main() {
 	buf, err := x.breakOracle()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		return
 	}
 	fmt.Println(string(buf))
 }

@@ -146,7 +146,7 @@ func main() {
 	mask, err := blockMask(data, aesBlockSize)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		return
 	}
 	XORBytes(data, data, mask)
 

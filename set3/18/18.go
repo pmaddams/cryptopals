@@ -110,9 +110,9 @@ var e = flag.Bool("e", false, "encrypt")
 func main() {
 	block, err := aes.NewCipher([]byte(secret))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		panic(err.Error())
 	}
-	iv := make([]byte, aesBlockSize)
+	iv := make([]byte, block.BlockSize())
 	stream := NewCTR(block, iv)
 
 	flag.Parse()

@@ -57,7 +57,7 @@ func main() {
 	flag.Parse()
 	if blockSize < 1 || blockSize > 255 {
 		fmt.Fprintln(os.Stderr, "invalid block size")
-		os.Exit(1)
+		return
 	}
 	files := flag.Args()
 	// If no files are specified, read from standard input.

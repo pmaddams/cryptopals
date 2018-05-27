@@ -223,16 +223,16 @@ func main() {
 	x := newECBBreaker(ecbEncryptionOracle())
 	if err := x.detectParameters(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		return
 	}
 	if err := x.detectECB(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		return
 	}
 	buf, err := x.breakOracle()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
-		os.Exit(1)
+		return
 	}
 	fmt.Print(string(buf))
 }
