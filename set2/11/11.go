@@ -37,16 +37,6 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
-// RandomCipher returns an AES cipher with a random key.
-func RandomCipher() cipher.Block {
-	key := make([]byte, aesBlockSize)
-	if _, err := rand.Read(key); err != nil {
-		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
-	}
-	block, _ := aes.NewCipher(key)
-	return block
-}
-
 // RandomInt returns a pseudo-random non-negative integer in [lo, hi].
 // The output should not be used in a security-sensitive context.
 func RandomInt(lo, hi int) int {
@@ -68,11 +58,15 @@ func RandomBytes(length int) []byte {
 
 // RandomEncrypter returns either ECB or CBC encryption mode with a random key.
 func RandomEncrypter() cipher.BlockMode {
+	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	if err != nil {
+		panic(fmt.Sprintf("RandomEncrypter: %s", err.Error()))
+	}
 	switch RandomInt(0, 1) {
 	case 0:
-		return NewECBEncrypter(RandomCipher())
+		return NewECBEncrypter(block)
 	default:
-		return cipher.NewCBCEncrypter(RandomCipher(), RandomBytes(aesBlockSize))
+		return cipher.NewCBCEncrypter(block, RandomBytes(block.BlockSize()))
 	}
 }
 

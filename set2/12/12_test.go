@@ -2,18 +2,17 @@ package main
 
 import (
 	"bytes"
-	"crypto/cipher"
-	"reflect"
 	"testing"
 )
 
-func TestRandomCipher(t *testing.T) {
-	cases := []cipher.Block{}
+func TestRandomBytes(t *testing.T) {
+	const length = 10
+	cases := [][]byte{}
 	for i := 0; i < 5; i++ {
-		cases = append(cases, RandomCipher())
+		cases = append(cases, RandomBytes(length))
 		for j := 0; j < i; j++ {
-			if reflect.DeepEqual(cases[i], cases[j]) {
-				t.Errorf("RandomCipher created identical ciphers %v and %v",
+			if bytes.Equal(cases[i], cases[j]) {
+				t.Errorf("RandomBytes created identical buffers %v and %v",
 					cases[i], cases[j])
 			}
 		}

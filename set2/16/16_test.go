@@ -2,9 +2,7 @@ package main
 
 import (
 	"bytes"
-	"crypto/cipher"
 	"encoding/hex"
-	"reflect"
 	"testing"
 )
 
@@ -58,19 +56,6 @@ func TestAdminTrue(t *testing.T) {
 		}
 	}
 
-}
-
-func TestRandomCipher(t *testing.T) {
-	cases := []cipher.Block{}
-	for i := 0; i < 5; i++ {
-		cases = append(cases, RandomCipher())
-		for j := 0; j < i; j++ {
-			if reflect.DeepEqual(cases[i], cases[j]) {
-				t.Errorf("RandomCipher created identical ciphers %v and %v",
-					cases[i], cases[j])
-			}
-		}
-	}
 }
 
 func TestRandomBytes(t *testing.T) {

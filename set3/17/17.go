@@ -76,16 +76,6 @@ func ValidPadding(buf []byte, blockSize int) bool {
 	return true
 }
 
-// RandomCipher returns an AES cipher with a random key.
-func RandomCipher() cipher.Block {
-	key := make([]byte, aesBlockSize)
-	if _, err := rand.Read(key); err != nil {
-		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
-	}
-	block, _ := aes.NewCipher(key)
-	return block
-}
-
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(length int) []byte {
 	res := make([]byte, length)
@@ -228,7 +218,7 @@ func (x *cbcBreaker) breakOracle() ([]byte, error) {
 }
 
 func main() {
-	block := RandomCipher()
+	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	iv, ciphertext, err := encryptedRandomLine("17.txt", block)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())

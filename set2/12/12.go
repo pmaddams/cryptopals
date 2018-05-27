@@ -43,14 +43,13 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
-// RandomCipher returns an AES cipher with a random key.
-func RandomCipher() cipher.Block {
-	key := make([]byte, aesBlockSize)
-	if _, err := rand.Read(key); err != nil {
-		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(length int) []byte {
+	res := make([]byte, length)
+	if _, err := rand.Read(res); err != nil {
+		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
 	}
-	block, _ := aes.NewCipher(key)
-	return block
+	return res
 }
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
@@ -91,7 +90,11 @@ func dup(buf []byte) []byte {
 
 // ecbEncryptionOracle returns an ECB encryption oracle function.
 func ecbEncryptionOracle() func([]byte) []byte {
-	mode := NewECBEncrypter(RandomCipher())
+	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	if err != nil {
+		panic(fmt.Sprintf("ecbEncryptionOracle: %s", err.Error()))
+	}
+	mode := NewECBEncrypter(block)
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
 		panic(fmt.Sprintf("ecbEncryptionOracle: %s", err.Error()))

@@ -32,16 +32,6 @@ func AdminTrue(s string) bool {
 	return false
 }
 
-// RandomCipher returns an AES cipher with a random key.
-func RandomCipher() cipher.Block {
-	key := make([]byte, aesBlockSize)
-	if _, err := rand.Read(key); err != nil {
-		panic(fmt.Sprintf("RandomCipher: %s", err.Error()))
-	}
-	block, _ := aes.NewCipher(key)
-	return block
-}
-
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(length int) []byte {
 	res := make([]byte, length)
@@ -143,8 +133,11 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 func main() {
-	block := RandomCipher()
-	iv := RandomBytes(aesBlockSize)
+	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	if err != nil {
+		panic(err.Error())
+	}
+	iv := RandomBytes(block.BlockSize())
 
 	enc := cipher.NewCBCEncrypter(block, iv)
 	dec := cipher.NewCBCDecrypter(block, iv)

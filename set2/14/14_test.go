@@ -2,23 +2,8 @@ package main
 
 import (
 	"bytes"
-	"crypto/cipher"
-	"reflect"
 	"testing"
 )
-
-func TestRandomCipher(t *testing.T) {
-	cases := []cipher.Block{}
-	for i := 0; i < 5; i++ {
-		cases = append(cases, RandomCipher())
-		for j := 0; j < i; j++ {
-			if reflect.DeepEqual(cases[i], cases[j]) {
-				t.Errorf("RandomCipher created identical ciphers %v and %v",
-					cases[i], cases[j])
-			}
-		}
-	}
-}
 
 func TestRandomInt(t *testing.T) {
 	cases := []struct {
