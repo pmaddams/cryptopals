@@ -72,22 +72,6 @@ func findKeySize(buf []byte) (int, error) {
 	return res, nil
 }
 
-// Transpose creates keySize buffers, where each buffer is encrypted
-// with single byte XOR using the corresponding byte of the key.
-func Transpose(buf []byte, keySize int) [][]byte {
-	if keySize == 0 {
-		panic("Transpose: key size can't be zero")
-	}
-	res := make([][]byte, keySize)
-	for len(buf) >= keySize {
-		for i := 0; i < keySize; i++ {
-			res[i] = append(res[i], buf[i])
-		}
-		buf = buf[keySize:]
-	}
-	return res
-}
-
 // SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
 func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
 	buf, err := ioutil.ReadAll(in)
@@ -141,14 +125,60 @@ func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
 	return key
 }
 
+// Subdivide divides a buffer into equal-length chunks.
+func Subdivide(buf []byte, n int) [][]byte {
+	var res [][]byte
+	for len(buf) >= n {
+		// Pointers, not copies.
+		res = append(res, buf[:n])
+		buf = buf[n:]
+	}
+	return res
+}
+
+// Lengths returns a slice of integer buffer lengths.
+func Lengths(bufs [][]byte) []int {
+	var res []int
+	for _, buf := range bufs {
+		res = append(res, len(buf))
+	}
+	return res
+}
+
+// Transpose takes a slice of equal-length buffers and returns
+// a slice of new buffers with the rows and columns swapped.
+func Transpose(bufs [][]byte) ([][]byte, error) {
+	nums := Lengths(bufs)
+	if len(nums) == 0 {
+		return nil, errors.New("Transpose: no data")
+	}
+	for i := 1; i < len(nums); i++ {
+		if nums[i] != nums[0] {
+			return nil, errors.New("Transpose: buffers must have equal length")
+		}
+	}
+	res := make([][]byte, nums[0])
+	for i := 0; i < len(res); i++ {
+		res[i] = make([]byte, len(bufs))
+		for j := 0; j < len(res[i]); j++ {
+			res[i][j] = bufs[j][i]
+		}
+	}
+	return res, nil
+}
+
 // breakRepeatingXOR returns the key used to encrypt a buffer with repeating XOR.
 func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, error) {
 	keySize, err := findKeySize(buf)
 	if err != nil {
 		return nil, err
 	}
+	blocks, err := Transpose(Subdivide(buf, keySize))
+	if err != nil {
+		return nil, err
+	}
 	key := make([]byte, keySize)
-	for i, block := range Transpose(buf, keySize) {
+	for i, block := range blocks {
 		key[i] = breakSingleXOR(block, scoreFunc)
 	}
 	return key, nil

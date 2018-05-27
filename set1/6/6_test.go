@@ -68,37 +68,6 @@ func TestNormalizedDistance(t *testing.T) {
 	}
 }
 
-func TestTranspose(t *testing.T) {
-	cases := []struct {
-		buf       []byte
-		blockSize int
-		want      [][]byte
-	}{
-		{
-			[]byte{0, 1, 2, 3},
-			2,
-			[][]byte{{0, 2}, {1, 3}},
-		},
-		{
-			[]byte{0, 1, 2, 3, 4, 5},
-			2,
-			[][]byte{{0, 2, 4}, {1, 3, 5}},
-		},
-		{
-			[]byte{0, 1, 2, 3, 4, 5},
-			3,
-			[][]byte{{0, 3}, {1, 4}, {2, 5}},
-		},
-	}
-	for _, c := range cases {
-		got := Transpose(c.buf, c.blockSize)
-		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Transpose(%v, %v) == %v, want %v",
-				c.buf, c.blockSize, got, c.want)
-		}
-	}
-}
-
 func TestSymbolFrequencies(t *testing.T) {
 	cases := []struct {
 		s    string
@@ -195,6 +164,124 @@ func TestXORSingleByte(t *testing.T) {
 		if !bytes.Equal(dst, c.want) {
 			t.Errorf("XORSingleByte(%v, %v, %v), want %v",
 				dst, c.src, c.b, c.want)
+		}
+	}
+}
+
+func TestLengths(t *testing.T) {
+	cases := []struct {
+		bufs [][]byte
+		want []int
+	}{
+		{
+			[][]byte{},
+			nil,
+		},
+		{
+			[][]byte{
+				{},
+			},
+			[]int{0},
+		},
+		{
+			[][]byte{
+				{1},
+				{1, 2},
+				{1, 2, 3},
+			},
+			[]int{1, 2, 3},
+		},
+	}
+	for _, c := range cases {
+		got := Lengths(c.bufs)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("Lengths(%v) == %v, want %v",
+				c.bufs, got, c.want)
+		}
+	}
+}
+
+func TestSubdivide(t *testing.T) {
+	cases := []struct {
+		buf  []byte
+		n    int
+		want [][]byte
+	}{
+		{
+			[]byte{1, 2},
+			3,
+			nil,
+		},
+		{
+			[]byte{1, 2, 3, 4, 5, 6},
+			3,
+			[][]byte{
+				{1, 2, 3},
+				{4, 5, 6},
+			},
+		},
+		{
+			[]byte{1, 2, 3, 4, 5, 6},
+			2,
+			[][]byte{
+				{1, 2},
+				{3, 4},
+				{5, 6},
+			},
+		},
+	}
+	for _, c := range cases {
+		got := Subdivide(c.buf, c.n)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("Subdivide(%v, %v) == %v, want %v",
+				c.buf, c.n, got, c.want)
+		}
+	}
+}
+
+func TestTranspose(t *testing.T) {
+	cases := []struct {
+		bufs [][]byte
+		want [][]byte
+	}{
+		{
+			[][]byte{
+				{0, 1},
+				{2, 3},
+			},
+			[][]byte{
+				{0, 2},
+				{1, 3},
+			},
+		},
+		{
+			[][]byte{
+				{0, 1},
+				{2, 3},
+				{4, 5},
+			},
+			[][]byte{
+				{0, 2, 4},
+				{1, 3, 5},
+			},
+		},
+		{
+			[][]byte{
+				{0, 1, 2},
+				{3, 4, 5},
+			},
+			[][]byte{
+				{0, 3},
+				{1, 4},
+				{2, 5},
+			},
+		},
+	}
+	for _, c := range cases {
+		got, _ := Transpose(c.bufs)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("Transpose(%v) == %v, want %v",
+				c.bufs, got, c.want)
 		}
 	}
 }
