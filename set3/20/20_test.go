@@ -108,6 +108,86 @@ func TestXORSingleByte(t *testing.T) {
 	}
 }
 
+func TestLengths(t *testing.T) {
+	cases := []struct {
+		bufs [][]byte
+		want []int
+	}{
+		{
+			[][]byte{},
+			nil,
+		},
+		{
+			[][]byte{
+				{},
+			},
+			[]int{0},
+		},
+		{
+			[][]byte{
+				{1},
+				{1, 2},
+				{1, 2, 3},
+			},
+			[]int{1, 2, 3},
+		},
+	}
+	for _, c := range cases {
+		got := Lengths(c.bufs)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("Lengths(%v) == %v, want %v",
+				c.bufs, got, c.want)
+		}
+	}
+}
+
+func TestTranspose(t *testing.T) {
+	cases := []struct {
+		bufs [][]byte
+		want [][]byte
+	}{
+		{
+			[][]byte{
+				{0, 1},
+				{2, 3},
+			},
+			[][]byte{
+				{0, 2},
+				{1, 3},
+			},
+		},
+		{
+			[][]byte{
+				{0, 1},
+				{2, 3},
+				{4, 5},
+			},
+			[][]byte{
+				{0, 2, 4},
+				{1, 3, 5},
+			},
+		},
+		{
+			[][]byte{
+				{0, 1, 2},
+				{3, 4, 5},
+			},
+			[][]byte{
+				{0, 3},
+				{1, 4},
+				{2, 5},
+			},
+		},
+	}
+	for _, c := range cases {
+		got, _ := Transpose(c.bufs)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("Transpose(%v) == %v, want %v",
+				c.bufs, got, c.want)
+		}
+	}
+}
+
 func TestXORKeyStream(t *testing.T) {
 	cases := []struct {
 		stream    cipher.Stream

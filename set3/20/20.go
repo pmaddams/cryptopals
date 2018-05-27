@@ -3,7 +3,7 @@ package main
 import (
 	"crypto/cipher"
 	_ "encoding/base64"
-	_ "errors"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -67,6 +67,53 @@ func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
 		}
 	}
 	return key
+}
+
+// Lengths returns a slice of integer buffer lengths.
+func Lengths(bufs [][]byte) []int {
+	var res []int
+	for _, buf := range bufs {
+		res = append(res, len(buf))
+	}
+	return res
+}
+
+func Median(nums []int) (int, error) {
+	return 0, nil
+}
+
+func LengthAtLeast(bufs [][]byte, n int) [][]byte {
+	return nil
+}
+
+func Minimum(nums []int) (int, error) {
+	return 0, nil
+}
+
+func Truncate(bufs [][]byte, n int) ([][]byte, error) {
+	return nil, nil
+}
+
+// Transpose takes a slice of equal-length buffers and returns
+// a slice of new buffers with the rows and columns swapped.
+func Transpose(bufs [][]byte) ([][]byte, error) {
+	nums := Lengths(bufs)
+	if len(nums) == 0 {
+		return nil, errors.New("Transpose: no data")
+	}
+	for i := 1; i < len(nums); i++ {
+		if nums[i] != nums[0] {
+			return nil, errors.New("Transpose: buffers must have equal length")
+		}
+	}
+	res := make([][]byte, nums[0])
+	for i := 0; i < len(res); i++ {
+		res[i] = make([]byte, len(bufs))
+		for j := 0; j < len(res[i]); j++ {
+			res[i][j] = bufs[j][i]
+		}
+	}
+	return res, nil
 }
 
 // xorCipher is a repeating XOR stream cipher.
