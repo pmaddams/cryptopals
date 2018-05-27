@@ -112,26 +112,26 @@ func symbolFrequencies(s string) map[rune]float64 {
 
 func TestScore(t *testing.T) {
 	cases := []struct {
-		m    map[rune]float64
 		s    string
+		m    map[rune]float64
 		want float64
 	}{
 		{
-			symbolFrequencies("hello world"),
 			"hola",
+			symbolFrequencies("hello world"),
 			1.0/11.0 + 2.0/11.0 + 3.0/11.0,
 		},
 		{
-			symbolFrequencies("你好世界"),
 			"世界再见",
+			symbolFrequencies("你好世界"),
 			1.0/4.0 + 1.0/4.0,
 		},
 	}
 	for _, c := range cases {
-		got := Score(c.m, []byte(c.s))
+		got := Score([]byte(c.s), c.m)
 		if got != c.want {
-			t.Errorf("Score(%v) == %v, want %v",
-				c.s, got, c.want)
+			t.Errorf("Score(%v, %v) == %v, want %v",
+				c.s, c.m, got, c.want)
 		}
 	}
 }

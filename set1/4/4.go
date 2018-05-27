@@ -31,7 +31,7 @@ func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
 }
 
 // Score adds up the frequencies for UTF-8 symbols encoded in the buffer.
-func Score(m map[rune]float64, buf []byte) (res float64) {
+func Score(buf []byte, m map[rune]float64) (res float64) {
 	runes := []rune(string(buf))
 	for _, r := range runes {
 		f, _ := m[r]
@@ -109,7 +109,7 @@ func init() {
 		os.Exit(1)
 	}
 	scoreFunc = func(buf []byte) float64 {
-		return Score(m, buf)
+		return Score(buf, m)
 	}
 }
 
