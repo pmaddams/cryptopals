@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"sort"
 )
 
 // sample is a file with symbol frequencies similar to the expected plaintext.
@@ -78,20 +79,50 @@ func Lengths(bufs [][]byte) []int {
 	return res
 }
 
+// Median returns the median value of a slice of integers.
 func Median(nums []int) (int, error) {
-	return 0, nil
+	if len(nums) == 0 {
+		return 0, errors.New("Median: no data")
+	}
+	sort.Ints(nums)
+	return nums[len(nums)/2], nil
 }
 
+// LengthAtLeast returns a slice of buffers with length at least n.
 func LengthAtLeast(bufs [][]byte, n int) [][]byte {
-	return nil
+	var res [][]byte
+	for _, buf := range bufs {
+		if len(buf) >= n {
+			res = append(res, buf)
+		}
+	}
+	return res
 }
 
+// Minimum returns the minimum value of a slice of integers.
 func Minimum(nums []int) (int, error) {
-	return 0, nil
+	if len(nums) == 0 {
+		return 0, errors.New("Minimum: no data")
+	}
+	n := nums[0]
+	for _, m := range nums[1:] {
+		if m < n {
+			n = m
+		}
+	}
+	return n, nil
 }
 
+// Truncate returns a slice of buffers truncated to n bytes long.
+// If any of the buffers are too short, it returns an error.
 func Truncate(bufs [][]byte, n int) ([][]byte, error) {
-	return nil, nil
+	for i := range bufs {
+		if len(bufs[i]) < n {
+			return nil, errors.New("Truncate: buffer length below minimum")
+		}
+		bufs[i] = bufs[i][:n]
+	}
+	return bufs, nil
 }
 
 // Transpose takes a slice of equal-length buffers and returns
