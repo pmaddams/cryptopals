@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"crypto/cipher"
+	"encoding/hex"
 	"reflect"
 	"strings"
 	"testing"
@@ -141,6 +141,84 @@ func TestLengths(t *testing.T) {
 	}
 }
 
+func TestMedian(t *testing.T) {
+	cases := []struct {
+		nums []int
+		want int
+	}{
+		{
+			[]int{1, 2, 3},
+			2,
+		},
+		{
+			[]int{1, 3, 3},
+			3,
+		},
+		{
+			[]int{1, 1, 1, 1, 2, 2, 3},
+			1,
+		},
+	}
+	for _, c := range cases {
+		if got, _ := Median(c.nums); got != c.want {
+			t.Errorf("Median(%v) == %v, want %v",
+				c.nums, got, c.want)
+		}
+	}
+}
+
+func TestTruncate(t *testing.T) {
+	cases := []struct {
+		bufs [][]byte
+		n    int
+		want [][]byte
+	}{
+		{
+			[][]byte{
+				{1},
+				{2, 2},
+				{3, 3, 3},
+			},
+			1,
+			[][]byte{
+				{1},
+				{2},
+				{3},
+			},
+		},
+		{
+			[][]byte{
+				{1},
+				{2, 2},
+				{3, 3, 3},
+			},
+			2,
+			[][]byte{
+				{2, 2},
+				{3, 3},
+			},
+		},
+		{
+			[][]byte{
+				{1},
+				{2, 2},
+				{3, 3, 3},
+			},
+			3,
+			[][]byte{
+				{3, 3, 3},
+			},
+		},
+	}
+	for _, c := range cases {
+		got := Truncate(c.bufs, c.n)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("Truncate(%v, %v) == %v, want %v",
+				c.bufs, c.n, got, c.want)
+		}
+	}
+}
+
 func TestTranspose(t *testing.T) {
 	cases := []struct {
 		bufs [][]byte
@@ -188,32 +266,50 @@ func TestTranspose(t *testing.T) {
 	}
 }
 
-func TestXORKeyStream(t *testing.T) {
+func TestRandomBytes(t *testing.T) {
+	const length = 10
+	cases := [][]byte{}
+	for i := 0; i < 5; i++ {
+		cases = append(cases, RandomBytes(length))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(cases[i], cases[j]) {
+				t.Errorf("RandomBytes created identical buffers %v and %v",
+					cases[i], cases[j])
+			}
+		}
+	}
+}
+
+func decodeString(s string) []byte {
+	buf, _ := hex.DecodeString(s)
+	return buf
+}
+
+func TestXORBytes(t *testing.T) {
 	cases := []struct {
-		stream    cipher.Stream
-		src, want []byte
+		b1, b2, want []byte
 	}{
 		{
-			NewXORCipher([]byte{1, 2}),
-			[]byte{1, 2, 3, 4, 5, 6},
-			[]byte{0, 0, 2, 6, 4, 4},
+			decodeString("1c0111001f010100061a024b53535009181c"),
+			decodeString("686974207468652062756c6c277320657965"),
+			decodeString("746865206b696420646f6e277420706c6179"),
 		},
 		{
-			NewXORCipher([]byte{1, 2, 3}),
-			[]byte{1, 2, 3, 4, 5, 6},
-			[]byte{0, 0, 0, 5, 7, 5},
+			[]byte{0, 0, 0, 0},
+			[]byte{1, 1, 1, 1},
+			[]byte{1, 1, 1, 1},
 		},
 		{
-			NewXORCipher([]byte{1, 2, 3, 4}),
-			[]byte{1, 2, 3, 4, 5, 6},
-			[]byte{0, 0, 0, 0, 4, 4},
+			[]byte{1, 0, 1, 0},
+			[]byte{1, 0, 1, 0},
+			[]byte{0, 0, 0, 0},
 		},
 	}
 	for _, c := range cases {
-		dst := make([]byte, len(c.src))
-		if c.stream.XORKeyStream(dst, c.src); !bytes.Equal(dst, c.want) {
-			t.Errorf("(%v).XORKeyStream(%v, %v), want %v",
-				c.stream, dst, c.src, c.want)
+		dst := make([]byte, len(c.b1))
+		if XORBytes(dst, c.b1, c.b2); !bytes.Equal(dst, c.want) {
+			t.Errorf("XORBytes(%v, %v, %v), want %v",
+				dst, c.b1, c.b2, c.want)
 		}
 	}
 }

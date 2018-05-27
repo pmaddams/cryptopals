@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
+	"crypto/aes"
 	"crypto/cipher"
-	_ "encoding/base64"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +13,9 @@ import (
 	"os"
 	"sort"
 )
+
+// AES always has a block size of 128 bits (16 bytes).
+const aesBlockSize = 16
 
 // sample is a file with symbol frequencies similar to the expected plaintext.
 const sample = "alice.txt"
@@ -88,41 +94,16 @@ func Median(nums []int) (int, error) {
 	return nums[len(nums)/2], nil
 }
 
-// LengthAtLeast returns a slice of buffers with length at least n.
-func LengthAtLeast(bufs [][]byte, n int) [][]byte {
+// Truncate returns a slice of buffers truncated to n bytes long.
+func Truncate(bufs [][]byte, n int) [][]byte {
 	var res [][]byte
 	for _, buf := range bufs {
+		// Discard buffers fewer than n bytes long.
 		if len(buf) >= n {
-			res = append(res, buf)
+			res = append(res, buf[:n])
 		}
 	}
 	return res
-}
-
-// Minimum returns the minimum value of a slice of integers.
-func Minimum(nums []int) (int, error) {
-	if len(nums) == 0 {
-		return 0, errors.New("Minimum: no data")
-	}
-	n := nums[0]
-	for _, m := range nums[1:] {
-		if m < n {
-			n = m
-		}
-	}
-	return n, nil
-}
-
-// Truncate returns a slice of buffers truncated to n bytes long.
-// If any of the buffers are too short, it returns an error.
-func Truncate(bufs [][]byte, n int) ([][]byte, error) {
-	for i := range bufs {
-		if len(bufs[i]) < n {
-			return nil, errors.New("Truncate: buffer length below minimum")
-		}
-		bufs[i] = bufs[i][:n]
-	}
-	return bufs, nil
 }
 
 // Transpose takes a slice of equal-length buffers and returns
@@ -147,28 +128,78 @@ func Transpose(bufs [][]byte) ([][]byte, error) {
 	return res, nil
 }
 
-// xorCipher is a repeating XOR stream cipher.
-type xorCipher struct {
-	key []byte
-	pos int
+// breakIdenticalCTR returns the keystream used to encrypt buffers with identical CTR.
+func breakIdenticalCTR(bufs [][]byte, scoreFunc func([]byte) float64) ([]byte, error) {
+	n, err := Median(Lengths(bufs))
+	if err != nil {
+		return nil, err
+	}
+	blocks, err := Transpose(Truncate(bufs, n))
+	if err != nil {
+		return nil, err
+	}
+	keystream := make([]byte, n)
+	for i, block := range blocks {
+		keystream[i] = breakSingleXOR(block, scoreFunc)
+	}
+	return keystream, nil
 }
 
-// NewXORCipher creates a new repeating XOR cipher.
-func NewXORCipher(key []byte) cipher.Stream {
-	return &xorCipher{key, 0}
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(length int) []byte {
+	res := make([]byte, length)
+	if _, err := rand.Read(res); err != nil {
+		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
+	}
+	return res
 }
 
-// XORKeyStream encrypts a buffer with repeating XOR.
-func (stream *xorCipher) XORKeyStream(dst, src []byte) {
-	// Panic if dst is smaller than src.
-	for i := 0; i < len(src); i++ {
-		dst[i] = src[i] ^ stream.key[stream.pos]
-		stream.pos++
-
-		// At the end of the key, reset position.
-		if stream.pos >= len(stream.key) {
-			stream.pos = 0
+// decodeAndEncrypt reads lines of base64-encoded text and encrypts them with an identical CTR keystream.
+func decodeAndEncrypt(in io.Reader, block cipher.Block, iv []byte) ([][]byte, error) {
+	input := bufio.NewScanner(in)
+	var res [][]byte
+	for input.Scan() {
+		buf, err := base64.StdEncoding.DecodeString(input.Text())
+		if err != nil {
+			return nil, err
 		}
+		stream := cipher.NewCTR(block, iv)
+		stream.XORKeyStream(buf, buf)
+		res = append(res, buf)
+	}
+	if err := input.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// min returns the smaller of two integers.
+func min(n, m int) int {
+	if n < m {
+		return n
+	}
+	return m
+}
+
+// XORBytes produces the XOR combination of two buffers.
+func XORBytes(dst, b1, b2 []byte) int {
+	n := min(len(b1), len(b2))
+	for i := 0; i < n; i++ {
+		dst[i] = b1[i] ^ b2[i]
+	}
+	return n
+}
+
+// decryptAndPrint decrypts and prints buffers encrypted with an identical CTR keystream.
+func decryptAndPrint(bufs [][]byte, scoreFunc func([]byte) float64) {
+	keystream, err := breakIdenticalCTR(bufs, scoreFunc)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	for _, buf := range bufs {
+		n := XORBytes(buf, buf, keystream)
+		fmt.Println(string(buf[:n]))
 	}
 }
 
@@ -191,9 +222,21 @@ func init() {
 }
 
 func main() {
+	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	if err != nil {
+		panic(err.Error())
+	}
+	iv := RandomBytes(block.BlockSize())
+
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
+		bufs, err := decodeAndEncrypt(os.Stdin, block, iv)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			return
+		}
+		decryptAndPrint(bufs, scoreFunc)
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -201,6 +244,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
+		bufs, err := decodeAndEncrypt(f, block, iv)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err.Error())
+			continue
+		}
+		decryptAndPrint(bufs, scoreFunc)
 		f.Close()
 	}
 }
