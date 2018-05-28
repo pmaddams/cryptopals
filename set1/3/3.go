@@ -49,7 +49,7 @@ func XORSingleByte(dst, src []byte, b byte) {
 }
 
 // breakSingleXOR returns the key used to encrypt a buffer with single byte XOR.
-func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
+func breakSingleXOR(buf []byte) byte {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
 
@@ -69,7 +69,7 @@ func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
 }
 
 // decryptAndPrint reads hex-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
+func decryptAndPrint(in io.Reader) {
 	input := bufio.NewScanner(in)
 	var buf []byte
 	for input.Scan() {
@@ -84,7 +84,7 @@ func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	key := breakSingleXOR(buf, scoreFunc)
+	key := breakSingleXOR(buf)
 	XORSingleByte(buf, buf, key)
 	fmt.Println(string(buf))
 }
@@ -111,7 +111,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		decryptAndPrint(os.Stdin, scoreFunc)
+		decryptAndPrint(os.Stdin)
 		return
 	}
 	for _, name := range files {
@@ -120,7 +120,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		decryptAndPrint(f, scoreFunc)
+		decryptAndPrint(f)
 		f.Close()
 	}
 }

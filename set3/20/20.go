@@ -57,7 +57,7 @@ func XORSingleByte(dst, src []byte, b byte) {
 }
 
 // breakSingleXOR returns the key used to encrypt a buffer with single byte XOR.
-func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
+func breakSingleXOR(buf []byte) byte {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
 
@@ -129,7 +129,7 @@ func Transpose(bufs [][]byte) ([][]byte, error) {
 }
 
 // breakIdenticalCTR returns the keystream used to encrypt buffers with identical CTR.
-func breakIdenticalCTR(bufs [][]byte, scoreFunc func([]byte) float64) ([]byte, error) {
+func breakIdenticalCTR(bufs [][]byte) ([]byte, error) {
 	n, err := Median(Lengths(bufs))
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func breakIdenticalCTR(bufs [][]byte, scoreFunc func([]byte) float64) ([]byte, e
 	}
 	keystream := make([]byte, n)
 	for i, block := range blocks {
-		keystream[i] = breakSingleXOR(block, scoreFunc)
+		keystream[i] = breakSingleXOR(block)
 	}
 	return keystream, nil
 }
@@ -191,8 +191,8 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 // decryptAndPrint decrypts and prints buffers encrypted with an identical CTR keystream.
-func decryptAndPrint(bufs [][]byte, scoreFunc func([]byte) float64) {
-	keystream, err := breakIdenticalCTR(bufs, scoreFunc)
+func decryptAndPrint(bufs [][]byte) {
+	keystream, err := breakIdenticalCTR(bufs)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
@@ -236,7 +236,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			return
 		}
-		decryptAndPrint(bufs, scoreFunc)
+		decryptAndPrint(bufs)
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -249,7 +249,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		decryptAndPrint(bufs, scoreFunc)
+		decryptAndPrint(bufs)
 		f.Close()
 	}
 }

@@ -106,7 +106,7 @@ func XORSingleByte(dst, src []byte, b byte) {
 }
 
 // breakSingleXOR returns the key used to encrypt a buffer with single byte XOR.
-func breakSingleXOR(buf []byte, scoreFunc func([]byte) float64) byte {
+func breakSingleXOR(buf []byte) byte {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
 
@@ -168,7 +168,7 @@ func Transpose(bufs [][]byte) ([][]byte, error) {
 }
 
 // breakRepeatingXOR returns the key used to encrypt a buffer with repeating XOR.
-func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, error) {
+func breakRepeatingXOR(buf []byte) ([]byte, error) {
 	keySize, err := findKeySize(buf)
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ func breakRepeatingXOR(buf []byte, scoreFunc func([]byte) float64) ([]byte, erro
 	}
 	key := make([]byte, keySize)
 	for i, block := range blocks {
-		key[i] = breakSingleXOR(block, scoreFunc)
+		key[i] = breakSingleXOR(block)
 	}
 	return key, nil
 }
@@ -210,13 +210,13 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 }
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, scoreFunc func([]byte) float64) {
+func decryptAndPrint(in io.Reader) {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	key, err := breakRepeatingXOR(buf, scoreFunc)
+	key, err := breakRepeatingXOR(buf)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
@@ -248,7 +248,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		decryptAndPrint(os.Stdin, scoreFunc)
+		decryptAndPrint(os.Stdin)
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -256,7 +256,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		decryptAndPrint(f, scoreFunc)
+		decryptAndPrint(f)
 		f.Close()
 	}
 }
