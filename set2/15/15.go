@@ -72,9 +72,8 @@ func unpadAndPrint(in io.Reader, blockSize int) {
 	}
 }
 
-var blockSize int
-
 func main() {
+	var blockSize int
 	flag.IntVar(&blockSize, "b", aesBlockSize, "block size")
 	flag.Parse()
 	if blockSize < 1 || blockSize > 255 {

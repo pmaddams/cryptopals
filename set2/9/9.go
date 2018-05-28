@@ -50,9 +50,8 @@ func padAndPrint(in io.Reader, blockSize int) {
 	}
 }
 
-var blockSize int
-
 func main() {
+	var blockSize int
 	flag.IntVar(&blockSize, "b", 20, "block size")
 	flag.Parse()
 	if blockSize < 1 || blockSize > 255 {
