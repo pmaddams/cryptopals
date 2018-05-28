@@ -12,8 +12,8 @@ import (
 // sample is a file with symbol frequencies similar to the expected plaintext.
 const sample = "alice.txt"
 
-// scoreFunc must be generated at runtime from the sample file.
-var scoreFunc func([]byte) float64
+// scoreBuf must be generated at runtime from the sample file.
+var scoreBuf func([]byte) float64
 
 // SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
 func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
@@ -30,8 +30,8 @@ func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
 	return m, nil
 }
 
-// Score adds up the frequencies for UTF-8 symbols encoded in the buffer.
-func Score(buf []byte, m map[rune]float64) (res float64) {
+// ScoreBufWithMap takes a buffer and map of symbol frequencies, and returns a score.
+func ScoreBufWithMap(buf []byte, m map[rune]float64) (res float64) {
 	runes := []rune(string(buf))
 	for _, r := range runes {
 		f, _ := m[r]
@@ -60,7 +60,7 @@ func bestSingleXOR(buf []byte) (byte, float64) {
 	for i := 0; i < 256; i++ {
 		b := byte(i)
 		XORSingleByte(tmp, buf, b)
-		if score := scoreFunc(tmp); score > best {
+		if score := scoreBuf(tmp); score > best {
 			best = score
 			key = b
 		}
@@ -96,7 +96,7 @@ func decryptAndPrint(in io.Reader) {
 }
 
 func init() {
-	// Generate scoreFunc from the sample file.
+	// Generate scoreBuf from the sample file.
 	f, err := os.Open(sample)
 	defer f.Close()
 	if err != nil {
@@ -108,8 +108,8 @@ func init() {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
-	scoreFunc = func(buf []byte) float64 {
-		return Score(buf, m)
+	scoreBuf = func(buf []byte) float64 {
+		return ScoreBufWithMap(buf, m)
 	}
 }
 

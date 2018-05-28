@@ -50,7 +50,7 @@ func symbolFrequencies(s string) map[rune]float64 {
 	return m
 }
 
-func TestScore(t *testing.T) {
+func TestScoreBufWithMap(t *testing.T) {
 	cases := []struct {
 		s    string
 		m    map[rune]float64
@@ -68,9 +68,9 @@ func TestScore(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got := Score([]byte(c.s), c.m)
+		got := ScoreBufWithMap([]byte(c.s), c.m)
 		if got != c.want {
-			t.Errorf("Score(%v, %v) == %v, want %v",
+			t.Errorf("ScoreBufWithMap(%v, %v) == %v, want %v",
 				c.s, c.m, got, c.want)
 		}
 	}
