@@ -12,8 +12,8 @@ import (
 // sample is a file with symbol frequencies similar to the expected plaintext.
 const sample = "alice.txt"
 
-// scoreBuf must be generated at runtime from the sample file.
-var scoreBuf func([]byte) float64
+// scoreBytes must be generated at runtime from the sample file.
+var scoreBytes func([]byte) float64
 
 // SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
 func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
@@ -21,23 +21,21 @@ func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
 	if err != nil {
 		return nil, err
 	}
-	runes := []rune(string(buf))
 	m := make(map[rune]float64)
-
+	runes := []rune(string(buf))
 	for _, r := range runes {
 		m[r] += 1.0 / float64(len(runes))
 	}
 	return m, nil
 }
 
-// ScoreBufWithMap takes a buffer and map of symbol frequencies, and returns a score.
-func ScoreBufWithMap(buf []byte, m map[rune]float64) (res float64) {
-	runes := []rune(string(buf))
-	for _, r := range runes {
-		f, _ := m[r]
-		res += f
+// ScoreBytesWithMap takes a buffer and map of symbol frequencies, and returns a score.
+func ScoreBytesWithMap(buf []byte, m map[rune]float64) float64 {
+	var res float64
+	for _, r := range []rune(string(buf)) {
+		res += m[r]
 	}
-	return
+	return res
 }
 
 // XORSingleByte produces the XOR combination of a buffer with a single byte.
@@ -60,7 +58,7 @@ func bestSingleXOR(buf []byte) (byte, float64) {
 	for i := 0; i < 256; i++ {
 		b := byte(i)
 		XORSingleByte(tmp, buf, b)
-		if score := scoreBuf(tmp); score > best {
+		if score := scoreBytes(tmp); score > best {
 			best = score
 			key = b
 		}
@@ -96,7 +94,7 @@ func decryptAndPrint(in io.Reader) {
 }
 
 func init() {
-	// Generate scoreBuf from the sample file.
+	// Generate scoreBytes from the sample file.
 	f, err := os.Open(sample)
 	defer f.Close()
 	if err != nil {
@@ -108,8 +106,8 @@ func init() {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
-	scoreBuf = func(buf []byte) float64 {
-		return ScoreBufWithMap(buf, m)
+	scoreBytes = func(buf []byte) float64 {
+		return ScoreBytesWithMap(buf, m)
 	}
 }
 
