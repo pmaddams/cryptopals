@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 )
 
@@ -90,8 +89,8 @@ func decryptedAdminTrue(buf []byte, dec cipher.BlockMode) bool {
 	return AdminTrue(string(tmp))
 }
 
-// byteMask returns an XOR mask that prevents query escaping for the target byte.
-func byteMask(b byte) byte {
+// xorMaskByte returns an XOR mask that prevents query escaping for the target byte.
+func xorMaskByte(b byte) byte {
 	var res byte
 	for i := 0; i < 256; i++ {
 		s := string(b ^ byte(i))
@@ -103,16 +102,13 @@ func byteMask(b byte) byte {
 	return res
 }
 
-// blockMask returns an XOR mask that prevents query escaping for the target block.
-func blockMask(buf []byte, blockSize int) ([]byte, error) {
-	if len(buf) != blockSize {
-		return nil, errors.New("blockMask: buffer length must be equal to block size")
+// xorMask returns an XOR mask that prevents query escaping for the target buffer.
+func xorMask(buf []byte) []byte {
+	var res []byte
+	for _, b := range buf {
+		res = append(res, xorMaskByte(b))
 	}
-	res := make([]byte, blockSize)
-	for i := 0; i < blockSize; i++ {
-		res[i] = byteMask(buf[i])
-	}
-	return res, nil
+	return res
 }
 
 // min returns the smaller of two integers.
@@ -143,11 +139,7 @@ func main() {
 	dec := cipher.NewCBCDecrypter(block, iv)
 
 	data := []byte("XXXXX;admin=true")
-	mask, err := blockMask(data, aesBlockSize)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		return
-	}
+	mask := xorMask(data)
 	XORBytes(data, data, mask)
 
 	buf := encryptedUserData(string(data), enc)
