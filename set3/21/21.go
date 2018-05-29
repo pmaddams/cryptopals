@@ -35,7 +35,7 @@ func NewMT19937(seed uint32) *MT19937 {
 	return &mt
 }
 
-// twist transforms the PRNG state array.
+// twist scrambles the PRNG state array.
 func (mt *MT19937) twist() {
 	for i := 0; i < arraySize; i++ {
 		n := (mt.state[i] & upperMask) | (mt.state[(i+1)%arraySize] & lowerMask)
@@ -46,14 +46,19 @@ func (mt *MT19937) twist() {
 	}
 }
 
-// Uint32 returns a pseudo-random unsigned 32-bit integer.
-func (mt *MT19937) Uint32() uint32 {
-	n := mt.state[mt.pos]
+// temper applies the MT19937 tempering transformation.
+func temper(n uint32) uint32 {
 	n ^= n >> 11
 	n ^= (n << 7) & temperMask1
 	n ^= (n << 15) & temperMask2
 	n ^= n >> 18
 
+	return n
+}
+
+// Uint32 returns a pseudo-random unsigned 32-bit integer.
+func (mt *MT19937) Uint32() uint32 {
+	n := temper(mt.state[mt.pos])
 	mt.pos++
 	if mt.pos == arraySize {
 		mt.twist()
