@@ -705,7 +705,7 @@ func TestUint32(t *testing.T) {
 		1457747377,
 		460066336,
 	}
-	mt := NewMT19937(1131464071)
+	mt := NewMT(1131464071)
 	for i := 0; i < len(want); i++ {
 		if n := mt.Uint32(); n != want[i] {
 			t.Errorf("Uint32: output %v incorrect", i+1)

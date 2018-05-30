@@ -16,15 +16,15 @@ const coefficient = 0x9908b0df
 const temperMask1 = 0x9d2c5680
 const temperMask2 = 0xefc60000
 
-// MT19937 contains state for the MT19937 PRNG.
-type MT19937 struct {
+// MT contains state for the 32-bit Mersenne Twister PRNG.
+type MT struct {
 	state [arraySize]uint32
 	pos   int
 }
 
-// NewMT19937 initializes and returns a new PRNG.
-func NewMT19937(seed uint32) *MT19937 {
-	var mt MT19937
+// NewMT initializes and returns a new PRNG.
+func NewMT(seed uint32) *MT {
+	var mt MT
 	mt.state[0] = seed
 	for i := 1; i < arraySize; i++ {
 		mt.state[i] = multiplier*
@@ -35,8 +35,8 @@ func NewMT19937(seed uint32) *MT19937 {
 	return &mt
 }
 
-// twist scrambles the PRNG state array.
-func (mt *MT19937) twist() {
+// twist scrambles the MT19937 state array.
+func (mt *MT) twist() {
 	for i := 0; i < arraySize; i++ {
 		n := (mt.state[i] & upperMask) | (mt.state[(i+1)%arraySize] & lowerMask)
 		mt.state[i] = mt.state[(i+offset)%arraySize] ^ (n >> 1)
@@ -57,7 +57,7 @@ func temper(n uint32) uint32 {
 }
 
 // Uint32 returns a pseudo-random unsigned 32-bit integer.
-func (mt *MT19937) Uint32() uint32 {
+func (mt *MT) Uint32() uint32 {
 	n := temper(mt.state[mt.pos])
 	mt.pos++
 	if mt.pos == arraySize {
@@ -72,7 +72,7 @@ func main() {
 	flag.UintVar(&seed, "s", 5489, "seed")
 	flag.Parse()
 
-	mt := NewMT19937(uint32(seed))
+	mt := NewMT(uint32(seed))
 	input := bufio.NewScanner(os.Stdin)
 	for input.Scan() {
 		fmt.Print(mt.Uint32())
