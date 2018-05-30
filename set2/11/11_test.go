@@ -15,7 +15,7 @@ func TestRandomRange(t *testing.T) {
 		{20, 30},
 	}
 	for _, c := range cases {
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 100; i++ {
 			got := RandomRange(c.lo, c.hi)
 			if got < c.lo || got > c.hi {
 				t.Errorf("RandomRange(%v, %v) == %v, value out of range",
