@@ -16,13 +16,13 @@ const coefficient = 0x9908b0df
 const temperMask1 = 0x9d2c5680
 const temperMask2 = 0xefc60000
 
-// MT contains state for the 32-bit Mersenne Twister PRNG.
+// MT contains state for the MT19937 (32-bit Mersenne Twister) PRNG.
 type MT struct {
 	state [arraySize]uint32
 	pos   int
 }
 
-// NewMT initializes and returns a new PRNG.
+// NewMT initializes and returns a new MT19937 PRNG.
 func NewMT(seed uint32) *MT {
 	var mt MT
 	mt.state[0] = seed

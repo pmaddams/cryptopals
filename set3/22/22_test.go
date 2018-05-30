@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestUint32(t *testing.T) {
 	want := []uint32{
@@ -714,19 +717,31 @@ func TestUint32(t *testing.T) {
 	}
 }
 
-func TestRandomRange(t *testing.T) {
+func TestUint32n(t *testing.T) {
+	mt := NewMT(uint32(time.Now().Unix()))
+	for _, n := range []uint32{1, 5, 10} {
+		for i := 0; i < 100; i++ {
+			if m := mt.Uint32n(n); m >= n {
+				t.Errorf("Uint32n(%v) == (%v), value at or above bound", n, m)
+			}
+		}
+	}
+}
+
+func TestRange(t *testing.T) {
 	cases := []struct {
-		lo, hi int
+		lo, hi uint32
 	}{
 		{0, 0},
 		{5, 10},
 		{20, 30},
 	}
+	mt := NewMT(uint32(time.Now().Unix()))
 	for _, c := range cases {
-		for i := 0; i < 10; i++ {
-			got := RandomRange(c.lo, c.hi)
+		for i := 0; i < 100; i++ {
+			got := mt.Range(c.lo, c.hi)
 			if got < c.lo || got > c.hi {
-				t.Errorf("RandomRange(%v, %v) == %v, value out of range",
+				t.Errorf("Range(%v, %v) == %v, value out of range",
 					c.lo, c.hi, got)
 			}
 		}

@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	weak "math/rand"
 	"os"
 	"time"
 )
@@ -17,13 +16,13 @@ const coefficient = 0x9908b0df
 const temperMask1 = 0x9d2c5680
 const temperMask2 = 0xefc60000
 
-// MT contains state for the 32-bit Mersenne Twister PRNG.
+// MT contains state for the MT19937 (32-bit Mersenne Twister) PRNG.
 type MT struct {
 	state [arraySize]uint32
 	pos   int
 }
 
-// NewMT initializes and returns a new PRNG.
+// NewMT initializes and returns a new MT19937 PRNG.
 func NewMT(seed uint32) *MT {
 	var mt MT
 	mt.state[0] = seed
@@ -68,17 +67,24 @@ func (mt *MT) Uint32() uint32 {
 	return n
 }
 
-// RandomRange returns a pseudo-random non-negative integer in [lo, hi].
-// The output should not be used in a security-sensitive context.
-func RandomRange(lo, hi int) int {
-	if lo < 0 || lo > hi {
-		panic("RandomRange: invalid range")
+// Uint32n returns a pseudo-random unsigned 32-bit integer in [0, n).
+func (mt *MT) Uint32n(n uint32) uint32 {
+	if n == 0 {
+		panic("Intn: invalid bound")
 	}
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	return lo + weak.Intn(hi-lo+1)
+	return uint32(float64(mt.Uint32()) *
+		float64(n-1) / float64(^uint32(0)))
 }
 
-// breakSeed takes a PRNG output and the current time, and returns the seed.
+// Range returns a pseudo-random unsigned 32-bit integer in [lo, hi].
+func (mt *MT) Range(lo, hi uint32) uint32 {
+	if lo < 0 || lo > hi {
+		panic("Range: invalid range")
+	}
+	return lo + mt.Uint32n(hi-lo+1)
+}
+
+// breakSeed takes an MT19937 output and the current time, and returns the seed.
 func breakSeed(n, unixTime uint32) (uint32, error) {
 	for seed := unixTime; seed > 0; seed-- {
 		if NewMT(seed).Uint32() == n {
@@ -92,7 +98,7 @@ func main() {
 	seed := uint32(time.Now().Unix())
 	mt := NewMT(seed)
 
-	n, err := breakSeed(mt.Uint32(), seed+uint32(RandomRange(40, 1000)))
+	n, err := breakSeed(mt.Uint32(), seed+mt.Range(40, 1000))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
