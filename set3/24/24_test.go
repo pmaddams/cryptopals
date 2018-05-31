@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+	"time"
+)
 
 func TestUint32(t *testing.T) {
 	want := []uint32{
@@ -712,4 +716,57 @@ func TestUint32(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestUint32n(t *testing.T) {
+	mt := NewMT(uint32(time.Now().Unix()))
+	for _, n := range []uint32{1, 5, 10} {
+		for i := 0; i < 100; i++ {
+			if m := mt.Uint32n(n); m >= n {
+				t.Errorf("Uint32n(%v) == (%v), value at or above bound", n, m)
+			}
+		}
+	}
+}
+
+func TestRange(t *testing.T) {
+	cases := []struct {
+		lo, hi uint32
+	}{
+		{0, 0},
+		{5, 10},
+		{20, 30},
+	}
+	mt := NewMT(uint32(time.Now().Unix()))
+	for _, c := range cases {
+		for i := 0; i < 100; i++ {
+			got := mt.Range(c.lo, c.hi)
+			if got < c.lo || got > c.hi {
+				t.Errorf("Range(%v, %v) == %v, value out of range",
+					c.lo, c.hi, got)
+			}
+		}
+	}
+}
+
+func TestXORKeyStream(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		seed := uint32(time.Now().Unix())
+		mt1 := NewMT(seed)
+		mt2 := NewMT(seed)
+		src := make([]byte, seed%1024)
+		dst := make([]byte, seed%1024)
+
+		mt1.XORKeyStream(dst, src)
+		if bytes.Equal(dst, src) {
+			t.Error("XORKeyStream encryption failed")
+		}
+		mt2.XORKeyStream(dst, dst)
+		if !bytes.Equal(dst, src) {
+			t.Error("XORKeyStream decryption failed")
+		}
+	}
+}
+
+func TestBytes(t *testing.T) {
 }
