@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestUint32(t *testing.T) {
 	want := []uint32{
@@ -710,6 +713,55 @@ func TestUint32(t *testing.T) {
 		if n := mt.Uint32(); n != want[i] {
 			t.Errorf("Uint32: output %v incorrect", i+1)
 			return
+		}
+	}
+}
+
+func TestBitMask(t *testing.T) {
+	cases := []struct {
+		i, j int
+		want uint32
+	}{
+		{
+			0,
+			31,
+			^uint32(0),
+		},
+		{
+			31,
+			31,
+			uint32(1),
+		},
+		{
+			28,
+			30,
+			uint32(14),
+		},
+	}
+	for _, c := range cases {
+		if got := BitMask(c.i, c.j); got != c.want {
+			t.Errorf("BitMask(%v, %v) == %v, want %v",
+				c.i, c.j, got, c.want)
+		}
+	}
+}
+
+func TestUntemper(t *testing.T) {
+	mt := NewMT(uint32(time.Now().Unix()))
+	for i := 0; i < 100; i++ {
+		n := mt.Uint32()
+		if m := Untemper(temper(n)); m != n {
+			t.Errorf("Untemper(%v) == %v, want %v", n, m, n)
+		}
+	}
+}
+
+func TestCloneMT(t *testing.T) {
+	mt := NewMT(uint32(time.Now().Unix()))
+	clone := CloneMT(mt)
+	for i := 0; i < 700; i++ {
+		if mt.Uint32() != clone.Uint32() {
+			t.Errorf("CloneMT: output %v incorrect", i+1)
 		}
 	}
 }
