@@ -201,7 +201,7 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 		stream.pos++
 
 		// At the end of the key, reset position.
-		if stream.pos >= len(stream.key) {
+		if stream.pos == len(stream.key) {
 			stream.pos = 0
 		}
 	}
