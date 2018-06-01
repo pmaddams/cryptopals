@@ -150,7 +150,7 @@ func (x *cbcBreaker) breakPaddingByte(tmp, buf []byte, v int) (byte, error) {
 			return byte(i), nil
 		}
 	}
-	return byte(0), errors.New("breakPaddingByte: nothing found")
+	return 0, errors.New("breakPaddingByte: nothing found")
 }
 
 // min returns the smaller of two integers.

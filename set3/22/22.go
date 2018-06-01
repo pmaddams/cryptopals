@@ -91,7 +91,7 @@ func breakSeed(n, unixTime uint32) (uint32, error) {
 			return seed, nil
 		}
 	}
-	return uint32(0), errors.New("breakSeed")
+	return 0, errors.New("breakSeed")
 }
 
 func main() {
