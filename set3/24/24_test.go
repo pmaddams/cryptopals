@@ -769,4 +769,22 @@ func TestXORKeyStream(t *testing.T) {
 }
 
 func TestBytes(t *testing.T) {
+	mt := NewMT(uint32(time.Now().Unix()))
+	length := int(mt.Uint32()) % 1024
+
+	var cases [][]byte
+	for i := 0; i < 5; i++ {
+		buf := mt.Bytes(length)
+		if len(buf) != length {
+			t.Errorf("Bytes(%v) == %v, length %v",
+				length, buf, len(buf))
+		}
+		cases = append(cases, buf)
+		for j := 0; j < i; j++ {
+			if bytes.Equal(cases[i], cases[j]) {
+				t.Errorf("Bytes created identical buffers %v and %v",
+					cases[i], cases[j])
+			}
+		}
+	}
 }
