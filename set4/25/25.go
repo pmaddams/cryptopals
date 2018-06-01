@@ -56,8 +56,8 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return buf[:len(buf)-int(b)], nil
 }
 
-// decodeAndDecrypt takes base64-encoded, encrypted input and returns the plaintext.
-func decodeAndDecrypt(in io.Reader) ([]byte, error) {
+// decryptECB takes base64-encoded, ECB-encrypted input and returns the plaintext.
+func decryptECB(in io.Reader) ([]byte, error) {
 	in = base64.NewDecoder(base64.StdEncoding, in)
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
@@ -91,9 +91,8 @@ func RandomBytes(length int) []byte {
 	return res
 }
 
-// NewCTREditor takes base64-encoded, encrypted input and returns a CTREditor.
-func NewCTREditor(in io.Reader) (*CTREditor, error) {
-	buf, err := decodeAndDecrypt(in)
+// NewCTREditor takes a buffer and creates a CTREditor with a random key.
+func NewCTREditor(buf []byte) (*CTREditor, error) {
 	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
 		return nil, err
@@ -106,17 +105,25 @@ func NewCTREditor(in io.Reader) (*CTREditor, error) {
 }
 
 // Edit takes new plaintext and an offset, and edits the ciphertext.
-func (e *CTREditor) Edit(plaintext []byte, offset int) {
+func (e *CTREditor) Edit(plaintext []byte, offset int) error {
+	if offset < 0 || offset > len(e.ciphertext) {
+		return errors.New("Edit: invalid offset")
+	}
+	// Decrypt before copying the new data.
 	stream := cipher.NewCTR(e.block, e.iv)
 	stream.XORKeyStream(e.ciphertext, e.ciphertext)
+
 	if len(e.ciphertext) < offset+len(plaintext) {
 		e.ciphertext = append(e.ciphertext[:offset], plaintext...)
 	} else {
 		copy(e.ciphertext[offset:], plaintext)
 	}
 	target := e.ciphertext[offset : offset+len(plaintext)]
+
+	// Regenerate the stream cipher.
 	stream = cipher.NewCTR(e.block, e.iv)
 	stream.XORKeyStream(target, target)
+	return nil
 }
 
 // Show returns a read-only copy of the ciphertext.
@@ -125,22 +132,40 @@ func (e *CTREditor) Show() []byte {
 }
 
 // breakCTREditor decrypts and returns the ciphertext.
-func breakCTREditor(e *CTREditor) []byte {
+func breakCTREditor(e *CTREditor) ([]byte, error) {
 	ciphertext := e.Show()
-	e.Edit(ciphertext, 0)
-	return e.Show()
+	if err := e.Edit(ciphertext, 0); err != nil {
+		return nil, err
+	}
+	return e.Show(), nil
+}
+
+// decryptAndPrint generates a CTREditor from base64-encoded,
+// ECB-encrypted input, breaks it, and prints the plaintext.
+func decryptAndPrint(in io.Reader) {
+	buf, err := decryptECB(in)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	e, err := NewCTREditor(buf)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	buf, err = breakCTREditor(e)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	fmt.Print(string(buf))
 }
 
 func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		e, err := NewCTREditor(os.Stdin)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			return
-		}
-		fmt.Print(string(breakCTREditor(e)))
+		decryptAndPrint(os.Stdin)
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -148,12 +173,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		e, err := NewCTREditor(f)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
-			return
-		}
-		fmt.Print(string(breakCTREditor(e)))
+		decryptAndPrint(f)
 		f.Close()
 	}
 }
