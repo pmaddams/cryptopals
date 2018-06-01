@@ -109,19 +109,19 @@ func (mt *MT) encryptWithPrefix(buf []byte) []byte {
 }
 
 // breakCipherSeed returns the 16-bit seed for an MT19937 stream cipher.
-func breakCipherSeed(ctxt, ptxt []byte) (uint16, error) {
-	if len(ctxt) < len(ptxt) {
+func breakCipherSeed(ciphertext, plaintext []byte) (uint16, error) {
+	if len(ciphertext) < len(plaintext) {
 		return 0, errors.New("breakCipherSeed: invalid ciphertext")
 	}
 	// Encrypt the length of the ciphertext, but ignore the prefix.
-	tmp := make([]byte, len(ctxt))
-	n := len(ctxt) - len(ptxt)
+	tmp := make([]byte, len(ciphertext))
+	n := len(ciphertext) - len(plaintext)
 
 	for i := 0; i < 65536; i++ {
 		mt := NewMT(uint32(i))
 		mt.XORKeyStream(tmp[:n], tmp[:n])
-		mt.XORKeyStream(tmp[n:], ptxt)
-		if bytes.Equal(tmp[n:], ctxt[n:]) {
+		mt.XORKeyStream(tmp[n:], plaintext)
+		if bytes.Equal(tmp[n:], ciphertext[n:]) {
 			return uint16(i), nil
 		}
 	}
@@ -151,10 +151,10 @@ func main() {
 	seed := uint16(time.Now().Unix() % 0x10000)
 	mt := NewMT(uint32(seed))
 
-	ptxt := []byte("aaaaaaaaaaaaaa")
-	ctxt := mt.encryptWithPrefix(ptxt)
+	plaintext := []byte("aaaaaaaaaaaaaa")
+	ciphertext := mt.encryptWithPrefix(plaintext)
 
-	n, err := breakCipherSeed(ctxt, ptxt)
+	n, err := breakCipherSeed(ciphertext, plaintext)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
