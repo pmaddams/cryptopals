@@ -56,24 +56,8 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return buf[:len(buf)-int(b)], nil
 }
 
-// RandomBytes returns a random buffer of the desired length.
-func RandomBytes(length int) []byte {
-	res := make([]byte, length)
-	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
-	}
-	return res
-}
-
-// CTREditor permits random-access CTR editing.
-type CTREditor struct {
-	block      cipher.Block
-	iv         []byte
-	ciphertext []byte
-}
-
-// NewCTREditor takes base64-encoded, encrypted input and returns a CTREditor.
-func NewCTREditor(in io.Reader) (*CTREditor, error) {
+// decodeAndDecrypt takes base64-encoded, encrypted input and returns the plaintext.
+func decodeAndDecrypt(in io.Reader) ([]byte, error) {
 	in = base64.NewDecoder(base64.StdEncoding, in)
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
@@ -83,14 +67,34 @@ func NewCTREditor(in io.Reader) (*CTREditor, error) {
 	if err != nil {
 		return nil, err
 	}
-	mode := NewECBDecrypter(block)
-	mode.CryptBlocks(buf, buf)
-	buf, err = PKCS7Unpad(buf, mode.BlockSize())
+	NewECBDecrypter(block).CryptBlocks(buf, buf)
+	buf, err = PKCS7Unpad(buf, block.BlockSize())
 	if err != nil {
 		return nil, err
 	}
+	return buf, nil
+}
 
-	block, err = aes.NewCipher(RandomBytes(aesBlockSize))
+// CTREditor permits random-access CTR editing.
+type CTREditor struct {
+	block      cipher.Block
+	iv         []byte
+	ciphertext []byte
+}
+
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(length int) []byte {
+	res := make([]byte, length)
+	if _, err := rand.Read(res); err != nil {
+		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
+	}
+	return res
+}
+
+// NewCTREditor takes base64-encoded, encrypted input and returns a CTREditor.
+func NewCTREditor(in io.Reader) (*CTREditor, error) {
+	buf, err := decodeAndDecrypt(in)
+	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +109,6 @@ func NewCTREditor(in io.Reader) (*CTREditor, error) {
 func (e *CTREditor) Edit(plaintext []byte, offset int) {
 	stream := cipher.NewCTR(e.block, e.iv)
 	stream.XORKeyStream(e.ciphertext, e.ciphertext)
-	fmt.Println(string(e.ciphertext)) // DEBUG
 	if len(e.ciphertext) < offset+len(plaintext) {
 		e.ciphertext = append(e.ciphertext[:offset], plaintext...)
 	} else {
