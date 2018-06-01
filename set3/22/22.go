@@ -40,7 +40,7 @@ func (mt *MT) twist() {
 	for i := 0; i < arraySize; i++ {
 		n := (mt.state[i] & upperMask) | (mt.state[(i+1)%arraySize] & lowerMask)
 		mt.state[i] = mt.state[(i+offset)%arraySize] ^ (n >> 1)
-		if n%2 != 0 {
+		if n&1 == 1 {
 			mt.state[i] ^= coefficient
 		}
 	}
@@ -78,7 +78,7 @@ func (mt *MT) Uint32n(n uint32) uint32 {
 
 // Range returns a pseudo-random unsigned 32-bit integer in [lo, hi].
 func (mt *MT) Range(lo, hi uint32) uint32 {
-	if lo < 0 || lo > hi {
+	if lo > hi {
 		panic("Range: invalid range")
 	}
 	return lo + mt.Uint32n(hi-lo+1)

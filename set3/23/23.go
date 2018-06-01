@@ -40,7 +40,7 @@ func (mt *MT) twist() {
 	for i := 0; i < arraySize; i++ {
 		n := (mt.state[i] & upperMask) | (mt.state[(i+1)%arraySize] & lowerMask)
 		mt.state[i] = mt.state[(i+offset)%arraySize] ^ (n >> 1)
-		if n%2 != 0 {
+		if n&1 == 1 {
 			mt.state[i] ^= coefficient
 		}
 	}
