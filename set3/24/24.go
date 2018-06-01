@@ -89,7 +89,7 @@ func (mt *MT) Range(lo, hi uint32) uint32 {
 func (mt *MT) XORKeyStream(dst, src []byte) {
 	// Panic if dst is smaller than src.
 	for i := 0; i < len(src); i++ {
-		dst[i] = src[i] ^ byte(mt.Uint32()%0x100)
+		dst[i] = src[i] ^ byte(mt.Uint32()&0xff)
 	}
 }
 
@@ -148,9 +148,8 @@ func checkToken(buf []byte) bool {
 }
 
 func main() {
-	seed := uint16(time.Now().Unix() % 0x10000)
+	seed := uint16(time.Now().Unix() & 0xffff)
 	mt := NewMT(uint32(seed))
-
 	plaintext := []byte("aaaaaaaaaaaaaa")
 	ciphertext := mt.encryptWithPrefix(plaintext)
 
