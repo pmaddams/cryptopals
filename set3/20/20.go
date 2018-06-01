@@ -157,13 +157,13 @@ func decodeAndEncrypt(in io.Reader, block cipher.Block, iv []byte) ([][]byte, er
 	input := bufio.NewScanner(in)
 	var res [][]byte
 	for input.Scan() {
-		buf, err := base64.StdEncoding.DecodeString(input.Text())
+		line, err := base64.StdEncoding.DecodeString(input.Text())
 		if err != nil {
 			return nil, err
 		}
 		stream := cipher.NewCTR(block, iv)
-		stream.XORKeyStream(buf, buf)
-		res = append(res, buf)
+		stream.XORKeyStream(line, line)
+		res = append(res, line)
 	}
 	if err := input.Err(); err != nil {
 		return nil, err
@@ -229,12 +229,12 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		bufs, err := decodeAndEncrypt(os.Stdin, block, iv)
+		lines, err := decodeAndEncrypt(os.Stdin, block, iv)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			return
 		}
-		decryptAndPrint(bufs)
+		decryptAndPrint(lines)
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -242,12 +242,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		bufs, err := decodeAndEncrypt(f, block, iv)
+		lines, err := decodeAndEncrypt(f, block, iv)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		decryptAndPrint(bufs)
+		decryptAndPrint(lines)
 		f.Close()
 	}
 }
