@@ -36,7 +36,7 @@ func TestPKCS7Pad(t *testing.T) {
 	}
 }
 
-func TestFormatBytes(t *testing.T) {
+func TestVis(t *testing.T) {
 	cases := []struct {
 		buf  []byte
 		want string
@@ -50,13 +50,13 @@ func TestFormatBytes(t *testing.T) {
 			"hello world",
 		},
 		{
-			append([]byte("你好世界"), 31),
-			"你好世界\\x1f",
+			[]byte("你好"),
+			"\\xe4\\xbd\\xa0\\xe5\\xa5\\xbd",
 		},
 	}
 	for _, c := range cases {
-		if got := FormatBytes(c.buf); got != c.want {
-			t.Errorf("FormatBytes(%v) == %v, want %v",
+		if got := Vis(c.buf); got != c.want {
+			t.Errorf("Vis(%v) == %v, want %v",
 				c.buf, got, c.want)
 		}
 	}
