@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"unicode/utf8"
 )
 
 // AES always has a block size of 128 bits (16 bytes).
@@ -69,24 +70,34 @@ func encryptedUserData(s string, enc cipher.BlockMode) []byte {
 	return buf
 }
 
-// sillyErrorMessage returns an error containing the plaintext if it is invalid.
-func sillyErrorMessage(buf []byte, dec cipher.BlockMode) error {
-	tmp := make([]byte, len(buf))
-	dec.CryptBlocks(tmp, buf)
-	if _, err := PKCS7Unpad(tmp, dec.BlockSize()); err != nil {
-		return errors.New(strconv.Quote(string(tmp)))
+// Blocks divides a buffer into blocks.
+func Blocks(buf []byte, n int) [][]byte {
+	var res [][]byte
+	for len(buf) >= n {
+		// Return pointers, not copies.
+		res = append(res, buf[:n])
+		buf = buf[n:]
+	}
+	return res
+}
+
+// validate returns an error containing the plaintext, if it is invalid.
+func validate(buf []byte, dec cipher.BlockMode) error {
+	out := make([]byte, len(buf))
+	dec.CryptBlocks(out, buf)
+	_, err := PKCS7Unpad(out, dec.BlockSize())
+	if err != nil || !utf8.Valid(out) {
+		return errors.New(strconv.Quote(string(out)))
 	}
 	return nil
 }
 
-/*
 // clear overwrites a buffer with zeroes.
 func clear(buf []byte) {
 	for i := range buf {
 		buf[i] = 0
 	}
 }
-*/
 
 // min returns the smaller of two integers.
 func min(n, m int) int {
@@ -107,28 +118,32 @@ func XORBytes(dst, b1, b2 []byte) int {
 
 func main() {
 	key := RandomBytes(aesBlockSize)
-	fmt.Println("key:", strconv.Quote(string(key)))
+	fmt.Println(strconv.Quote(string(key)))
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err.Error())
 	}
 	enc := cipher.NewCBCEncrypter(block, key)
-	dec := cipher.NewCBCEncrypter(block, key)
+	dec := cipher.NewCBCDecrypter(block, key)
 
 	ciphertext := encryptedUserData("", enc)
-	buf := ciphertext[:aesBlockSize]
-	buf = append(buf, append(bytes.Repeat([]byte{0}, aesBlockSize), buf...)...)
+	blocks := Blocks(ciphertext, aesBlockSize)
+	copy(blocks[2], blocks[0])
+	clear(blocks[1])
 
-	err = sillyErrorMessage(buf, dec)
-	plaintext, err := strconv.Unquote(err.Error())
+	err = validate(ciphertext, dec)
+	if err == nil {
+		fmt.Fprintln(os.Stderr, "no error")
+		return
+	}
+	s, err := strconv.Unquote(err.Error())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	keyCopy := make([]byte, aesBlockSize)
-	XORBytes(keyCopy,
-		[]byte(plaintext)[:aesBlockSize],
-		[]byte(plaintext)[2*aesBlockSize:3*aesBlockSize])
-	fmt.Println("copy:", strconv.Quote(string(keyCopy)))
+	plaintext := []byte(s)
+	blocks = Blocks(plaintext, aesBlockSize)
+	XORBytes(blocks[0], blocks[0], blocks[2])
+	fmt.Println(strconv.Quote(string(blocks[0])))
 }
