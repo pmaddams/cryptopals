@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
-	_ "crypto/aes"
+	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strconv"
 )
 
@@ -61,6 +62,13 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return buf[:len(buf)-int(b)], nil
 }
 
+// encryptedUserData returns an encrypted string with arbitrary data inserted in the middle.
+func encryptedUserData(s string, enc cipher.BlockMode) []byte {
+	buf := PKCS7Pad([]byte(UserData(s)), enc.BlockSize())
+	enc.CryptBlocks(buf, buf)
+	return buf
+}
+
 // Vis converts a buffer to a string with non-printing bytes hex-encoded.
 func Vis(buf []byte) string {
 	var out []byte
@@ -80,11 +88,21 @@ func Unvis(s string) ([]byte, error) {
 	return []byte(s), err
 }
 
-// encryptedUserData returns an encrypted string with arbitrary data inserted in the middle.
-func encryptedUserData(s string, enc cipher.BlockMode) []byte {
-	buf := PKCS7Pad([]byte(UserData(s)), enc.BlockSize())
-	enc.CryptBlocks(buf, buf)
-	return buf
+// sillyErrorMessage returns an error containing the plaintext if it is invalid.
+func sillyErrorMessage(buf []byte, dec cipher.BlockMode) error {
+	tmp := make([]byte, len(buf))
+	dec.CryptBlocks(tmp, buf)
+	if _, err := PKCS7Unpad(tmp, dec.BlockSize()); err != nil {
+		return errors.New(Vis(tmp))
+	}
+	return nil
+}
+
+// clear overwrites a buffer with zeroes.
+func clear(buf []byte) {
+	for i := range buf {
+		buf[i] = 0
+	}
 }
 
 // min returns the smaller of two integers.
@@ -105,4 +123,27 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 func main() {
+	key := RandomBytes(aesBlockSize)
+	fmt.Println("key:", Vis(key))
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err.Error())
+	}
+	enc := cipher.NewCBCEncrypter(block, key)
+	dec := cipher.NewCBCEncrypter(block, key)
+
+	buf := encryptedUserData("XXXXXXXXXXXXXXXX", enc)
+	copy(buf[2*aesBlockSize:3*aesBlockSize], buf[:aesBlockSize])
+	clear(buf[aesBlockSize : 2*aesBlockSize])
+
+	err = sillyErrorMessage(buf, dec)
+	plaintext, err := Unvis(err.Error())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return
+	}
+	keyCopy := make([]byte, aesBlockSize)
+	XORBytes(keyCopy, plaintext[:aesBlockSize], plaintext[2*aesBlockSize:3*aesBlockSize])
+	fmt.Println("copy:", Vis(keyCopy))
 }
