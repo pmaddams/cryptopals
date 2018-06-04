@@ -201,7 +201,7 @@ func TestLengths(t *testing.T) {
 	}
 }
 
-func TestSubdivide(t *testing.T) {
+func TestBlocks(t *testing.T) {
 	cases := []struct {
 		buf  []byte
 		n    int
@@ -231,9 +231,9 @@ func TestSubdivide(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got := Subdivide(c.buf, c.n)
+		got := Blocks(c.buf, c.n)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Subdivide(%v, %v) == %v, want %v",
+			t.Errorf("Blocks(%v, %v) == %v, want %v",
 				c.buf, c.n, got, c.want)
 		}
 	}

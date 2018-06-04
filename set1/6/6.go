@@ -123,11 +123,11 @@ func breakSingleXOR(buf []byte) byte {
 	return key
 }
 
-// Subdivide divides a buffer into equal-length chunks.
-func Subdivide(buf []byte, n int) [][]byte {
+// Blocks divides a buffer into blocks.
+func Blocks(buf []byte, n int) [][]byte {
 	var res [][]byte
 	for len(buf) >= n {
-		// Pointers, not copies.
+		// Return pointers, not copies.
 		res = append(res, buf[:n])
 		buf = buf[n:]
 	}
@@ -171,7 +171,7 @@ func breakRepeatingXOR(buf []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	blocks, err := Transpose(Subdivide(buf, keySize))
+	blocks, err := Transpose(Blocks(buf, keySize))
 	if err != nil {
 		return nil, err
 	}
