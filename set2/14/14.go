@@ -263,11 +263,8 @@ func (x *ecbBreaker) scanBlocks() [][]byte {
 func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
 	for i := 0; i < 256; i++ {
 		b := byte(i)
-		probe[x.blockSize-1] = b
-		buf := x.oracle(probe)
+		buf := x.oracle(append(probe, b))
 		if bytes.Equal(buf[:x.blockSize], block) {
-			// Shift the probe forward one byte.
-			copy(probe, probe[1:])
 			return b, nil
 		}
 	}
@@ -282,13 +279,14 @@ func (x *ecbBreaker) breakOracle() ([]byte, error) {
 		return nil, errors.New("scanBlocks: invalid secret length")
 	}
 	var buf []byte
-	probe := bytes.Repeat([]byte{x.a}, x.blockSize)
+	probe := bytes.Repeat([]byte{x.a}, x.blockSize-1)
 	for _, block := range x.scanBlocks() {
 		b, err := x.breakByte(probe, block)
 		if err != nil {
 			return nil, err
 		}
 		buf = append(buf, b)
+		probe = append(probe[1:], b)
 	}
 	res, err := PKCS7Unpad(buf, x.blockSize)
 	if err != nil {
