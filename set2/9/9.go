@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 )
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
@@ -25,24 +26,12 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	return buf
 }
 
-// Vis converts a buffer to a string with non-printing bytes hex-encoded.
-func Vis(buf []byte) string {
-	var out []byte
-	for _, b := range buf {
-		if b >= 32 && b <= 125 {
-			out = append(out, b)
-		} else {
-			out = append(out, fmt.Sprintf("\\x%02x", b)...)
-		}
-	}
-	return string(out)
-}
-
 // padAndPrint reads lines of text and displays them with PKCS#7 padding added.
 func padAndPrint(in io.Reader, blockSize int) {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
-		fmt.Println(Vis(PKCS7Pad(input.Bytes(), blockSize)))
+		buf := PKCS7Pad(input.Bytes(), blockSize)
+		fmt.Println(strconv.Quote(string(buf)))
 	}
 	if err := input.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())

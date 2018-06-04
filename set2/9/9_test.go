@@ -35,29 +35,3 @@ func TestPKCS7Pad(t *testing.T) {
 		}
 	}
 }
-
-func TestVis(t *testing.T) {
-	cases := []struct {
-		buf  []byte
-		want string
-	}{
-		{
-			[]byte{0, 1, 2},
-			"\\x00\\x01\\x02",
-		},
-		{
-			[]byte("hello world"),
-			"hello world",
-		},
-		{
-			[]byte("你好"),
-			"\\xe4\\xbd\\xa0\\xe5\\xa5\\xbd",
-		},
-	}
-	for _, c := range cases {
-		if got := Vis(c.buf); got != c.want {
-			t.Errorf("Vis(%v) == %v, want %v",
-				c.buf, got, c.want)
-		}
-	}
-}
