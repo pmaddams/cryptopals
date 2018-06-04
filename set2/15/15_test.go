@@ -66,30 +66,3 @@ func TestPKCS7Unpad(t *testing.T) {
 		}
 	}
 }
-
-func TestUnvis(t *testing.T) {
-	cases := []struct {
-		s    string
-		want []byte
-	}{
-		{
-			"\\x00\\x01\\x02",
-			[]byte{0, 1, 2},
-		},
-		{
-			"hello world",
-			[]byte("hello world"),
-		},
-		{
-			"\\xe4\\xbd\\xa0\\xe5\\xa5\\xbd",
-			[]byte("你好"),
-		},
-	}
-	for _, c := range cases {
-		got, _ := Unvis(c.s)
-		if !bytes.Equal(got, c.want) {
-			t.Errorf("Unvis(%v) == %v, want %v",
-				c.s, got, c.want)
-		}
-	}
-}

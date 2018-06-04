@@ -45,12 +45,6 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return buf[:len(buf)-int(b)], nil
 }
 
-// Unvis converts a string to a buffer with hex-encoded bytes decoded.
-func Unvis(s string) ([]byte, error) {
-	s, err := strconv.Unquote(`"` + s + `"`)
-	return []byte(s), err
-}
-
 // unpadAndPrint prints lines of PKCS#7 padded input with padding removed.
 func unpadAndPrint(in io.Reader, blockSize int) {
 	input := bufio.NewReader(in)
@@ -64,12 +58,12 @@ func unpadAndPrint(in io.Reader, blockSize int) {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		buf, err := Unvis(s)
+		s, err = strconv.Unquote(`"` + s + `"`)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
 		}
-		buf, err = PKCS7Unpad(buf, blockSize)
+		buf, err := PKCS7Unpad([]byte(s), blockSize)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err.Error())
 			continue
