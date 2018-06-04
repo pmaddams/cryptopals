@@ -172,19 +172,19 @@ func breakRepeatingXOR(buf []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	bufs, err := Transpose(Blocks(buf, keySize))
+	blocks, err := Transpose(Blocks(buf, keySize))
 	if err != nil {
 		return nil, err
 	}
 	key := make([]byte, keySize)
 	var wg sync.WaitGroup
 
-	for i, buf := range bufs {
+	for i, block := range blocks {
 		wg.Add(1)
-		go func(i int, buf []byte) {
-			key[i] = breakSingleXOR(buf)
+		go func(i int, block []byte) {
+			key[i] = breakSingleXOR(block)
 			wg.Done()
-		}(i, buf)
+		}(i, block)
 	}
 	wg.Wait()
 	return key, nil
