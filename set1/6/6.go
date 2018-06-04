@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"math/bits"
 	"os"
+	"sync"
 )
 
 // sample is a file with symbol frequencies similar to the expected plaintext.
@@ -171,14 +172,21 @@ func breakRepeatingXOR(buf []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	blocks, err := Transpose(Blocks(buf, keySize))
+	bufs, err := Transpose(Blocks(buf, keySize))
 	if err != nil {
 		return nil, err
 	}
 	key := make([]byte, keySize)
-	for i, block := range blocks {
-		key[i] = breakSingleXOR(block)
+	var wg sync.WaitGroup
+
+	for i, buf := range bufs {
+		wg.Add(1)
+		go func(i int, buf []byte) {
+			key[i] = breakSingleXOR(buf)
+			wg.Done()
+		}(i, buf)
 	}
+	wg.Wait()
 	return key, nil
 }
 
