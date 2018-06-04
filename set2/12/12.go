@@ -137,14 +137,26 @@ func (x *ecbBreaker) detectParameters() error {
 	}
 }
 
+// Blocks divides a buffer into blocks.
+func Blocks(buf []byte, n int) [][]byte {
+	var res [][]byte
+	for len(buf) >= n {
+		// Return pointers, not copies.
+		res = append(res, buf[:n])
+		buf = buf[n:]
+	}
+	return res
+}
+
 // IdenticalBlocks returns true if any block in the buffer appears more than once.
 func IdenticalBlocks(buf []byte, blockSize int) bool {
-	for ; len(buf) >= 2*blockSize; buf = buf[blockSize:] {
-		for p := buf[blockSize:]; len(p) >= blockSize; p = p[blockSize:] {
-			if bytes.Equal(buf[:blockSize], p[:blockSize]) {
-				return true
-			}
+	m := make(map[string]bool)
+	for _, block := range Blocks(buf, blockSize) {
+		s := string(block)
+		if m[s] {
+			return true
 		}
+		m[s] = true
 	}
 	return false
 }

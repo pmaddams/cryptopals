@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	weak "math/rand"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -86,6 +87,44 @@ func TestPKCS7Unpad(t *testing.T) {
 		if !bytes.Equal(got, c.want) {
 			t.Errorf("PKCS7Unpad(%v, %v) == %v, want %v",
 				c.buf, c.blockSize, got, c.want)
+		}
+	}
+}
+
+func TestBlocks(t *testing.T) {
+	cases := []struct {
+		buf  []byte
+		n    int
+		want [][]byte
+	}{
+		{
+			[]byte{1, 2},
+			3,
+			nil,
+		},
+		{
+			[]byte{1, 2, 3, 4, 5, 6},
+			3,
+			[][]byte{
+				{1, 2, 3},
+				{4, 5, 6},
+			},
+		},
+		{
+			[]byte{1, 2, 3, 4, 5, 6},
+			2,
+			[][]byte{
+				{1, 2},
+				{3, 4},
+				{5, 6},
+			},
+		},
+	}
+	for _, c := range cases {
+		got := Blocks(c.buf, c.n)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("Blocks(%v, %v) == %v, want %v",
+				c.buf, c.n, got, c.want)
 		}
 	}
 }
