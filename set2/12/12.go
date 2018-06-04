@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 )
 
 const secret = `Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg
@@ -179,17 +180,22 @@ func (x *ecbBreaker) detectECB() error {
 
 // scanBlocks generates a sequence of blocks for decrypting the secret.
 func (x *ecbBreaker) scanBlocks() [][]byte {
-	initLen := len(x.oracle([]byte{}))
-	probe := bytes.Repeat([]byte{x.a}, initLen-1)
-
 	// Each block enables decryption of a single byte.
 	blocks := make([][]byte, x.secretLen)
+	initLen := len(x.oracle([]byte{}))
+	var wg sync.WaitGroup
+
 	for i := range blocks {
-		buf := x.oracle(probe)
-		blocks[i] = buf[initLen-x.blockSize : initLen]
-		// Shift the secret forward one byte.
-		probe = probe[:len(probe)-1]
+		wg.Add(1)
+		go func(i int) {
+			probe := bytes.Repeat([]byte{x.a}, initLen-1-i)
+			ciphertext := x.oracle(probe)
+
+			blocks[i] = ciphertext[initLen-x.blockSize : initLen]
+			wg.Done()
+		}(i)
 	}
+	wg.Wait()
 	return blocks
 }
 
