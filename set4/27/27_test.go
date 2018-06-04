@@ -116,59 +116,6 @@ func TestPKCS7Unpad(t *testing.T) {
 	}
 }
 
-func TestVis(t *testing.T) {
-	cases := []struct {
-		buf  []byte
-		want string
-	}{
-		{
-			[]byte{0, 1, 2},
-			"\\x00\\x01\\x02",
-		},
-		{
-			[]byte("hello world"),
-			"hello world",
-		},
-		{
-			[]byte("你好"),
-			"\\xe4\\xbd\\xa0\\xe5\\xa5\\xbd",
-		},
-	}
-	for _, c := range cases {
-		if got := Vis(c.buf); got != c.want {
-			t.Errorf("Vis(%v) == %v, want %v",
-				c.buf, got, c.want)
-		}
-	}
-}
-
-func TestUnvis(t *testing.T) {
-	cases := []struct {
-		s    string
-		want []byte
-	}{
-		{
-			"\\x00\\x01\\x02",
-			[]byte{0, 1, 2},
-		},
-		{
-			"hello world",
-			[]byte("hello world"),
-		},
-		{
-			"\\xe4\\xbd\\xa0\\xe5\\xa5\\xbd",
-			[]byte("你好"),
-		},
-	}
-	for _, c := range cases {
-		got, _ := Unvis(c.s)
-		if !bytes.Equal(got, c.want) {
-			t.Errorf("Unvis(%v) == %v, want %v",
-				c.s, got, c.want)
-		}
-	}
-}
-
 func decodeString(s string) []byte {
 	buf, _ := hex.DecodeString(s)
 	return buf

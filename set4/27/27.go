@@ -69,41 +69,24 @@ func encryptedUserData(s string, enc cipher.BlockMode) []byte {
 	return buf
 }
 
-// Vis converts a buffer to a string with non-printing bytes hex-encoded.
-func Vis(buf []byte) string {
-	var out []byte
-	for _, b := range buf {
-		if b >= 32 && b <= 125 {
-			out = append(out, b)
-		} else {
-			out = append(out, fmt.Sprintf("\\x%02x", b)...)
-		}
-	}
-	return string(out)
-}
-
-// Unvis converts a string to a buffer with hex-encoded bytes decoded.
-func Unvis(s string) ([]byte, error) {
-	s, err := strconv.Unquote(`"` + s + `"`)
-	return []byte(s), err
-}
-
 // sillyErrorMessage returns an error containing the plaintext if it is invalid.
 func sillyErrorMessage(buf []byte, dec cipher.BlockMode) error {
 	tmp := make([]byte, len(buf))
 	dec.CryptBlocks(tmp, buf)
 	if _, err := PKCS7Unpad(tmp, dec.BlockSize()); err != nil {
-		return errors.New(Vis(tmp))
+		return errors.New(strconv.Quote(string(tmp)))
 	}
 	return nil
 }
 
+/*
 // clear overwrites a buffer with zeroes.
 func clear(buf []byte) {
 	for i := range buf {
 		buf[i] = 0
 	}
 }
+*/
 
 // min returns the smaller of two integers.
 func min(n, m int) int {
@@ -124,7 +107,7 @@ func XORBytes(dst, b1, b2 []byte) int {
 
 func main() {
 	key := RandomBytes(aesBlockSize)
-	fmt.Println("key:", Vis(key))
+	fmt.Println("key:", strconv.Quote(string(key)))
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -133,17 +116,19 @@ func main() {
 	enc := cipher.NewCBCEncrypter(block, key)
 	dec := cipher.NewCBCEncrypter(block, key)
 
-	buf := encryptedUserData("XXXXXXXXXXXXXXXX", enc)
-	copy(buf[2*aesBlockSize:3*aesBlockSize], buf[:aesBlockSize])
-	clear(buf[aesBlockSize : 2*aesBlockSize])
+	ciphertext := encryptedUserData("", enc)
+	buf := ciphertext[:aesBlockSize]
+	buf = append(buf, append(bytes.Repeat([]byte{0}, aesBlockSize), buf...)...)
 
 	err = sillyErrorMessage(buf, dec)
-	plaintext, err := Unvis(err.Error())
+	plaintext, err := strconv.Unquote(err.Error())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
 	keyCopy := make([]byte, aesBlockSize)
-	XORBytes(keyCopy, plaintext[:aesBlockSize], plaintext[2*aesBlockSize:3*aesBlockSize])
-	fmt.Println("copy:", Vis(keyCopy))
+	XORBytes(keyCopy,
+		[]byte(plaintext)[:aesBlockSize],
+		[]byte(plaintext)[2*aesBlockSize:3*aesBlockSize])
+	fmt.Println("copy:", strconv.Quote(string(keyCopy)))
 }
