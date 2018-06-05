@@ -192,18 +192,25 @@ func (x *cbcBreaker) breakBlock(iv, buf []byte) ([]byte, error) {
 	return res, nil
 }
 
+// Blocks divides a buffer into blocks.
+func Blocks(buf []byte, n int) [][]byte {
+	var res [][]byte
+	for len(buf) >= n {
+		// Return pointers, not copies.
+		res = append(res, buf[:n])
+		buf = buf[n:]
+	}
+	return res
+}
+
 // breakOracle breaks the padding oracle and returns the plaintext.
 func (x *cbcBreaker) breakOracle() ([]byte, error) {
-	n := len(x.ciphertext) / x.blockSize
-	blocks := make([][]byte, n)
-	for i := 0; i < n; i++ {
-		blocks[i] = x.ciphertext[i*x.blockSize : (i+1)*x.blockSize]
-	}
+	blocks := Blocks(x.ciphertext, x.blockSize)
 	res, err := x.breakBlock(x.iv, blocks[0])
 	if err != nil {
 		return nil, err
 	}
-	for i := 1; i < n; i++ {
+	for i := 1; i < len(blocks); i++ {
 		buf, err := x.breakBlock(blocks[i-1], blocks[i])
 		if err != nil {
 			return nil, err

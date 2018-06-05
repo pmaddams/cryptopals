@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	weak "math/rand"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -151,6 +152,44 @@ func TestXORBytes(t *testing.T) {
 		if XORBytes(dst, c.b1, c.b2); !bytes.Equal(dst, c.want) {
 			t.Errorf("XORBytes(%v, %v, %v), want %v",
 				dst, c.b1, c.b2, c.want)
+		}
+	}
+}
+
+func TestBlocks(t *testing.T) {
+	cases := []struct {
+		buf  []byte
+		n    int
+		want [][]byte
+	}{
+		{
+			[]byte{1, 2},
+			3,
+			nil,
+		},
+		{
+			[]byte{1, 2, 3, 4, 5, 6},
+			3,
+			[][]byte{
+				{1, 2, 3},
+				{4, 5, 6},
+			},
+		},
+		{
+			[]byte{1, 2, 3, 4, 5, 6},
+			2,
+			[][]byte{
+				{1, 2},
+				{3, 4},
+				{5, 6},
+			},
+		},
+	}
+	for _, c := range cases {
+		got := Blocks(c.buf, c.n)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("Blocks(%v, %v) == %v, want %v",
+				c.buf, c.n, got, c.want)
 		}
 	}
 }
