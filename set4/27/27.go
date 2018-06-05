@@ -137,13 +137,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "no error")
 		return
 	}
-	s, err := strconv.Unquote(err.Error())
+	plaintext, err := strconv.Unquote(err.Error())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	plaintext := []byte(s)
-	blocks = Blocks(plaintext, aesBlockSize)
+	blocks = Blocks([]byte(plaintext), aesBlockSize)
 	XORBytes(blocks[0], blocks[0], blocks[2])
 	fmt.Println(strconv.Quote(string(blocks[0])))
 }
