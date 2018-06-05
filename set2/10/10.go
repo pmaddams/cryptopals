@@ -55,11 +55,11 @@ func dup(buf []byte) []byte {
 }
 
 // NewCBCEncrypter returns a block mode for CBC encryption.
-func NewCBCEncrypter(block cipher.Block, iv []byte) cipher.BlockMode {
-	if block.BlockSize() != len(iv) {
+func NewCBCEncrypter(b cipher.Block, iv []byte) cipher.BlockMode {
+	if b.BlockSize() != len(iv) {
 		panic("NewCBCEncrypter: initialization vector length must equal block size")
 	}
-	return cbcEncrypter{cbc{block, dup(iv)}}
+	return cbcEncrypter{cbc{b, dup(iv)}}
 }
 
 // cbcEncrypter.CryptBlocks encrypts a buffer in CBC mode.
@@ -78,11 +78,11 @@ func (mode cbcEncrypter) CryptBlocks(dst, src []byte) {
 type cbcDecrypter struct{ cbc }
 
 // NewCBCDecrypter returns a block mode for CBC decryption.
-func NewCBCDecrypter(block cipher.Block, iv []byte) cipher.BlockMode {
-	if block.BlockSize() != len(iv) {
+func NewCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
+	if b.BlockSize() != len(iv) {
 		panic("NewCBCDecrypter: initialization vector length must equal block size")
 	}
-	return cbcDecrypter{cbc{block, iv}}
+	return cbcDecrypter{cbc{b, iv}}
 }
 
 // cbcDecrypter.CryptBlocks decrypts a buffer in CBC mode.
@@ -163,21 +163,21 @@ func decryptAndPrint(in io.Reader, mode cipher.BlockMode) {
 var e = flag.Bool("e", false, "encrypt")
 
 func main() {
-	block, err := aes.NewCipher([]byte(secret))
+	b, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		panic(err.Error())
 	}
-	iv := make([]byte, block.BlockSize())
+	iv := make([]byte, b.BlockSize())
 
 	flag.Parse()
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if *e {
-			mode := NewCBCEncrypter(block, iv)
+			mode := NewCBCEncrypter(b, iv)
 			encryptAndPrint(os.Stdin, mode)
 		} else {
-			mode := NewCBCDecrypter(block, iv)
+			mode := NewCBCDecrypter(b, iv)
 			decryptAndPrint(os.Stdin, mode)
 		}
 	}
@@ -188,10 +188,10 @@ func main() {
 			continue
 		}
 		if *e {
-			mode := NewCBCEncrypter(block, iv)
+			mode := NewCBCEncrypter(b, iv)
 			encryptAndPrint(f, mode)
 		} else {
-			mode := NewCBCDecrypter(block, iv)
+			mode := NewCBCDecrypter(b, iv)
 			decryptAndPrint(f, mode)
 		}
 		f.Close()

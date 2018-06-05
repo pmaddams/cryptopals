@@ -38,8 +38,8 @@ func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
 type ecbEncrypter struct{ ecb }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(block cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{ecb{block}}
+func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{ecb{b}}
 }
 
 // ecbEncrypter.CryptBlocks encrypts a buffer in ECB mode.
@@ -51,8 +51,8 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 type ecbDecrypter struct{ ecb }
 
 // NewECBDecrypter returns a block mode for ECB decryption.
-func NewECBDecrypter(block cipher.Block) cipher.BlockMode {
-	return ecbDecrypter{ecb{block}}
+func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
+	return ecbDecrypter{ecb{b}}
 }
 
 // ecbDecrypter.CryptBlocks decrypts a buffer in ECB mode.
@@ -92,19 +92,19 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 }
 
 // encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func encryptAndPrint(in io.Reader, block cipher.Block) {
+func encryptAndPrint(in io.Reader, b cipher.Block) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	buf = PKCS7Pad(buf, block.BlockSize())
-	NewECBEncrypter(block).CryptBlocks(buf, buf)
+	buf = PKCS7Pad(buf, b.BlockSize())
+	NewECBEncrypter(b).CryptBlocks(buf, buf)
 	fmt.Println(base64.StdEncoding.EncodeToString(buf))
 }
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, block cipher.Block) {
+func decryptAndPrint(in io.Reader, b cipher.Block) {
 	in = base64.NewDecoder(base64.StdEncoding, in)
 	var buf []byte
 	var err error
@@ -112,8 +112,8 @@ func decryptAndPrint(in io.Reader, block cipher.Block) {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	NewECBDecrypter(block).CryptBlocks(buf, buf)
-	if buf, err = PKCS7Unpad(buf, block.BlockSize()); err != nil {
+	NewECBDecrypter(b).CryptBlocks(buf, buf)
+	if buf, err = PKCS7Unpad(buf, b.BlockSize()); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
@@ -123,7 +123,7 @@ func decryptAndPrint(in io.Reader, block cipher.Block) {
 var e = flag.Bool("e", false, "encrypt")
 
 func main() {
-	block, err := aes.NewCipher([]byte(secret))
+	b, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 	}
@@ -132,9 +132,9 @@ func main() {
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if *e {
-			encryptAndPrint(os.Stdin, block)
+			encryptAndPrint(os.Stdin, b)
 		} else {
-			decryptAndPrint(os.Stdin, block)
+			decryptAndPrint(os.Stdin, b)
 		}
 	}
 	for _, name := range files {
@@ -144,9 +144,9 @@ func main() {
 			continue
 		}
 		if *e {
-			encryptAndPrint(f, block)
+			encryptAndPrint(f, b)
 		} else {
-			decryptAndPrint(f, block)
+			decryptAndPrint(f, b)
 		}
 		f.Close()
 	}

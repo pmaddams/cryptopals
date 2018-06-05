@@ -43,11 +43,11 @@ type ctr struct {
 }
 
 // NewCTR returns a CTR mode stream cipher.
-func NewCTR(block cipher.Block, iv []byte) cipher.Stream {
-	if block.BlockSize() != len(iv) {
+func NewCTR(b cipher.Block, iv []byte) cipher.Stream {
+	if b.BlockSize() != len(iv) {
 		panic("NewCTR: initialization vector length must equal block size")
 	}
-	return ctr{block, BytesToUint64(iv), 0}
+	return ctr{b, BytesToUint64(iv), 0}
 }
 
 // inc increments the counter.
@@ -108,12 +108,12 @@ func decryptAndPrint(in io.Reader, stream cipher.Stream) {
 var e = flag.Bool("e", false, "encrypt")
 
 func main() {
-	block, err := aes.NewCipher([]byte(secret))
+	b, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		panic(err.Error())
 	}
-	iv := make([]byte, block.BlockSize())
-	stream := NewCTR(block, iv)
+	iv := make([]byte, b.BlockSize())
+	stream := NewCTR(b, iv)
 
 	flag.Parse()
 	files := flag.Args()

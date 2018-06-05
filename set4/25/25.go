@@ -22,8 +22,8 @@ const aesBlockSize = 16
 type ecbDecrypter struct{ b cipher.Block }
 
 // NewECBDecrypter returns a block mode for ECB Decryption.
-func NewECBDecrypter(block cipher.Block) cipher.BlockMode {
-	return ecbDecrypter{block}
+func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
+	return ecbDecrypter{b}
 }
 
 // BlockSize returns the block size of the cipher.
@@ -63,12 +63,12 @@ func decryptECB(in io.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	block, err := aes.NewCipher([]byte(secret))
+	b, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		return nil, err
 	}
-	NewECBDecrypter(block).CryptBlocks(buf, buf)
-	buf, err = PKCS7Unpad(buf, block.BlockSize())
+	NewECBDecrypter(b).CryptBlocks(buf, buf)
+	buf, err = PKCS7Unpad(buf, b.BlockSize())
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func decryptECB(in io.Reader) ([]byte, error) {
 
 // CTREditor permits random-access CTR editing.
 type CTREditor struct {
-	block      cipher.Block
+	b          cipher.Block
 	iv         []byte
 	ciphertext []byte
 }
@@ -93,15 +93,15 @@ func RandomBytes(length int) []byte {
 
 // NewCTREditor takes a buffer and creates a CTREditor with a random key.
 func NewCTREditor(buf []byte) (*CTREditor, error) {
-	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
 		return nil, err
 	}
 	iv := RandomBytes(aesBlockSize)
-	stream := cipher.NewCTR(block, iv)
+	stream := cipher.NewCTR(b, iv)
 	stream.XORKeyStream(buf, buf)
 
-	return &CTREditor{block, iv, buf}, nil
+	return &CTREditor{b, iv, buf}, nil
 }
 
 // Edit takes new plaintext and an offset, and edits the ciphertext.
@@ -110,7 +110,7 @@ func (e *CTREditor) Edit(plaintext []byte, offset int) error {
 		return errors.New("Edit: invalid offset")
 	}
 	// Decrypt before copying the new data.
-	stream := cipher.NewCTR(e.block, e.iv)
+	stream := cipher.NewCTR(e.b, e.iv)
 	stream.XORKeyStream(e.ciphertext, e.ciphertext)
 
 	if len(e.ciphertext) < offset+len(plaintext) {
@@ -121,7 +121,7 @@ func (e *CTREditor) Edit(plaintext []byte, offset int) error {
 	target := e.ciphertext[offset : offset+len(plaintext)]
 
 	// Regenerate the stream cipher.
-	stream = cipher.NewCTR(e.block, e.iv)
+	stream = cipher.NewCTR(e.b, e.iv)
 	stream.XORKeyStream(target, target)
 	return nil
 }

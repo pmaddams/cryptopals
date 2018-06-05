@@ -129,14 +129,14 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 func main() {
-	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
 		panic(err.Error())
 	}
-	iv := RandomBytes(block.BlockSize())
+	iv := RandomBytes(b.BlockSize())
 
-	enc := cipher.NewCBCEncrypter(block, iv)
-	dec := cipher.NewCBCDecrypter(block, iv)
+	enc := cipher.NewCBCEncrypter(b, iv)
+	dec := cipher.NewCBCDecrypter(b, iv)
 
 	data := []byte("XXXXX;admin=true")
 	mask := xorMask(data)

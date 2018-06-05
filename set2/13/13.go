@@ -53,8 +53,8 @@ func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
 type ecbEncrypter struct{ ecb }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(block cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{ecb{block}}
+func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{ecb{b}}
 }
 
 // ecbEncrypter.CryptBlocks encrypts a buffer in ECB mode.
@@ -66,8 +66,8 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 type ecbDecrypter struct{ ecb }
 
 // NewECBDecrypter returns a block mode for ECB decryption.
-func NewECBDecrypter(block cipher.Block) cipher.BlockMode {
-	return ecbDecrypter{ecb{block}}
+func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
+	return ecbDecrypter{ecb{b}}
 }
 
 // ecbDecrypter.CryptBlocks decrypts a buffer in ECB mode.
@@ -134,11 +134,11 @@ func decryptedRoleAdmin(buf []byte, dec cipher.BlockMode) bool {
 }
 
 func main() {
-	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
 		panic(err.Error())
 	}
-	enc, dec := NewECBEncrypter(block), NewECBDecrypter(block)
+	enc, dec := NewECBEncrypter(b), NewECBDecrypter(b)
 
 	toCut := encryptedProfileFor("XXXXXXXXXXadmin", enc)
 	toPaste := encryptedProfileFor("anonymous.coward@guerrillamail.com", enc)

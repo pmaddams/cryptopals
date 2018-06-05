@@ -120,12 +120,12 @@ func main() {
 	key := RandomBytes(aesBlockSize)
 	fmt.Println(strconv.Quote(string(key)))
 
-	block, err := aes.NewCipher(key)
+	b, err := aes.NewCipher(key)
 	if err != nil {
 		panic(err.Error())
 	}
-	enc := cipher.NewCBCEncrypter(block, key)
-	dec := cipher.NewCBCDecrypter(block, key)
+	enc := cipher.NewCBCEncrypter(b, key)
+	dec := cipher.NewCBCDecrypter(b, key)
 
 	ciphertext := encryptedUserData("", enc)
 	blocks := Blocks(ciphertext, aesBlockSize)

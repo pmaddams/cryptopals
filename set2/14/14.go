@@ -26,8 +26,8 @@ const aesBlockSize = 16
 type ecbEncrypter struct{ b cipher.Block }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(block cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{block}
+func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{b}
 }
 
 // BlockSize returns the block size of the cipher.
@@ -103,11 +103,11 @@ func dup(buf []byte) []byte {
 
 // ecbEncryptionOracleWithPrefix returns an ECB encryption oracle function with prefix.
 func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
-	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
 		panic(fmt.Sprintf("ecbEncryptionOracleWithPrefix: %s", err.Error()))
 	}
-	mode := NewECBEncrypter(block)
+	mode := NewECBEncrypter(b)
 	prefix := RandomBytes(RandomRange(5, 10))
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {

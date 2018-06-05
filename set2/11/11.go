@@ -17,8 +17,8 @@ const aesBlockSize = 16
 type ecbEncrypter struct{ b cipher.Block }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(block cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{block}
+func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{b}
 }
 
 // BlockSize returns the block size of the cipher.
@@ -58,15 +58,15 @@ func RandomBytes(length int) []byte {
 
 // RandomEncrypter returns either ECB or CBC encryption mode with a random key.
 func RandomEncrypter() cipher.BlockMode {
-	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
 		panic(fmt.Sprintf("RandomEncrypter: %s", err.Error()))
 	}
 	switch RandomRange(0, 1) {
 	case 0:
-		return NewECBEncrypter(block)
+		return NewECBEncrypter(b)
 	default:
-		return cipher.NewCBCEncrypter(block, RandomBytes(block.BlockSize()))
+		return cipher.NewCBCEncrypter(b, RandomBytes(b.BlockSize()))
 	}
 }
 

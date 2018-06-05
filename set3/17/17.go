@@ -87,30 +87,30 @@ func RandomBytes(length int) []byte {
 
 // encryptedRandomLine returns an encrypted random line and corresponding
 // initialization vector from a file containing base64-encoded strings.
-func encryptedRandomLine(filename string, block cipher.Block) ([]byte, []byte, error) {
+func encryptedRandomLine(filename string, b cipher.Block) ([]byte, []byte, error) {
 	buf, err := randomLine(filename)
 	if err != nil {
 		return nil, nil, err
 	}
-	iv := RandomBytes(block.BlockSize())
-	mode := cipher.NewCBCEncrypter(block, iv)
+	iv := RandomBytes(b.BlockSize())
+	mode := cipher.NewCBCEncrypter(b, iv)
 	buf = PKCS7Pad(buf, mode.BlockSize())
 	mode.CryptBlocks(buf, buf)
 	return iv, buf, nil
 }
 
 // decryptedValidPadding returns true if a decrypted buffer has valid PKCS#7 padding.
-func decryptedValidPadding(iv, buf []byte, block cipher.Block) bool {
-	mode := cipher.NewCBCDecrypter(block, iv)
+func decryptedValidPadding(iv, buf []byte, b cipher.Block) bool {
+	mode := cipher.NewCBCDecrypter(b, iv)
 	tmp := make([]byte, len(buf))
 	mode.CryptBlocks(tmp, buf)
 	return ValidPadding(tmp, mode.BlockSize())
 }
 
 // cbcPaddingOracle returns a CBC padding oracle function.
-func cbcPaddingOracle(block cipher.Block) func([]byte, []byte) error {
+func cbcPaddingOracle(b cipher.Block) func([]byte, []byte) error {
 	return func(iv, buf []byte) error {
-		if !decryptedValidPadding(iv, buf, block) {
+		if !decryptedValidPadding(iv, buf, b) {
 			return errors.New("psst...invalid padding")
 		}
 		return nil
@@ -225,13 +225,13 @@ func (x *cbcBreaker) breakOracle() ([]byte, error) {
 }
 
 func main() {
-	block, err := aes.NewCipher(RandomBytes(aesBlockSize))
-	iv, ciphertext, err := encryptedRandomLine("17.txt", block)
+	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	iv, ciphertext, err := encryptedRandomLine("17.txt", b)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	oracle := cbcPaddingOracle(block)
+	oracle := cbcPaddingOracle(b)
 	x := newCBCBreaker(oracle, iv, ciphertext)
 
 	buf, err := x.breakOracle()
