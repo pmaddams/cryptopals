@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
+	"sync"
 )
 
 // AES always has a block size of 128 bits (16 bytes).
@@ -137,9 +138,16 @@ func breakIdenticalCTR(bufs [][]byte) ([]byte, error) {
 		return nil, err
 	}
 	keystream := make([]byte, n)
+	var wg sync.WaitGroup
+
 	for i, block := range blocks {
-		keystream[i] = breakSingleXOR(block)
+		wg.Add(1)
+		go func(i int, block []byte) {
+			keystream[i] = breakSingleXOR(block)
+			wg.Done()
+		}(i, block)
 	}
+	wg.Wait()
 	return keystream, nil
 }
 
