@@ -27,7 +27,7 @@ func NewXORCipher(key []byte) cipher.Stream {
 // XORKeyStream encrypts a buffer with repeating XOR.
 func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 	// Panic if dst is smaller than src.
-	for i := 0; i < len(src); i++ {
+	for i := range src {
 		dst[i] = src[i] ^ stream.key[stream.pos]
 		stream.pos++
 

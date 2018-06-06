@@ -24,7 +24,7 @@ func HammingDistance(b1, b2 []byte) int {
 		panic("HammingDistance: buffers must have equal length")
 	}
 	var res int
-	for i := 0; i < len(b1); i++ {
+	for i := range b1 {
 		res += bits.OnesCount8(b1[i] ^ b2[i])
 	}
 	return res
@@ -99,7 +99,7 @@ func ScoreBytesWithMap(buf []byte, m map[rune]float64) float64 {
 // XORSingleByte produces the XOR combination of a buffer with a single byte.
 func XORSingleByte(dst, src []byte, b byte) {
 	// Panic if dst is smaller than src.
-	for i := 0; i < len(src); i++ {
+	for i := range src {
 		dst[i] = src[i] ^ b
 	}
 }
@@ -151,15 +151,15 @@ func Transpose(bufs [][]byte) ([][]byte, error) {
 	if len(nums) == 0 {
 		return nil, errors.New("Transpose: no data")
 	}
-	for i := 1; i < len(nums); i++ {
-		if nums[i] != nums[0] {
+	for _, n := range nums[1:] {
+		if n != nums[0] {
 			return nil, errors.New("Transpose: buffers must have equal length")
 		}
 	}
 	res := make([][]byte, nums[0])
-	for i := 0; i < len(res); i++ {
+	for i := range res {
 		res[i] = make([]byte, len(bufs))
-		for j := 0; j < len(res[i]); j++ {
+		for j := range res[i] {
 			res[i][j] = bufs[j][i]
 		}
 	}
@@ -179,12 +179,12 @@ func breakRepeatingXOR(buf []byte) ([]byte, error) {
 	key := make([]byte, keySize)
 	var wg sync.WaitGroup
 
-	for i, block := range blocks {
+	for i := range blocks {
 		wg.Add(1)
-		go func(i int, block []byte) {
-			key[i] = breakSingleXOR(block)
+		go func(i int) {
+			key[i] = breakSingleXOR(blocks[i])
 			wg.Done()
-		}(i, block)
+		}(i)
 	}
 	wg.Wait()
 	return key, nil
@@ -204,7 +204,7 @@ func NewXORCipher(key []byte) cipher.Stream {
 // XORKeyStream encrypts a buffer with repeating XOR.
 func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 	// Panic if dst is smaller than src.
-	for i := 0; i < len(src); i++ {
+	for i := range src {
 		dst[i] = src[i] ^ stream.key[stream.pos]
 		stream.pos++
 

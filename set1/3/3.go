@@ -41,7 +41,7 @@ func ScoreBytesWithMap(buf []byte, m map[rune]float64) float64 {
 // XORSingleByte produces the XOR combination of a buffer with a single byte.
 func XORSingleByte(dst, src []byte, b byte) {
 	// Panic if dst is smaller than src.
-	for i := 0; i < len(src); i++ {
+	for i := range src {
 		dst[i] = src[i] ^ b
 	}
 }

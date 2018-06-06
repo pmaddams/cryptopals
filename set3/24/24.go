@@ -88,7 +88,7 @@ func (mt *MT) Range(lo, hi uint32) uint32 {
 // XORKeyStream uses the lowest 8 bits of MT19937 output as a stream cipher.
 func (mt *MT) XORKeyStream(dst, src []byte) {
 	// Panic if dst is smaller than src.
-	for i := 0; i < len(src); i++ {
+	for i := range src {
 		dst[i] = src[i] ^ byte(mt.Uint32()&0xff)
 	}
 }
