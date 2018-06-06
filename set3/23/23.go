@@ -26,7 +26,7 @@ type MT struct {
 func NewMT(seed uint32) *MT {
 	var mt MT
 	mt.state[0] = seed
-	for i := 1; i < arraySize; i++ {
+	for i := 1; i < len(mt.state); i++ {
 		mt.state[i] = multiplier*
 			(mt.state[i-1]^(mt.state[i-1]>>30)) +
 			uint32(i)
@@ -37,9 +37,9 @@ func NewMT(seed uint32) *MT {
 
 // twist scrambles the MT19937 state array.
 func (mt *MT) twist() {
-	for i := 0; i < arraySize; i++ {
-		n := (mt.state[i] & upperMask) | (mt.state[(i+1)%arraySize] & lowerMask)
-		mt.state[i] = mt.state[(i+offset)%arraySize] ^ (n >> 1)
+	for i := range mt.state {
+		n := (mt.state[i] & upperMask) | (mt.state[(i+1)%len(mt.state)] & lowerMask)
+		mt.state[i] = mt.state[(i+offset)%len(mt.state)] ^ (n >> 1)
 		if n&1 == 1 {
 			mt.state[i] ^= coefficient
 		}
@@ -60,7 +60,7 @@ func temper(n uint32) uint32 {
 func (mt *MT) Uint32() uint32 {
 	n := temper(mt.state[mt.pos])
 	mt.pos++
-	if mt.pos == arraySize {
+	if mt.pos == len(mt.state) {
 		mt.twist()
 		mt.pos = 0
 	}
@@ -94,7 +94,7 @@ func Untemper(n uint32) uint32 {
 // CloneMT clones an MT19937 PRNG from 624 consecutive outputs.
 func CloneMT(mt *MT) *MT {
 	var clone MT
-	for i := 0; i < arraySize; i++ {
+	for i := range clone.state {
 		clone.state[i] = Untemper(mt.Uint32())
 	}
 	clone.twist()
