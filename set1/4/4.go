@@ -72,7 +72,7 @@ func decryptAndPrint(in io.Reader) {
 	input := bufio.NewScanner(in)
 
 	var best float64
-	var msg []byte
+	var buf []byte
 
 	for input.Scan() {
 		line, err := hex.DecodeString(input.Text())
@@ -82,15 +82,15 @@ func decryptAndPrint(in io.Reader) {
 		}
 		if key, score := bestSingleXOR(line); score > best {
 			best = score
-			msg = make([]byte, len(line))
-			XORSingleByte(msg, line, key)
+			buf = make([]byte, len(line))
+			XORSingleByte(buf, line, key)
 		}
 	}
 	if err := input.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}
-	fmt.Print(string(msg))
+	fmt.Print(string(buf))
 }
 
 func init() {
