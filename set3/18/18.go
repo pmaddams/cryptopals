@@ -17,22 +17,22 @@ const secret = "YELLOW SUBMARINE"
 // AES always has a block size of 128 bits (16 bytes).
 const aesBlockSize = 16
 
-// BytesToUint64 converts a buffer to a slice of unsigned 64-bit integers.
-func BytesToUint64(buf []byte) []uint64 {
-	res := make([]uint64, len(buf)/8)
-	for i := 0; i < len(res); i++ {
-		res[i] = binary.LittleEndian.Uint64(buf[8*i:])
+// BytesToUint64s converts a buffer to a slice of unsigned 64-bit integers.
+func BytesToUint64s(buf []byte) []uint64 {
+	nums := make([]uint64, len(buf)/8)
+	for i := range nums {
+		nums[i] = binary.LittleEndian.Uint64(buf[8*i:])
 	}
-	return res
+	return nums
 }
 
-// Uint64ToBytes converts a slice of unsigned 64-bit integers to a buffer.
-func Uint64ToBytes(nums []uint64) []byte {
-	res := make([]byte, len(nums)*8)
-	for i := 0; i < len(nums); i++ {
-		binary.LittleEndian.PutUint64(res[8*i:], nums[i])
+// Uint64sToBytes converts a slice of unsigned 64-bit integers to a buffer.
+func Uint64sToBytes(nums []uint64) []byte {
+	buf := make([]byte, len(nums)*8)
+	for i := range nums {
+		binary.LittleEndian.PutUint64(buf[8*i:], nums[i])
 	}
-	return res
+	return buf
 }
 
 // ctr contains a block cipher and initialization vector.
@@ -47,7 +47,7 @@ func NewCTR(b cipher.Block, iv []byte) cipher.Stream {
 	if b.BlockSize() != len(iv) {
 		panic("NewCTR: initialization vector length must equal block size")
 	}
-	return ctr{b, BytesToUint64(iv), 0}
+	return ctr{b, BytesToUint64s(iv), 0}
 }
 
 // inc increments the counter.
@@ -64,7 +64,7 @@ func (stream ctr) inc() {
 func (stream ctr) XORKeyStream(dst, src []byte) {
 	for {
 		tmp := make([]byte, stream.b.BlockSize())
-		stream.b.Encrypt(tmp, Uint64ToBytes(stream.ctr))
+		stream.b.Encrypt(tmp, Uint64sToBytes(stream.ctr))
 
 		// Panic if dst is smaller than src.
 		for len(src) > 0 && stream.pos < stream.b.BlockSize() {

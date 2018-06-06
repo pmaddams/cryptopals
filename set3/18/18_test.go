@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestBytesToUint64(t *testing.T) {
+func TestBytesToUint64s(t *testing.T) {
 	cases := []struct {
 		buf  []byte
 		want []uint64
@@ -24,15 +24,15 @@ func TestBytesToUint64(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got := BytesToUint64(c.buf)
+		got := BytesToUint64s(c.buf)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("BytesToUint64(%v) == %v, want %v",
+			t.Errorf("BytesToUint64s(%v) == %v, want %v",
 				c.buf, got, c.want)
 		}
 	}
 }
 
-func TestUint64ToBytes(t *testing.T) {
+func TestUint64sToBytes(t *testing.T) {
 	cases := []struct {
 		nums []uint64
 		want []byte
@@ -51,9 +51,9 @@ func TestUint64ToBytes(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got := Uint64ToBytes(c.nums)
+		got := Uint64sToBytes(c.nums)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Uint64ToBytes(%v) == %v, want %v",
+			t.Errorf("Uint64sToBytes(%v) == %v, want %v",
 				c.nums, got, c.want)
 		}
 	}
