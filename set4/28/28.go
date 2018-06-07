@@ -30,9 +30,7 @@ func NewMAC(h func() hash.Hash, key []byte) hash.Hash {
 // Reset resets the hash.
 func (m mac) Reset() {
 	m.Hash.Reset()
-	if n, err := m.Hash.Write(m.key); n != len(m.key) {
-		panic("Reset: write error")
-	} else if err != nil {
+	if _, err := m.Hash.Write(m.key); err != nil {
 		panic(fmt.Sprintf("Reset: %s", err.Error()))
 	}
 }
@@ -59,10 +57,7 @@ func readAndPrintHashes(in io.Reader, h hash.Hash, key []byte) {
 		return
 	}
 	h.Reset()
-	if n, err := h.Write(buf); n != len(buf) {
-		fmt.Fprintln(os.Stderr, "write error")
-		return
-	} else if err != nil {
+	if _, err := h.Write(buf); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return
 	}

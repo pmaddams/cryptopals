@@ -10,14 +10,11 @@ import (
 
 func TestSum(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	n := 1 + weak.Intn(16)
-
-	key := RandomBytes(n)
+	key := RandomBytes(1 + weak.Intn(16))
 	h := NewMAC(sha1.New, key)
 
 	for i := 0; i < 10; i++ {
-		n := 1 + weak.Intn(1024)
-		buf := RandomBytes(n)
+		buf := RandomBytes(1 + weak.Intn(1024))
 
 		h.Reset()
 		h.Write(buf)
