@@ -103,7 +103,7 @@ func CloneMT(mt *MT) *MT {
 
 // printColumns prints values in two columns.
 func printColumns(a, b interface{}) {
-	fmt.Printf("%-10v\t%-10v", a, b)
+	fmt.Printf("%-10v\t%v", a, b)
 }
 
 func main() {
