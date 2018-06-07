@@ -2,10 +2,34 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	weak "math/rand"
 	"testing"
 	"time"
 )
+
+func TestSum(t *testing.T) {
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	n := 1 + weak.Intn(16)
+
+	key := RandomBytes(n)
+	h := NewMAC(sha1.New, key)
+
+	for i := 0; i < 10; i++ {
+		n := 1 + weak.Intn(1024)
+		buf := RandomBytes(n)
+
+		h.Reset()
+		h.Write(buf)
+
+		mac := h.Sum([]byte{})
+		array := sha1.Sum(append(key, buf...))
+		sum := array[:]
+		if !bytes.Equal(mac, sum) {
+			t.Errorf("mac == %x, sha1(key+message) == %x\n", mac, sum)
+		}
+	}
+}
 
 func TestRandomBytes(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
