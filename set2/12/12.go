@@ -45,8 +45,8 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 }
 
 // RandomBytes returns a random buffer of the desired length.
-func RandomBytes(length int) []byte {
-	res := make([]byte, length)
+func RandomBytes(n int) []byte {
+	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
 		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
 	}

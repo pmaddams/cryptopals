@@ -36,14 +36,14 @@ func TestUserData(t *testing.T) {
 
 func TestRandomBytes(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	length := weak.Intn(1024)
+	n := weak.Intn(1024)
 
 	var cases [][]byte
 	for i := 0; i < 5; i++ {
-		buf := RandomBytes(length)
-		if len(buf) != length {
+		buf := RandomBytes(n)
+		if len(buf) != n {
 			t.Errorf("RandomBytes(%v) == %v, length %v",
-				length, buf, len(buf))
+				n, buf, len(buf))
 		}
 		cases = append(cases, buf)
 		for j := 0; j < i; j++ {

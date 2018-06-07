@@ -94,8 +94,8 @@ func (mt *MT) XORKeyStream(dst, src []byte) {
 }
 
 // Bytes returns a pseudo-random buffer of the desired length.
-func (mt *MT) Bytes(length int) []byte {
-	res := make([]byte, length)
+func (mt *MT) Bytes(n int) []byte {
+	res := make([]byte, n)
 	mt.XORKeyStream(res, res)
 	return res
 }
