@@ -25,7 +25,8 @@ func PrefixSHA1(sum []byte) (hash.Hash, error) {
 	}
 	h := sha1.New()
 
-	dst := reflect.ValueOf(&h).Elem().Elem().Elem().Field(0)
+	// Circumvent the type system to access an unexported field.
+	dst := reflect.ValueOf(h).Elem().Field(0)
 	dst = reflect.NewAt(dst.Type(), unsafe.Pointer(dst.UnsafeAddr())).Elem()
 	dst.Set(reflect.ValueOf(src))
 
