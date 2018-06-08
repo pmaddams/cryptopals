@@ -121,7 +121,7 @@ func XORBytes(dst, b1, b2 []byte) int {
 func main() {
 	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 	iv := RandomBytes(b.BlockSize())
 

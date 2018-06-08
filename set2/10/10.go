@@ -155,7 +155,7 @@ var e = flag.Bool("e", false, "encrypt")
 func main() {
 	b, err := aes.NewCipher([]byte(secret))
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 	iv := make([]byte, b.BlockSize())
 

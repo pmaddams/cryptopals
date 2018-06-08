@@ -126,7 +126,7 @@ func decryptedRoleAdmin(buf []byte, dec cipher.BlockMode) bool {
 func main() {
 	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 	enc, dec := NewECBEncrypter(b), NewECBDecrypter(b)
 

@@ -230,7 +230,7 @@ func init() {
 func main() {
 	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 	iv := RandomBytes(b.BlockSize())
 

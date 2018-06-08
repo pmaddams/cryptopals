@@ -112,7 +112,7 @@ func main() {
 
 	b, err := aes.NewCipher(key)
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 	enc := cipher.NewCBCEncrypter(b, key)
 	dec := cipher.NewCBCDecrypter(b, key)
