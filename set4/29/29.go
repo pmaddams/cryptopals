@@ -11,10 +11,10 @@ import (
 	"unsafe"
 )
 
-// PrefixSHA1 returns a new SHA-1 hash using register values from an existing checksum.
-func PrefixSHA1(sum []byte) (hash.Hash, error) {
+// PrefixedSHA1 returns a new SHA-1 hash using register values from an existing checksum.
+func PrefixedSHA1(sum []byte) (hash.Hash, error) {
 	if len(sum) != sha1.Size {
-		return nil, errors.New("PrefixSHA1: invalid checksum")
+		return nil, errors.New("PrefixedSHA1: invalid checksum")
 	}
 	src := [5]uint32{
 		binary.BigEndian.Uint32(sum[:4]),
@@ -52,7 +52,7 @@ func HashPadding(buf []byte, blockSize int) ([]byte, error) {
 }
 
 func main() {
-	h, err := PrefixSHA1(bytes.Repeat([]byte{0}, 20))
+	h, err := PrefixedSHA1(bytes.Repeat([]byte{0}, sha1.Size))
 	if err != nil {
 		panic(err)
 	}
