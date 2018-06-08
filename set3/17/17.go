@@ -39,19 +39,9 @@ func randomLine(filename string) ([]byte, error) {
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
-	var n int
+	n := blockSize - (len(buf) % blockSize)
 
-	// If the buffer length is a multiple of the block size,
-	// add a number of padding bytes equal to the block size.
-	if rem := len(buf) % blockSize; rem == 0 {
-		n = blockSize
-	} else {
-		n = blockSize - rem
-	}
-	for i := 0; i < n; i++ {
-		buf = append(buf, byte(n))
-	}
-	return buf
+	return append(buf, bytes.Repeat([]byte{byte(n)}, n)...)
 }
 
 // PKCS7Unpad returns a buffer with PKCS#7 padding removed.
