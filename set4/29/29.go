@@ -33,6 +33,24 @@ func PrefixSHA1(sum []byte) (hash.Hash, error) {
 	return h, nil
 }
 
+// HashPadding returns the hash padding for the given buffer.
+func HashPadding(buf []byte, blockSize int) ([]byte, error) {
+	if blockSize < 8 {
+		return nil, errors.New("HashPadding: invalid block size")
+	}
+	var n int
+	// Account for the minimum padding byte.
+	if rem := (len(buf) + 1) % blockSize; rem > blockSize-8 {
+		n = 2*blockSize - rem
+	} else {
+		n = blockSize - rem
+	}
+	res := append([]byte{1}, bytes.Repeat([]byte{0}, n)...)
+	binary.BigEndian.PutUint64(res[len(res)-8:], uint64(len(buf)))
+
+	return res, nil
+}
+
 func main() {
 	h, err := PrefixSHA1(bytes.Repeat([]byte{0}, 20))
 	if err != nil {
