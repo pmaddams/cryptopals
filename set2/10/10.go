@@ -104,6 +104,10 @@ func (mode cbcDecrypter) CryptBlocks(dst, src []byte) {
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
+	}
+	// Find the number (and value) of padding bytes.
 	n := blockSize - (len(buf) % blockSize)
 
 	return append(buf, bytes.Repeat([]byte{byte(n)}, n)...)
