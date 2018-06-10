@@ -31,7 +31,7 @@ func NewMAC(h func() hash.Hash, key []byte) hash.Hash {
 func (m mac) Reset() {
 	m.Hash.Reset()
 	if _, err := m.Hash.Write(m.key); err != nil {
-		panic(fmt.Sprintf("Reset: %s", err))
+		panic(err)
 	}
 }
 
@@ -39,7 +39,7 @@ func (m mac) Reset() {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err))
+		panic(err)
 	}
 	return res
 }

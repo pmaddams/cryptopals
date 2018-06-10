@@ -51,7 +51,7 @@ func RandomRange(lo, hi int) int {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err))
+		panic(err)
 	}
 	return res
 }
@@ -60,7 +60,7 @@ func RandomBytes(n int) []byte {
 func RandomEncrypter() cipher.BlockMode {
 	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
-		panic(fmt.Sprintf("RandomEncrypter: %s", err))
+		panic(err)
 	}
 	switch RandomRange(0, 1) {
 	case 0:

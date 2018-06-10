@@ -60,7 +60,7 @@ func RandomRange(lo, hi int) int {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err))
+		panic(err)
 	}
 	return res
 }
@@ -99,13 +99,13 @@ func dup(buf []byte) []byte {
 func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
 	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
-		panic(fmt.Sprintf("ecbEncryptionOracleWithPrefix: %s", err))
+		panic(err)
 	}
 	mode := NewECBEncrypter(b)
 	prefix := RandomBytes(RandomRange(5, 10))
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
-		panic(fmt.Sprintf("ecbEncryptionOracleWithPrefix: %s", err))
+		panic(err)
 	}
 	return func(buf []byte) []byte {
 		buf = append(prefix, append(dup(buf), decoded...)...)

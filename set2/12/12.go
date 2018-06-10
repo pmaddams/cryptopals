@@ -48,7 +48,7 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err))
+		panic(err)
 	}
 	return res
 }
@@ -87,12 +87,12 @@ func dup(buf []byte) []byte {
 func ecbEncryptionOracle() func([]byte) []byte {
 	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
-		panic(fmt.Sprintf("ecbEncryptionOracle: %s", err))
+		panic(err)
 	}
 	mode := NewECBEncrypter(b)
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
-		panic(fmt.Sprintf("ecbEncryptionOracle: %s", err))
+		panic(err)
 	}
 	return func(buf []byte) []byte {
 		buf = append(dup(buf), decoded...)

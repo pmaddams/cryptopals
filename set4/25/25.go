@@ -86,7 +86,7 @@ type CTREditor struct {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err))
+		panic(err)
 	}
 	return res
 }
