@@ -14,13 +14,6 @@ import (
 // AES always has a block size of 128 bits (16 bytes).
 const aesBlockSize = 16
 
-// PKCS7Pad returns a buffer with PKCS#7 padding added.
-func PKCS7Pad(buf []byte, blockSize int) []byte {
-	n := blockSize - (len(buf) % blockSize)
-
-	return append(buf, bytes.Repeat([]byte{byte(n)}, n)...)
-}
-
 // PKCS7Unpad returns a buffer with PKCS#7 padding removed.
 func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	if len(buf) < blockSize {
