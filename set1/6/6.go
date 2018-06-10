@@ -19,29 +19,32 @@ const sample = "alice.txt"
 var scoreBytes func([]byte) float64
 
 // HammingDistance returns the number of differing bits between two equal-length buffers.
-func HammingDistance(b1, b2 []byte) int {
+func HammingDistance(b1, b2 []byte) (int, error) {
 	if len(b1) != len(b2) {
-		panic("HammingDistance: buffers must have equal length")
+		return 0, errors.New("HammingDistance: buffer lengths must be equal")
 	}
 	var res int
 	for i := range b1 {
 		res += bits.OnesCount8(b1[i] ^ b2[i])
 	}
-	return res
+	return res, nil
 }
 
 // NormalizedDistance returns the normalized edit distance between pairs of blocks.
 func NormalizedDistance(buf []byte, blockSize int) (float64, error) {
 	// We need at least 2 blocks.
 	if len(buf) < 2*blockSize {
-		return 0.0, errors.New("NormalizedDistance: need at least 2 blocks")
+		return 0, errors.New("NormalizedDistance: need at least 2 blocks")
 	}
 	// Keep the number of pairs to normalize the result, along with the block size.
 	numPairs := len(buf)/blockSize - 1
 
 	var res float64
 	for len(buf) >= 2*blockSize {
-		distance := HammingDistance(buf[:blockSize], buf[blockSize:2*blockSize])
+		distance, err := HammingDistance(buf[:blockSize], buf[blockSize:2*blockSize])
+		if err != nil {
+			return 0, err
+		}
 		buf = buf[blockSize:]
 		res += float64(distance) / float64(numPairs) / float64(blockSize)
 	}

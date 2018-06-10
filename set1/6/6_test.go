@@ -30,7 +30,7 @@ func TestHammingDistance(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got := HammingDistance(c.b1, c.b2)
+		got, _ := HammingDistance(c.b1, c.b2)
 		if got != c.want {
 			t.Errorf("HammingDistance(%v, %v) == %v, want %v",
 				c.b1, c.b2, got, c.want)
