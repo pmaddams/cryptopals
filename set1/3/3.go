@@ -73,13 +73,13 @@ func decryptAndPrint(in io.Reader) {
 	for input.Scan() {
 		line, err := hex.DecodeString(input.Text())
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		buf = append(buf, line...)
 	}
 	if err := input.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	key := breakSingleXOR(buf)
@@ -92,12 +92,12 @@ func init() {
 	f, err := os.Open(sample)
 	defer f.Close()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	m, err := SymbolFrequencies(f)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	scoreBytes = func(buf []byte) float64 {
@@ -115,7 +115,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		decryptAndPrint(f)

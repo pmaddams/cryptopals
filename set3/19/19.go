@@ -155,7 +155,7 @@ func breakIdenticalCTR(bufs [][]byte) ([]byte, error) {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
+		panic(fmt.Sprintf("RandomBytes: %s", err))
 	}
 	return res
 }
@@ -200,7 +200,7 @@ func XORBytes(dst, b1, b2 []byte) int {
 func decryptAndPrint(bufs [][]byte) {
 	keystream, err := breakIdenticalCTR(bufs)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	for _, buf := range bufs {
@@ -214,12 +214,12 @@ func init() {
 	f, err := os.Open(sample)
 	defer f.Close()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	m, err := SymbolFrequencies(f)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	scoreBytes = func(buf []byte) float64 {
@@ -239,7 +239,7 @@ func main() {
 	if len(files) == 0 {
 		lines, err := decodeAndEncrypt(os.Stdin, b, iv)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		decryptAndPrint(lines)
@@ -247,12 +247,12 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		lines, err := decodeAndEncrypt(f, b, iv)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		decryptAndPrint(lines)

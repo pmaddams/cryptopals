@@ -86,7 +86,7 @@ func (stream ctr) XORKeyStream(dst, src []byte) {
 func encryptAndPrint(in io.Reader, stream cipher.Stream) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	stream.XORKeyStream(buf, buf)
@@ -98,7 +98,7 @@ func decryptAndPrint(in io.Reader, stream cipher.Stream) {
 	in = base64.NewDecoder(base64.StdEncoding, in)
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	stream.XORKeyStream(buf, buf)
@@ -128,7 +128,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		if *e {

@@ -38,17 +38,17 @@ func unpadAndPrint(in io.Reader, blockSize int) {
 		} else if err == io.EOF {
 			break
 		} else {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		s, err = strconv.Unquote(`"` + s + `"`)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		buf, err := PKCS7Unpad([]byte(s), blockSize)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		fmt.Println(string(buf))
@@ -71,7 +71,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		unpadAndPrint(f, blockSize)

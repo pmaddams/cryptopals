@@ -24,13 +24,13 @@ func convertAndPrint(in io.Reader) {
 	for input.Scan() {
 		s, err := HexToB64(input.Text())
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		fmt.Println(s)
 	}
 	if err := input.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
@@ -44,7 +44,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		convertAndPrint(f)

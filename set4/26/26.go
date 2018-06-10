@@ -33,7 +33,7 @@ func AdminTrue(s string) bool {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
+		panic(fmt.Sprintf("RandomBytes: %s", err))
 	}
 	return res
 }

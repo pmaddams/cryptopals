@@ -155,7 +155,7 @@ func main() {
 
 	n, err := breakCipherSeed(ciphertext, plaintext)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	if n == seed {

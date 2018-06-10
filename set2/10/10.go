@@ -131,7 +131,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 func encryptAndPrint(in io.Reader, mode cipher.BlockMode) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	buf = PKCS7Pad(buf, mode.BlockSize())
@@ -143,12 +143,12 @@ func encryptAndPrint(in io.Reader, mode cipher.BlockMode) {
 func decryptAndPrint(in io.Reader, mode cipher.BlockMode) {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	mode.CryptBlocks(buf, buf)
 	if buf, err = PKCS7Unpad(buf, mode.BlockSize()); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	fmt.Print(string(buf))
@@ -178,7 +178,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		if *e {

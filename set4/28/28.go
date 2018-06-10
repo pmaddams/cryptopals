@@ -31,7 +31,7 @@ func NewMAC(h func() hash.Hash, key []byte) hash.Hash {
 func (m mac) Reset() {
 	m.Hash.Reset()
 	if _, err := m.Hash.Write(m.key); err != nil {
-		panic(fmt.Sprintf("Reset: %s", err.Error()))
+		panic(fmt.Sprintf("Reset: %s", err))
 	}
 }
 
@@ -39,7 +39,7 @@ func (m mac) Reset() {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
+		panic(fmt.Sprintf("RandomBytes: %s", err))
 	}
 	return res
 }
@@ -53,12 +53,12 @@ func printHash(s string, buf []byte) {
 func readAndPrintHashes(in io.Reader, h hash.Hash, key []byte) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	h.Reset()
 	if _, err := h.Write(buf); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	mac := h.Sum([]byte{})
@@ -85,7 +85,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		readAndPrintHashes(f, h, key)

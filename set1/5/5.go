@@ -42,7 +42,7 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 func encryptAndPrint(in io.Reader, stream cipher.Stream) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	stream.XORKeyStream(buf, buf)
@@ -56,13 +56,13 @@ func decryptAndPrint(in io.Reader, stream cipher.Stream) {
 	for input.Scan() {
 		line, err := hex.DecodeString(input.Text())
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		buf = append(buf, line...)
 	}
 	if err := input.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	stream.XORKeyStream(buf, buf)
@@ -86,7 +86,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		// Since the stream is stateful, we have to re-initialize it.

@@ -100,7 +100,7 @@ func main() {
 
 	n, err := breakSeed(mt.Uint32(), seed+mt.Range(40, 1000))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	if n == seed {

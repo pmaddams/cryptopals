@@ -35,7 +35,7 @@ func xorTwoLines(in io.Reader) {
 	}
 	b1, err := hex.DecodeString(input.Text())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	if !input.Scan() || len(input.Text()) == 0 {
@@ -43,7 +43,7 @@ func xorTwoLines(in io.Reader) {
 	}
 	b2, err := hex.DecodeString(input.Text())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 
@@ -68,7 +68,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		xorTwoLines(f)

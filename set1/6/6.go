@@ -222,12 +222,12 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 func decryptAndPrint(in io.Reader) {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	key, err := breakRepeatingXOR(buf)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	stream := NewXORCipher(key)
@@ -240,12 +240,12 @@ func init() {
 	f, err := os.Open(sample)
 	defer f.Close()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	m, err := SymbolFrequencies(f)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	scoreBytes = func(buf []byte) float64 {
@@ -262,7 +262,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		decryptAndPrint(f)

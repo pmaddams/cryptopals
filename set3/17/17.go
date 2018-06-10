@@ -74,7 +74,7 @@ func ValidPadding(buf []byte, blockSize int) bool {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
+		panic(fmt.Sprintf("RandomBytes: %s", err))
 	}
 	return res
 }
@@ -222,7 +222,7 @@ func main() {
 	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	iv, ciphertext, err := encryptedRandomLine("17.txt", b)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	oracle := cbcPaddingOracle(b)
@@ -230,7 +230,7 @@ func main() {
 
 	buf, err := x.breakOracle()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	fmt.Println(string(buf))

@@ -42,7 +42,7 @@ func detectAndPrintECB(in io.Reader) {
 	for input.Scan() {
 		line, err := hex.DecodeString(input.Text())
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		if IdenticalBlocks(line, aesBlockSize) {
@@ -50,7 +50,7 @@ func detectAndPrintECB(in io.Reader) {
 		}
 	}
 	if err := input.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 }
@@ -65,7 +65,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		detectAndPrintECB(f)

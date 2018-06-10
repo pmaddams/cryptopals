@@ -60,7 +60,7 @@ func RandomRange(lo, hi int) int {
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
 	if _, err := rand.Read(res); err != nil {
-		panic(fmt.Sprintf("RandomBytes: %s", err.Error()))
+		panic(fmt.Sprintf("RandomBytes: %s", err))
 	}
 	return res
 }
@@ -99,13 +99,13 @@ func dup(buf []byte) []byte {
 func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
 	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
 	if err != nil {
-		panic(fmt.Sprintf("ecbEncryptionOracleWithPrefix: %s", err.Error()))
+		panic(fmt.Sprintf("ecbEncryptionOracleWithPrefix: %s", err))
 	}
 	mode := NewECBEncrypter(b)
 	prefix := RandomBytes(RandomRange(5, 10))
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
-		panic(fmt.Sprintf("ecbEncryptionOracleWithPrefix: %s", err.Error()))
+		panic(fmt.Sprintf("ecbEncryptionOracleWithPrefix: %s", err))
 	}
 	return func(buf []byte) []byte {
 		buf = append(prefix, append(dup(buf), decoded...)...)
@@ -292,24 +292,24 @@ func (x *ecbBreaker) breakOracle() ([]byte, error) {
 func main() {
 	x := newECBBreaker(ecbEncryptionOracleWithPrefix())
 	if err := x.detectBlockSize(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	if err := x.detectECB(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	if err := x.removeOraclePrefix(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	if err := x.detectSecretLength(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	buf, err := x.breakOracle()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	fmt.Print(string(buf))

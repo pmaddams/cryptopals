@@ -25,7 +25,7 @@ func padAndPrint(in io.Reader, blockSize int) {
 		fmt.Println(strconv.Quote(string(buf)))
 	}
 	if err := input.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
@@ -45,7 +45,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		padAndPrint(f, blockSize)

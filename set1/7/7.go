@@ -89,7 +89,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 func encryptAndPrint(in io.Reader, b cipher.Block) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	buf = PKCS7Pad(buf, b.BlockSize())
@@ -103,12 +103,12 @@ func decryptAndPrint(in io.Reader, b cipher.Block) {
 	var buf []byte
 	var err error
 	if buf, err = ioutil.ReadAll(in); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	NewECBDecrypter(b).CryptBlocks(buf, buf)
 	if buf, err = PKCS7Unpad(buf, b.BlockSize()); err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	fmt.Print(string(buf))
@@ -119,7 +119,7 @@ var e = flag.Bool("e", false, "encrypt")
 func main() {
 	b, err := aes.NewCipher([]byte(secret))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
+		fmt.Fprintln(os.Stderr, err)
 	}
 	flag.Parse()
 	files := flag.Args()
@@ -134,7 +134,7 @@ func main() {
 	for _, name := range files {
 		f, err := os.Open(name)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
+			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		if *e {
