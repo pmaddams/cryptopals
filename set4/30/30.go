@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"hash"
 )
@@ -25,7 +26,7 @@ type md4 struct {
 	state [4]uint32
 	buf   [md4BlockSize]byte
 	pos   int
-	nw    uint64
+	n     uint64
 }
 
 func NewMD4() hash.Hash {
@@ -48,7 +49,7 @@ func (h *md4) Reset() {
 	h.state[2] = s2
 	h.state[3] = s3
 	h.pos = 0
-	h.nw = 0
+	h.n = 0
 }
 
 func f1(b, c, d uint32) uint32 {
@@ -139,7 +140,44 @@ func (h *md4) transform() {
 }
 
 func (h *md4) Write(buf []byte) (int, error) {
-	return 0, nil
+	n := len(buf)
+	h.n += uint64(n)
+	if h.pos > 0 {
+		toHash := copy(h.buf[h.pos:], buf)
+		h.pos += toHash
+		if h.pos == md4BlockSize {
+			h.transform()
+			h.pos = 0
+		}
+		buf = buf[:toHash]
+	}
+	for len(buf) >= md4BlockSize {
+		copy(h.buf[:], buf)
+		h.transform()
+		buf = buf[:md4BlockSize]
+	}
+	if len(buf) > 0 {
+		h.pos += copy(h.buf[:], buf)
+	}
+	return n, nil
+}
+
+// BitPadding returns bit padding for a buffer.
+func BitPadding(buf []byte, blockSize int, endian binary.ByteOrder) []byte {
+	if blockSize < 8 {
+		panic("BitPadding: invalid block size")
+	}
+	var n int
+	// Account for the minimum padding byte.
+	if rem := (len(buf) + 1) % blockSize; rem > blockSize-8 {
+		n = 2*blockSize - rem
+	} else {
+		n = blockSize - rem
+	}
+	res := append([]byte{1}, bytes.Repeat([]byte{0}, n)...)
+	endian.PutUint64(res[len(res)-8:], uint64(len(buf)))
+
+	return res
 }
 
 func (h *md4) Sum(buf []byte) []byte {
