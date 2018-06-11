@@ -7,14 +7,16 @@ import (
 	"os"
 )
 
-const arraySize = 624
-const offset = 397
-const multiplier = 1812433253
-const upperMask = 0x80000000
-const lowerMask = 0x7fffffff
-const coefficient = 0x9908b0df
-const temperMask1 = 0x9d2c5680
-const temperMask2 = 0xefc60000
+const (
+	arraySize   = 624
+	offset      = 397
+	multiplier  = 1812433253
+	upperMask   = 0x80000000
+	lowerMask   = 0x7fffffff
+	coefficient = 0x9908b0df
+	temperMask1 = 0x9d2c5680
+	temperMask2 = 0xefc60000
+)
 
 // MT contains state for the MT19937 (32-bit Mersenne Twister) PRNG.
 type MT struct {

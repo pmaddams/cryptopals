@@ -18,8 +18,10 @@ const aesBlockSize = 16
 
 // UserData returns a string with arbitrary data inserted in the middle.
 func UserData(s string) string {
-	const prefix = "comment1=cooking%20MCs;userdata="
-	const suffix = ";comment2=%20like%20a%20pound%20of%20bacon"
+	const (
+		prefix = "comment1=cooking%20MCs;userdata="
+		suffix = ";comment2=%20like%20a%20pound%20of%20bacon"
+	)
 	return prefix + url.QueryEscape(s) + suffix
 }
 

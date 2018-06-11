@@ -54,9 +54,10 @@ func NormalizedDistance(buf []byte, blockSize int) (float64, error) {
 // findKeySize returns the probable key size of a buffer encrypted with repeating XOR.
 func findKeySize(buf []byte) (int, error) {
 	// Guess lower and upper bounds.
-	const lower = 2
-	const upper = 64
-
+	const (
+		lower = 2
+		upper = 64
+	)
 	// Set best to an impossibly high value.
 	best := float64(8 * len(buf))
 	var res int
