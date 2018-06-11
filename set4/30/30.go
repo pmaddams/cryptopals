@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"hash"
+	"io"
 )
 
 const (
@@ -26,7 +28,7 @@ type md4 struct {
 	state [4]uint32
 	buf   [md4BlockSize]byte
 	pos   int
-	n     uint64
+	n     int
 }
 
 func NewMD4() hash.Hash {
@@ -83,55 +85,55 @@ func (h *md4) transform() {
 	}
 
 	a = step(f1, a, b, c, d, in[0], 3)
-	a = step(f1, d, a, b, c, in[1], 7)
-	a = step(f1, c, d, a, b, in[2], 11)
-	a = step(f1, b, c, d, a, in[3], 19)
+	d = step(f1, d, a, b, c, in[1], 7)
+	c = step(f1, c, d, a, b, in[2], 11)
+	b = step(f1, b, c, d, a, in[3], 19)
 	a = step(f1, a, b, c, d, in[4], 3)
-	a = step(f1, d, a, b, c, in[5], 7)
-	a = step(f1, c, d, a, b, in[6], 11)
-	a = step(f1, b, c, d, a, in[7], 19)
+	d = step(f1, d, a, b, c, in[5], 7)
+	c = step(f1, c, d, a, b, in[6], 11)
+	b = step(f1, b, c, d, a, in[7], 19)
 	a = step(f1, a, b, c, d, in[8], 3)
-	a = step(f1, d, a, b, c, in[9], 7)
-	a = step(f1, c, d, a, b, in[10], 11)
-	a = step(f1, b, c, d, a, in[11], 19)
+	d = step(f1, d, a, b, c, in[9], 7)
+	c = step(f1, c, d, a, b, in[10], 11)
+	b = step(f1, b, c, d, a, in[11], 19)
 	a = step(f1, a, b, c, d, in[12], 3)
-	a = step(f1, d, a, b, c, in[13], 7)
-	a = step(f1, c, d, a, b, in[14], 11)
-	a = step(f1, b, c, d, a, in[15], 19)
+	d = step(f1, d, a, b, c, in[13], 7)
+	c = step(f1, c, d, a, b, in[14], 11)
+	b = step(f1, b, c, d, a, in[15], 19)
 
 	a = step(f2, a, b, c, d, c1+in[0], 3)
-	a = step(f2, d, a, b, c, c1+in[4], 5)
-	a = step(f2, c, d, a, b, c1+in[8], 9)
-	a = step(f2, b, c, d, a, c1+in[12], 13)
+	d = step(f2, d, a, b, c, c1+in[4], 5)
+	c = step(f2, c, d, a, b, c1+in[8], 9)
+	b = step(f2, b, c, d, a, c1+in[12], 13)
 	a = step(f2, a, b, c, d, c1+in[1], 3)
-	a = step(f2, d, a, b, c, c1+in[5], 5)
-	a = step(f2, c, d, a, b, c1+in[9], 9)
-	a = step(f2, b, c, d, a, c1+in[13], 13)
+	d = step(f2, d, a, b, c, c1+in[5], 5)
+	c = step(f2, c, d, a, b, c1+in[9], 9)
+	b = step(f2, b, c, d, a, c1+in[13], 13)
 	a = step(f2, a, b, c, d, c1+in[2], 3)
-	a = step(f2, d, a, b, c, c1+in[6], 5)
-	a = step(f2, c, d, a, b, c1+in[10], 9)
-	a = step(f2, b, c, d, a, c1+in[14], 13)
+	d = step(f2, d, a, b, c, c1+in[6], 5)
+	c = step(f2, c, d, a, b, c1+in[10], 9)
+	b = step(f2, b, c, d, a, c1+in[14], 13)
 	a = step(f2, a, b, c, d, c1+in[3], 3)
-	a = step(f2, d, a, b, c, c1+in[7], 5)
-	a = step(f2, c, d, a, b, c1+in[11], 9)
-	a = step(f2, b, c, d, a, c1+in[15], 13)
+	d = step(f2, d, a, b, c, c1+in[7], 5)
+	c = step(f2, c, d, a, b, c1+in[11], 9)
+	b = step(f2, b, c, d, a, c1+in[15], 13)
 
 	a = step(f3, a, b, c, d, c2+in[0], 3)
-	a = step(f3, d, a, b, c, c2+in[8], 9)
-	a = step(f3, c, d, a, b, c2+in[4], 11)
-	a = step(f3, b, c, d, a, c2+in[12], 15)
+	d = step(f3, d, a, b, c, c2+in[8], 9)
+	c = step(f3, c, d, a, b, c2+in[4], 11)
+	b = step(f3, b, c, d, a, c2+in[12], 15)
 	a = step(f3, a, b, c, d, c2+in[2], 3)
-	a = step(f3, d, a, b, c, c2+in[10], 9)
-	a = step(f3, c, d, a, b, c2+in[6], 11)
-	a = step(f3, b, c, d, a, c2+in[14], 15)
+	d = step(f3, d, a, b, c, c2+in[10], 9)
+	c = step(f3, c, d, a, b, c2+in[6], 11)
+	b = step(f3, b, c, d, a, c2+in[14], 15)
 	a = step(f3, a, b, c, d, c2+in[1], 3)
-	a = step(f3, d, a, b, c, c2+in[9], 9)
-	a = step(f3, c, d, a, b, c2+in[5], 11)
-	a = step(f3, b, c, d, a, c2+in[13], 15)
+	d = step(f3, d, a, b, c, c2+in[9], 9)
+	c = step(f3, c, d, a, b, c2+in[5], 11)
+	b = step(f3, b, c, d, a, c2+in[13], 15)
 	a = step(f3, a, b, c, d, c2+in[3], 3)
-	a = step(f3, d, a, b, c, c2+in[11], 9)
-	a = step(f3, c, d, a, b, c2+in[7], 11)
-	a = step(f3, b, c, d, a, c2+in[15], 15)
+	d = step(f3, d, a, b, c, c2+in[11], 9)
+	c = step(f3, c, d, a, b, c2+in[7], 11)
+	b = step(f3, b, c, d, a, c2+in[15], 15)
 
 	h.state[0] += a
 	h.state[1] += b
@@ -141,20 +143,20 @@ func (h *md4) transform() {
 
 func (h *md4) Write(buf []byte) (int, error) {
 	n := len(buf)
-	h.n += uint64(n)
+	h.n += n
 	if h.pos > 0 {
 		toHash := copy(h.buf[h.pos:], buf)
 		h.pos += toHash
-		if h.pos == md4BlockSize {
+		if h.pos == h.BlockSize() {
 			h.transform()
 			h.pos = 0
 		}
 		buf = buf[:toHash]
 	}
-	for len(buf) >= md4BlockSize {
+	for len(buf) >= h.BlockSize() {
 		copy(h.buf[:], buf)
 		h.transform()
-		buf = buf[:md4BlockSize]
+		buf = buf[:h.BlockSize()]
 	}
 	if len(buf) > 0 {
 		h.pos += copy(h.buf[:], buf)
@@ -162,27 +164,40 @@ func (h *md4) Write(buf []byte) (int, error) {
 	return n, nil
 }
 
-// BitPadding returns bit padding for a buffer.
-func BitPadding(buf []byte, blockSize int, endian binary.ByteOrder) []byte {
-	if blockSize < 8 {
-		panic("BitPadding: invalid block size")
+// BitPadding returns bit padding for the given buffer length.
+func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
+	if n < 0 || blockSize < 8 {
+		panic("BitPadding: invalid parameters")
 	}
-	var n int
-	// Account for the minimum padding byte.
-	if rem := (len(buf) + 1) % blockSize; rem > blockSize-8 {
-		n = 2*blockSize - rem
+	var zeros int
+	// Account for the padding "1" byte.
+	if rem := (n + 1) % blockSize; rem > blockSize-8 {
+		zeros = 2*blockSize - rem
 	} else {
-		n = blockSize - rem
+		zeros = blockSize - rem
 	}
-	res := append([]byte{1}, bytes.Repeat([]byte{0}, n)...)
-	endian.PutUint64(res[len(res)-8:], uint64(len(buf)))
+	res := append([]byte{1}, bytes.Repeat([]byte{0}, zeros)...)
+
+	// Write the bit count as an unsigned 64-bit integer.
+	endian.PutUint64(res[len(res)-8:], uint64(n) << 3)
 
 	return res
 }
 
 func (h *md4) Sum(buf []byte) []byte {
-	return nil
+	h.Write(BitPadding(h.n, h.BlockSize(), binary.LittleEndian))
+
+	res := make([]byte, h.Size())
+	binary.LittleEndian.PutUint32(res[0:4], h.state[0])
+	binary.LittleEndian.PutUint32(res[4:8], h.state[1])
+	binary.LittleEndian.PutUint32(res[8:12], h.state[2])
+	binary.LittleEndian.PutUint32(res[12:16], h.state[3])
+
+	return append(buf, res...)
 }
 
 func main() {
+	h := NewMD4()
+	io.WriteString(h, "hello world")
+	fmt.Printf("%x\n", h.Sum([]byte{}))
 }
