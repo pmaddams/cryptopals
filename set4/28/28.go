@@ -8,11 +8,10 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	weak "math/rand"
 	"os"
+	"time"
 )
-
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
 
 // mac contains a hash and secret key.
 type mac struct {
@@ -33,6 +32,16 @@ func (m mac) Reset() {
 	if _, err := m.Hash.Write(m.key); err != nil {
 		panic(err)
 	}
+}
+
+// RandomRange returns a pseudo-random non-negative integer in [lo, hi].
+// The output should not be used in a security-sensitive context.
+func RandomRange(lo, hi int) int {
+	if lo < 0 || lo > hi {
+		panic("RandomRange: invalid range")
+	}
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	return lo + weak.Intn(hi-lo+1)
 }
 
 // RandomBytes returns a random buffer of the desired length.
@@ -73,7 +82,7 @@ func readAndPrintHashes(in io.Reader, h hash.Hash, key []byte) {
 }
 
 func main() {
-	key := RandomBytes(aesBlockSize)
+	key := RandomBytes(RandomRange(8, 64))
 	h := NewMAC(sha1.New, key)
 
 	files := os.Args[1:]

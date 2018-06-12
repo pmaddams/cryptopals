@@ -28,6 +28,25 @@ func TestSum(t *testing.T) {
 	}
 }
 
+func TestRandomRange(t *testing.T) {
+	cases := []struct {
+		lo, hi int
+	}{
+		{0, 0},
+		{5, 10},
+		{20, 30},
+	}
+	for _, c := range cases {
+		for i := 0; i < 100; i++ {
+			got := RandomRange(c.lo, c.hi)
+			if got < c.lo || got > c.hi {
+				t.Errorf("RandomRange(%v, %v) == %v, value out of range",
+					c.lo, c.hi, got)
+			}
+		}
+	}
+}
+
 func TestRandomBytes(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	n := weak.Intn(1024)
