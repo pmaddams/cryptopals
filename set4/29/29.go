@@ -2,15 +2,19 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
-	"fmt"
+	_ "fmt"
 	"hash"
-	"io"
+	_ "io"
 	"reflect"
 	"unsafe"
 )
+
+// AES always has a block size of 128 bits (16 bytes).
+const aesBlockSize = 16
 
 // BitPadding returns bit padding for the given buffer length.
 func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
@@ -58,23 +62,35 @@ func PrefixedSHA1(sum []byte, n int) (hash.Hash, error) {
 	return h, nil
 }
 
-func main() {
-	h1 := sha1.New()
-	io.WriteString(h1, "hello")
-	sum1 := h1.Sum([]byte{})
+// mac contains a hash and secret key.
+type mac struct {
+	hash.Hash
+	key []byte
+}
 
-	h2, err := PrefixedSHA1(sum1, len("hello"))
-	if err != nil {
+// NewMAC takes a hash and key, and returns a new MAC hash.
+func NewMAC(h func() hash.Hash, key []byte) hash.Hash {
+	m := mac{h(), key}
+	m.Reset()
+	return m
+}
+
+// Reset resets the hash.
+func (m mac) Reset() {
+	m.Hash.Reset()
+	if _, err := m.Hash.Write(m.key); err != nil {
 		panic(err)
 	}
-	io.WriteString(h2, "world")
-	sum2 := h2.Sum([]byte{})
-	fmt.Printf("%x\n", sum2)
+}
 
-	pad := BitPadding(len("hello"), sha1.BlockSize, binary.BigEndian)
-	buf := append([]byte("hello"), append(pad, []byte("world")...)...)
-	h3 := sha1.New()
-	h3.Write(buf)
-	sum3 := h3.Sum([]byte{})
-	fmt.Printf("%x\n", sum3)
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	res := make([]byte, n)
+	if _, err := rand.Read(res); err != nil {
+		panic(err)
+	}
+	return res
+}
+
+func main() {
 }
