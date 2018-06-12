@@ -19,22 +19,22 @@ func PrefixedMD4(sum []byte, n int) (hash.Hash, error) {
 		return nil, errors.New("PrefixedMD4: invalid checksum")
 	}
 	h := md4.New()
-	newstate := [4]uint32{
-		binary.LittleEndian.Uint32(sum[:4]),
-		binary.LittleEndian.Uint32(sum[4:8]),
-		binary.LittleEndian.Uint32(sum[8:12]),
-		binary.LittleEndian.Uint32(sum[12:16]),
-	}
-	newlen := uint64(n - (n % md4.BlockSize) + md4.BlockSize)
 
-	// Circumvent the type system to access unexported data structures.
+	var newState [4]uint32
+	for i := range newState {
+		newState[i] = binary.LittleEndian.Uint32(sum[:4])
+		sum = sum[4:]
+	}
+	newLen := uint64(n - (n % md4.BlockSize) + md4.BlockSize)
+
+	// Circumvent the type system to modify unexported data structures.
 	state := reflect.ValueOf(h).Elem().Field(0)
 	state = reflect.NewAt(state.Type(), unsafe.Pointer(state.UnsafeAddr())).Elem()
-	state.Set(reflect.ValueOf(newstate))
+	state.Set(reflect.ValueOf(newState))
 
 	len := reflect.ValueOf(h).Elem().Field(3)
 	len = reflect.NewAt(len.Type(), unsafe.Pointer(len.UnsafeAddr())).Elem()
-	len.Set(reflect.ValueOf(newlen))
+	len.Set(reflect.ValueOf(newLen))
 
 	return h, nil
 }
@@ -45,7 +45,7 @@ func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
 		panic("BitPadding: invalid parameters")
 	}
 	var zeros int
-	// Account for the padding "1" byte.
+	// Account for the first padding byte.
 	if rem := (n + 1) % blockSize; rem > blockSize-8 {
 		zeros = 2*blockSize - rem
 	} else {
