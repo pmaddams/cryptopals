@@ -13,26 +13,6 @@ import (
 	"golang.org/x/crypto/md4"
 )
 
-// BitPadding returns bit padding for the given buffer length.
-func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
-	if n < 0 || blockSize < 8 {
-		panic("BitPadding: invalid parameters")
-	}
-	var zeros int
-	// Account for the padding "1" byte.
-	if rem := (n + 1) % blockSize; rem > blockSize-8 {
-		zeros = 2*blockSize - rem
-	} else {
-		zeros = blockSize - rem
-	}
-	res := append([]byte{1}, bytes.Repeat([]byte{0}, zeros)...)
-
-	// Write the bit count as an unsigned 64-bit integer.
-	endian.PutUint64(res[len(res)-8:], uint64(n)<<3)
-
-	return res
-}
-
 // PrefixedMD4 returns a new MD4 hash using an existing checksum and buffer length.
 func PrefixedMD4(sum []byte, n int) (hash.Hash, error) {
 	if len(sum) != md4.Size {
@@ -57,6 +37,26 @@ func PrefixedMD4(sum []byte, n int) (hash.Hash, error) {
 	len.Set(reflect.ValueOf(newlen))
 
 	return h, nil
+}
+
+// BitPadding returns bit padding for the given buffer length.
+func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
+	if n < 0 || blockSize < 8 {
+		panic("BitPadding: invalid parameters")
+	}
+	var zeros int
+	// Account for the padding "1" byte.
+	if rem := (n + 1) % blockSize; rem > blockSize-8 {
+		zeros = 2*blockSize - rem
+	} else {
+		zeros = blockSize - rem
+	}
+	res := append([]byte{0x80}, bytes.Repeat([]byte{0}, zeros)...)
+
+	// Write the bit count as an unsigned 64-bit integer.
+	endian.PutUint64(res[len(res)-8:], uint64(n)<<3)
+
+	return res
 }
 
 func main() {
