@@ -12,6 +12,26 @@ import (
 	"unsafe"
 )
 
+// BitPadding returns bit padding for the given buffer length.
+func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
+	if n < 0 || blockSize < 8 {
+		panic("BitPadding: invalid parameters")
+	}
+	var zeros int
+	// Account for the first padding byte.
+	if rem := (n + 1) % blockSize; rem > blockSize-8 {
+		zeros = 2*blockSize - rem
+	} else {
+		zeros = blockSize - rem
+	}
+	res := append([]byte{0x80}, bytes.Repeat([]byte{0}, zeros)...)
+
+	// Write the bit count as an unsigned 64-bit integer.
+	endian.PutUint64(res[len(res)-8:], uint64(n)<<3)
+
+	return res
+}
+
 // PrefixedSHA1 returns a new SHA-1 hash using an existing checksum and buffer length.
 func PrefixedSHA1(sum []byte, n int) (hash.Hash, error) {
 	if len(sum) != sha1.Size {
@@ -36,26 +56,6 @@ func PrefixedSHA1(sum []byte, n int) (hash.Hash, error) {
 	len.Set(reflect.ValueOf(newLen))
 
 	return h, nil
-}
-
-// BitPadding returns bit padding for the given buffer length.
-func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
-	if n < 0 || blockSize < 8 {
-		panic("BitPadding: invalid parameters")
-	}
-	var zeros int
-	// Account for the first padding byte.
-	if rem := (n + 1) % blockSize; rem > blockSize-8 {
-		zeros = 2*blockSize - rem
-	} else {
-		zeros = blockSize - rem
-	}
-	res := append([]byte{0x80}, bytes.Repeat([]byte{0}, zeros)...)
-
-	// Write the bit count as an unsigned 64-bit integer.
-	endian.PutUint64(res[len(res)-8:], uint64(n)<<3)
-
-	return res
 }
 
 func main() {
