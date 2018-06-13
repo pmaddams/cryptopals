@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"io"
 	weak "math/rand"
 	"os"
 	"reflect"
@@ -109,7 +110,7 @@ func main() {
 	key := RandomBytes(RandomRange(8, 64))
 	mac := NewMAC(sha1.New, key)
 
-	fmt.Fprint(mac, prefix)
+	io.WriteString(mac, prefix)
 	sum := mac.Sum([]byte{})
 
 	// Guess the key length.
@@ -119,7 +120,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		fmt.Fprint(h, suffix)
+		io.WriteString(h, suffix)
 		guess := h.Sum([]byte{})
 
 		pad := BitPadding(n+len(prefix), sha1.BlockSize, binary.BigEndian)
