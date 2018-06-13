@@ -6,15 +6,15 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
-	_ "fmt"
+	"fmt"
 	"hash"
-	_ "io"
+	"io"
+	weak "math/rand"
+	"os"
 	"reflect"
+	"time"
 	"unsafe"
 )
-
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
 
 // BitPadding returns bit padding for the given buffer length.
 func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
@@ -83,6 +83,16 @@ func (m mac) Reset() {
 	}
 }
 
+// RandomRange returns a pseudo-random non-negative integer in [lo, hi].
+// The output should not be used in a security-sensitive context.
+func RandomRange(lo, hi int) int {
+	if lo < 0 || lo > hi {
+		panic("RandomRange: invalid range")
+	}
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	return lo + weak.Intn(hi-lo+1)
+}
+
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(n int) []byte {
 	res := make([]byte, n)
@@ -93,4 +103,37 @@ func RandomBytes(n int) []byte {
 }
 
 func main() {
+	const (
+		prefix = "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
+		suffix = ";admin=true"
+	)
+	key := RandomBytes(RandomRange(8, 64))
+	h := NewMAC(sha1.New, key)
+
+	io.WriteString(h, prefix)
+	mac := h.Sum([]byte{})
+
+	// Guess the key length.
+	for n := 8; n <= 64; n++ {
+		p, err := PrefixedSHA1(mac, n+len(prefix))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		io.WriteString(p, suffix)
+		guess := p.Sum([]byte{})
+
+		pad := BitPadding(n+len(prefix), sha1.BlockSize, binary.BigEndian)
+
+		h.Reset()
+		io.WriteString(h, prefix)
+		h.Write(pad)
+		io.WriteString(h, suffix)
+		check := h.Sum([]byte{})
+
+		if bytes.Equal(guess, check) {
+			fmt.Printf("guess: %x\ncheck: %x\n", guess, check)
+			return
+		}
+	}
 }
