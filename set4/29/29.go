@@ -52,10 +52,11 @@ func PrefixedSHA1(sum []byte, n int) (hash.Hash, error) {
 		state[i] = binary.BigEndian.Uint32(sum[:4])
 		sum = sum[4:]
 	}
-	len := uint64(n - (n % sha1.BlockSize) + sha1.BlockSize)
+	pad := BitPadding(n, sha1.BlockSize, binary.BigEndian)
+	written := uint64(n + len(pad))
 
 	setUnexported(reflect.ValueOf(h).Elem().Field(0), reflect.ValueOf(state))
-	setUnexported(reflect.ValueOf(h).Elem().Field(3), reflect.ValueOf(len))
+	setUnexported(reflect.ValueOf(h).Elem().Field(3), reflect.ValueOf(written))
 
 	return h, nil
 }
