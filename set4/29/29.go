@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"io"
 	weak "math/rand"
 	"os"
 	"reflect"
@@ -36,6 +35,11 @@ func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
 	return res
 }
 
+// setUnexported sets a possibly unexported value.
+func setUnexported(v1, v2 reflect.Value) {
+	reflect.NewAt(v1.Type(), unsafe.Pointer(v1.UnsafeAddr())).Elem().Set(v2)
+}
+
 // PrefixedSHA1 returns a new SHA-1 hash using an existing checksum and buffer length.
 func PrefixedSHA1(sum []byte, n int) (hash.Hash, error) {
 	if len(sum) != sha1.Size {
@@ -43,21 +47,15 @@ func PrefixedSHA1(sum []byte, n int) (hash.Hash, error) {
 	}
 	h := sha1.New()
 
-	var newState [5]uint32
-	for i := range newState {
-		newState[i] = binary.BigEndian.Uint32(sum[:4])
+	var state [5]uint32
+	for i := range state {
+		state[i] = binary.BigEndian.Uint32(sum[:4])
 		sum = sum[4:]
 	}
-	newLen := uint64(n - (n % sha1.BlockSize) + sha1.BlockSize)
+	len := uint64(n - (n % sha1.BlockSize) + sha1.BlockSize)
 
-	// Circumvent the type system to modify unexported data structures.
-	state := reflect.ValueOf(h).Elem().Field(0)
-	state = reflect.NewAt(state.Type(), unsafe.Pointer(state.UnsafeAddr())).Elem()
-	state.Set(reflect.ValueOf(newState))
-
-	len := reflect.ValueOf(h).Elem().Field(3)
-	len = reflect.NewAt(len.Type(), unsafe.Pointer(len.UnsafeAddr())).Elem()
-	len.Set(reflect.ValueOf(newLen))
+	setUnexported(reflect.ValueOf(h).Elem().Field(0), reflect.ValueOf(state))
+	setUnexported(reflect.ValueOf(h).Elem().Field(3), reflect.ValueOf(len))
 
 	return h, nil
 }
@@ -108,28 +106,26 @@ func main() {
 		suffix = ";admin=true"
 	)
 	key := RandomBytes(RandomRange(8, 64))
-	h := NewMAC(sha1.New, key)
+	mac := NewMAC(sha1.New, key)
 
-	io.WriteString(h, prefix)
-	mac := h.Sum([]byte{})
+	fmt.Fprint(mac, prefix)
+	sum := mac.Sum([]byte{})
 
 	// Guess the key length.
 	for n := 8; n <= 64; n++ {
-		p, err := PrefixedSHA1(mac, n+len(prefix))
+		h, err := PrefixedSHA1(sum, n+len(prefix))
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		io.WriteString(p, suffix)
-		guess := p.Sum([]byte{})
+		fmt.Fprint(h, suffix)
+		guess := h.Sum([]byte{})
 
 		pad := BitPadding(n+len(prefix), sha1.BlockSize, binary.BigEndian)
 
-		h.Reset()
-		io.WriteString(h, prefix)
-		h.Write(pad)
-		io.WriteString(h, suffix)
-		check := h.Sum([]byte{})
+		mac.Reset()
+		fmt.Fprintf(mac, "%s%s%s", prefix, pad, suffix)
+		check := mac.Sum([]byte{})
 
 		if bytes.Equal(guess, check) {
 			fmt.Printf("guess: %x\ncheck: %x\n", guess, check)
