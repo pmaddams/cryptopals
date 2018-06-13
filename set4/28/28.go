@@ -53,42 +53,36 @@ func RandomBytes(n int) []byte {
 	return res
 }
 
-// printHash prints a name and hex-encoded hash value.
-func printHash(s string, buf []byte) {
-	fmt.Printf("%-19s%x\n", s, buf)
-}
-
-// readAndPrintHashes reads input and prints the MAC and SHA-1 checksum of the key and data.
-func readAndPrintHashes(in io.Reader, h hash.Hash, key []byte) {
+// readAndPrintMAC reads input and prints the MAC and SHA-1(key + message).
+func readAndPrintMAC(in io.Reader, mac hash.Hash, key []byte) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	h.Reset()
-	if _, err := h.Write(buf); err != nil {
+	mac.Reset()
+	if _, err := mac.Write(buf); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	mac := h.Sum([]byte{})
+	sum1 := mac.Sum([]byte{})
 	array := sha1.Sum(append(key, buf...))
-	sum := array[:]
-	if !bytes.Equal(mac, sum) {
-		fmt.Fprintln(os.Stderr, "incorrect hash")
+	sum2 := array[:]
+	if !bytes.Equal(sum1, sum2) {
+		fmt.Fprintln(os.Stderr, "invalid MAC")
 		return
 	}
-	printHash("mac:", mac)
-	printHash("sha1(key+message):", sum)
+	fmt.Printf("%x\n%x\n", sum1, sum2)
 }
 
 func main() {
 	key := RandomBytes(RandomRange(8, 64))
-	h := NewMAC(sha1.New, key)
+	mac := NewMAC(sha1.New, key)
 
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		readAndPrintHashes(os.Stdin, h, key)
+		readAndPrintMAC(os.Stdin, mac, key)
 		return
 	}
 	for _, name := range files {
@@ -97,7 +91,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		readAndPrintHashes(f, h, key)
+		readAndPrintMAC(f, mac, key)
 		f.Close()
 	}
 }
