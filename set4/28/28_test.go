@@ -10,20 +10,22 @@ import (
 
 func TestSum(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	key := RandomBytes(1 + weak.Intn(16))
-	h := NewMAC(sha1.New, key)
+	key := make([]byte, 1+weak.Intn(16))
+	weak.Read(key)
 
+	mac := NewMAC(sha1.New, key)
 	for i := 0; i < 10; i++ {
-		buf := RandomBytes(1 + weak.Intn(1024))
+		buf := make([]byte, 1+weak.Intn(1024))
+		weak.Read(buf)
 
-		h.Reset()
-		h.Write(buf)
+		mac.Reset()
+		mac.Write(buf)
 
-		mac := h.Sum([]byte{})
+		sum1 := mac.Sum([]byte{})
 		array := sha1.Sum(append(key, buf...))
-		sum := array[:]
-		if !bytes.Equal(mac, sum) {
-			t.Errorf("mac == %x, sha1(key+message) == %x\n", mac, sum)
+		sum2 := array[:]
+		if !bytes.Equal(sum1, sum2) {
+			t.Errorf("mac == %x, sha1(key+message) == %x\n", sum1, sum2)
 		}
 	}
 }

@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"hash"
+	weak "math/rand"
 	"time"
 )
 
-const delay = 100*time.Millisecond
+const delay = 100 * time.Millisecond
 
 // min returns the smaller of two integers.
 func min(n, m int) int {
@@ -76,6 +78,25 @@ func (h *hmac) Sum(buf []byte) []byte {
 	h.Hash.Reset()
 
 	return append(buf, sum...)
+}
+
+// RandomRange returns a pseudo-random non-negative integer in [lo, hi].
+// The output should not be used in a security-sensitive context.
+func RandomRange(lo, hi int) int {
+	if lo < 0 || lo > hi {
+		panic("RandomRange: invalid range")
+	}
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	return lo + weak.Intn(hi-lo+1)
+}
+
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	res := make([]byte, n)
+	if _, err := rand.Read(res); err != nil {
+		panic(err)
+	}
+	return res
 }
 
 // insecureEqual checks if two buffers contain the same bytes,
