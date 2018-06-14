@@ -20,8 +20,8 @@ type mac struct {
 }
 
 // NewMAC takes a hash and key, and returns a new MAC hash.
-func NewMAC(h func() hash.Hash, key []byte) hash.Hash {
-	m := mac{h(), key}
+func NewMAC(f func() hash.Hash, key []byte) hash.Hash {
+	m := mac{f(), key}
 	m.Reset()
 	return m
 }
