@@ -3,12 +3,19 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha1"
+	"encoding/hex"
 	"hash"
 	weak "math/rand"
+	"net/http"
 	"time"
 )
 
-const delay = 100 * time.Millisecond
+const (
+	delay = 100 * time.Millisecond
+	addr  = "localhost:9000"
+	path  = "/test"
+)
 
 // min returns the smaller of two integers.
 func min(n, m int) int {
@@ -99,9 +106,9 @@ func RandomBytes(n int) []byte {
 	return res
 }
 
-// insecureEqual checks if two buffers contain the same bytes,
-// returning false immediately upon finding a mismatched pair.
-func insecureEqual(b1, b2 []byte) bool {
+// insecureCompare compares two buffers one byte at a time,
+// returning false upon finding a mismatched pair of bytes.
+func insecureCompare(b1, b2 []byte) bool {
 	for len(b1) != 0 && len(b2) != 0 {
 		if b1[0] != b2[0] {
 			return false
@@ -112,5 +119,34 @@ func insecureEqual(b1, b2 []byte) bool {
 	return len(b1) == len(b2)
 }
 
+// insecureHandler takes a hash and returns an insecure HTTP handler.
+func insecureHandler(h hash.Hash) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
+		h.Reset()
+		q := req.URL.Query()
+
+		file, signature := q.Get("file"), q.Get("signature")
+		if file == "" || signature == "" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		sum, err := hex.DecodeString(signature)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		h.Write([]byte(file))
+		if !insecureCompare(sum, h.Sum([]byte{})) {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func main() {
+	key := RandomBytes(RandomRange(8, 64))
+	h := NewHMAC(sha1.New, key)
+
+	http.HandleFunc(path, insecureHandler(h))
+	go http.ListenAndServe(addr, nil)
 }
