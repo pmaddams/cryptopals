@@ -25,6 +25,7 @@ func XORBytes(dst, b1, b2 []byte) int {
 	return n
 }
 
+// hmac contains data for generating a hash-based message authentication code.
 type hmac struct {
 	hash.Hash
 	ipad []byte
@@ -32,6 +33,7 @@ type hmac struct {
 	buf  *bytes.Buffer
 }
 
+// NewHMAC takes a hash and key, and returns a new HMAC hash.
 func NewHMAC(f func() hash.Hash, key []byte) hash.Hash {
 	h := f()
 	// If the key is too long, hash it.
@@ -49,14 +51,17 @@ func NewHMAC(f func() hash.Hash, key []byte) hash.Hash {
 	return &hmac{h, ipad, opad, new(bytes.Buffer)}
 }
 
+// Reset resets the hash.
 func (h *hmac) Reset() {
 	h.buf.Reset()
 }
 
+// Write writes data to the hash.
 func (h *hmac) Write(buf []byte) (int, error) {
 	return h.buf.Write(buf)
 }
 
+// Sum appends a checksum to the given buffer.
 func (h *hmac) Sum(buf []byte) []byte {
 	h.Hash.Write(h.ipad)
 	h.Hash.Write(h.buf.Bytes())
@@ -70,7 +75,7 @@ func (h *hmac) Sum(buf []byte) []byte {
 	sum = h.Hash.Sum([]byte{})
 	h.Hash.Reset()
 
-	return sum
+	return append(buf, sum...)
 }
 
 // insecureEqual checks if two buffers contain the same bytes,

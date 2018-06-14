@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// mac contains a hash and secret key.
+// mac contains data for generating a secret-prefix message authentication code.
 type mac struct {
 	hash.Hash
 	key []byte
