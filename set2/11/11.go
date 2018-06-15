@@ -135,14 +135,14 @@ func detectECB(oracle func([]byte) []byte) bool {
 func main() {
 	mode := RandomEncrypter()
 	if detectECB(ecbModeOracle(mode)) {
-		fmt.Print("Detected ECB mode...")
+		fmt.Print("detected ECB mode...")
 		if _, ok := mode.(ecbEncrypter); ok {
 			fmt.Println("correct.")
 		} else {
 			fmt.Println("incorrect.")
 		}
 	} else {
-		fmt.Print("Detected CBC mode...")
+		fmt.Print("detected CBC mode...")
 		if _, ok := mode.(ecbEncrypter); ok {
 			fmt.Println("incorrect.")
 		} else {
