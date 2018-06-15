@@ -5,14 +5,18 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
 	"hash"
 	weak "math/rand"
 	"net/http"
+	"os"
 	"time"
 )
 
+var printed bool // DEBUG
+
 const (
-	delay = 100 * time.Millisecond
+	delay = 50 * time.Millisecond
 	addr  = "localhost:9000"
 	path  = "/test"
 )
@@ -136,11 +140,53 @@ func insecureHandler(h hash.Hash) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 		h.Write([]byte(file))
+
+		if !printed {
+			fmt.Printf("%x\n", h.Sum([]byte{})) // DEBUG
+			printed = true
+		}
+
 		if !insecureCompare(sum, h.Sum([]byte{})) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
+}
+
+// timedRequest returns the amount of time an HTTP server takes to respond.
+func timedRequest(url string) (float64, error) {
+	start := time.Now()
+	_, err := http.Get(url)
+	if err != nil {
+		return 0, err
+	}
+	return time.Since(start).Seconds(), nil
+}
+
+func breakHash(s string, size int) ([]byte, error) {
+	res := make([]byte, size)
+	for i := range res {
+		var (
+			b byte
+			best float64
+		)
+		for j := 0; j <= 0xff; j++ {
+			res[i] = byte(j)
+			url := fmt.Sprintf("http://%s%s?file=%s&signature=%x",
+				addr, path, s, res)
+			t, err := timedRequest(url)
+			if err != nil {
+				return nil, err
+			}
+			if t > best {
+				b = byte(j)
+				best = t
+			}
+		}
+		res[i] = b
+		fmt.Printf("%x", b) // DEBUG
+	}
+	return res, nil
 }
 
 func main() {
@@ -149,4 +195,11 @@ func main() {
 
 	http.HandleFunc(path, insecureHandler(h))
 	go http.ListenAndServe(addr, nil)
+
+	buf, err := breakHash("foo", sha1.Size)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	fmt.Printf("%x\n", buf)
 }
