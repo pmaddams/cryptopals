@@ -133,8 +133,8 @@ func insecureCompare(b1, b2 []byte) bool {
 	return len(b1) == len(b2)
 }
 
-// insecureFileServer takes a hash and returns an insecure HTTP handler.
-func insecureFileServer(h hash.Hash) func(http.ResponseWriter, *http.Request) {
+// insecureHandler takes a hash and returns an insecure HTTP handler.
+func insecureHandler(h hash.Hash) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		f, _, err := req.FormFile("file")
 		if err != nil {
@@ -175,7 +175,7 @@ func upload(url string, buf []byte, name, sig string) (*http.Response, error) {
 	return http.Post(url, contentType, tmp)
 }
 
-// timedUpload returns the time it takes the server to respond to an upload.
+// timedUpload sends a request and returns the time it takes to receive a response.
 func timedUpload(url string, buf []byte, name, sig string) (int64, error) {
 	start := time.Now()
 	_, err := upload(url, buf, name, sig)
@@ -243,7 +243,7 @@ func main() {
 	key := RandomBytes(RandomRange(8, 64))
 	h := NewHMAC(sha1.New, key)
 
-	http.HandleFunc(path, insecureFileServer(h))
+	http.HandleFunc(path, insecureHandler(h))
 	go http.Serve(l, nil)
 
 	url := fmt.Sprintf("http://%s%s", addr, path)
