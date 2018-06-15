@@ -185,8 +185,8 @@ func timedUpload(url string, buf []byte, name, sig string) (int64, error) {
 	return time.Since(start).Nanoseconds(), nil
 }
 
-// breakFileServer returns a valid HMAC for uploading an arbitrary file.
-func breakFileServer(url string, buf []byte, name string, size int) ([]byte, error) {
+// breakServer returns a valid HMAC for uploading an arbitrary file.
+func breakServer(url string, buf []byte, name string, size int) ([]byte, error) {
 	res := make([]byte, size)
 	for i := range res {
 		var (
@@ -217,7 +217,7 @@ func printHMACAndBreakServer(h hash.Hash, url string, buf []byte, name string) {
 	h.Write(buf)
 
 	fmt.Printf("attempting to upload %s...\n%x\n", name, h.Sum([]byte{}))
-	sig, err := breakFileServer(url, buf, name, h.Size())
+	sig, err := breakServer(url, buf, name, h.Size())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
