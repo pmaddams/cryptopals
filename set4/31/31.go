@@ -167,7 +167,7 @@ func breakHash(s string, size int) ([]byte, error) {
 	res := make([]byte, size)
 	for i := range res {
 		var (
-			b byte
+			b    byte
 			best float64
 		)
 		for j := 0; j <= 0xff; j++ {
