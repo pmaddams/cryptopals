@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"log"
 	weak "math/rand"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"os"
 	"sync"
@@ -182,37 +184,46 @@ func upload(url string, buf []byte, name, sig string) (*http.Response, error) {
 }
 
 // timedUpload sends a request and returns the time it takes to receive a response.
-func timedUpload(url string, buf []byte, name, sig string) (int64, error) {
+func timedUpload(url string, buf []byte, name, sig string) int64 {
 	start := time.Now()
-	_, err := upload(url, buf, name, sig)
-	if err != nil {
-		return 0, err
+	if _, err := upload(url, buf, name, sig); err != nil {
+		panic(err)
 	}
-	return time.Since(start).Nanoseconds(), nil
+	return time.Since(start).Nanoseconds()
 }
 
 // breakServer returns a valid HMAC for uploading an arbitrary file.
-func breakServer(url string, buf []byte, name string, size int) ([]byte, error) {
+func breakServer(url string, buf []byte, name string, size int) []byte {
 	res := make([]byte, size)
 	var b byte
-	for i := range res {
+	loop := func(i int) byte {
 		var best int64
 		for j := 0; j <= 0xff; j++ {
 			res[i] = byte(j)
-			t, err := timedUpload(url, buf, name, hex.EncodeToString(res))
-			if err != nil {
-				return nil, err
-			}
-			if t > best {
+			sig := hex.EncodeToString(res)
+			if t := timedUpload(url, buf, name, sig); t > best {
 				best = t
 				b = byte(j)
 			}
 		}
-		fmt.Printf("%02x", b)
+		return b
+	}
+	// Double-check each byte to compensate for timing errors.
+	for i := range res {
+		var (
+			ok      bool
+			prev, b byte
+		)
+		for !ok || b != prev {
+			prev = b
+			b = loop(i)
+			ok = true
+		}
 		res[i] = b
+		fmt.Printf("%02x", b)
 	}
 	fmt.Println()
-	return res, nil
+	return res
 }
 
 // printHMACAndBreakServer prints a valid HMAC and attempts to break the server.
@@ -221,12 +232,8 @@ func printHMACAndBreakServer(h hash.Hash, url string, buf []byte, name string) {
 	h.Write(buf)
 	fmt.Printf("attempting to upload %s...\n%x\n", name, h.Sum([]byte{}))
 
-	sig, err := breakServer(url, buf, name, h.Size())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	resp, err := upload(url, buf, name, hex.EncodeToString(sig))
+	sig := hex.EncodeToString(breakServer(url, buf, name, h.Size()))
+	resp, err := upload(url, buf, name, sig)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -240,8 +247,15 @@ func main() {
 	key := RandomBytes(RandomRange(8, 64))
 	h := NewHMAC(sha1.New, key)
 
-	go http.ListenAndServe(addr, NewHandler(h))
-
+	go func() {
+		log.Fatal(http.ListenAndServe(addr, NewHandler(h)))
+	}()
+	// Wait for the server.
+	if conn, err := net.DialTimeout("tcp", addr, time.Second); err != nil {
+		log.Fatal(err)
+	} else {
+		conn.Close()
+	}
 	url := fmt.Sprintf("http://%s%s", addr, path)
 	buf := new(bytes.Buffer)
 
