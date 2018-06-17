@@ -255,7 +255,7 @@ func (x *ecbBreaker) scanBlocks() [][]byte {
 
 // breakByte returns the byte that produces the given encrypted block.
 func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
-	for i := 0; i < 256; i++ {
+	for i := 0; i <= 0xff; i++ {
 		b := byte(i)
 		buf := x.oracle(append(probe, b))
 		if bytes.Equal(buf[:x.blockSize], block) {

@@ -117,7 +117,7 @@ func breakSingleXOR(buf []byte) byte {
 	var key byte
 
 	// Use an integer as the loop variable to avoid overflow.
-	for i := 0; i < 256; i++ {
+	for i := 0; i <= 0xff; i++ {
 		b := byte(i)
 		XORSingleByte(tmp, buf, b)
 		if score := scoreBytes(tmp); score > best {

@@ -88,7 +88,7 @@ func decryptedAdminTrue(buf []byte, dec cipher.BlockMode) bool {
 // xorMaskByte returns an XOR mask that prevents query escaping for the target byte.
 func xorMaskByte(b byte) byte {
 	var res byte
-	for i := 0; i < 256; i++ {
+	for i := 0; i <= 0xff; i++ {
 		s := string(b ^ byte(i))
 		if s == url.QueryEscape(s) {
 			res = byte(i)

@@ -20,7 +20,7 @@ func TestBytesToUint64s(t *testing.T) {
 		},
 		{
 			[]byte{0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
-			[]uint64{256, 256},
+			[]uint64{0x100, 0x100},
 		},
 	}
 	for _, c := range cases {
@@ -46,7 +46,7 @@ func TestUint64sToBytes(t *testing.T) {
 			[]byte{0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
 		},
 		{
-			[]uint64{256, 256},
+			[]uint64{0x100, 0x100},
 			[]byte{0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
 		},
 	}

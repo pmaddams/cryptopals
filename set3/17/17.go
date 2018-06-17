@@ -133,9 +133,8 @@ func newCBCBreaker(oracle func([]byte, []byte) error, iv, ciphertext []byte) *cb
 func (x *cbcBreaker) breakPaddingByte(tmp, buf []byte, v int) (byte, error) {
 	b := tmp[x.blockSize-v]
 
-	// We have to iterate backwards to avoid restoring
-	// an original padding byte in the final block.
-	for i := 255; i >= 0; i-- {
+	// Iterate backwards to avoid restoring an original padding byte.
+	for i := 0xff; i >= 0; i-- {
 		tmp[x.blockSize-v] = b ^ byte(i)
 
 		// If the oracle does not return an error,

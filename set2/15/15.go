@@ -59,7 +59,7 @@ func main() {
 	var blockSize int
 	flag.IntVar(&blockSize, "b", aesBlockSize, "block size")
 	flag.Parse()
-	if blockSize < 1 || blockSize > 255 {
+	if blockSize <= 0 || blockSize > 0xff {
 		fmt.Fprintln(os.Stderr, "invalid block size")
 		return
 	}
