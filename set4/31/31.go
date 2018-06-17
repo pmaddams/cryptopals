@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"log"
 	weak "math/rand"
 	"mime/multipart"
 	"net"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	delay = 50 * time.Millisecond
+	delay = 5 * time.Millisecond
 	addr  = "localhost:9000"
 	path  = "/test"
 )
@@ -41,13 +42,11 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 // hmac contains data for generating a hash-based message authentication code.
-// In this case, it must be safe for concurrent use by multiple goroutines.
 type hmac struct {
 	hash.Hash
 	ipad []byte
 	opad []byte
 	buf  *bytes.Buffer
-	m    *sync.Mutex
 }
 
 // NewHMAC takes a hash and key, and returns a new HMAC hash.
@@ -65,22 +64,16 @@ func NewHMAC(f func() hash.Hash, key []byte) hash.Hash {
 	XORBytes(opad, opad, key)
 	XORBytes(ipad, ipad, key)
 
-	return &hmac{h, ipad, opad, new(bytes.Buffer), new(sync.Mutex)}
+	return &hmac{h, ipad, opad, new(bytes.Buffer)}
 }
 
 // Reset resets the hash.
 func (h *hmac) Reset() {
-	h.m.Lock()
-	defer h.m.Unlock()
-
 	h.buf.Reset()
 }
 
 // Write writes data to the hash.
 func (h *hmac) Write(buf []byte) (int, error) {
-	h.m.Lock()
-	defer h.m.Unlock()
-
 	return h.buf.Write(buf)
 }
 
@@ -133,27 +126,42 @@ func insecureCompare(b1, b2 []byte) bool {
 	return len(b1) == len(b2)
 }
 
-// insecureHandler takes a hash and returns an insecure HTTP handler.
-func insecureHandler(h hash.Hash) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		f, _, err := req.FormFile("file")
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		sig, err := hex.DecodeString(req.FormValue("signature"))
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		h.Reset()
-		io.Copy(h, f)
-		if !insecureCompare(sig, h.Sum([]byte{})) {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		// 200 OK
+// handler contains a hash and mutex reference for write locking.
+type handler struct {
+	h   hash.Hash
+	mux *sync.Mutex
+}
+
+// NewHandler takes a hash and returns an insecure HTTP handler.
+func NewHandler(h hash.Hash) http.Handler {
+	return handler{h, new(sync.Mutex)}
+}
+
+// ServeHTTP responds to upload requests with 200 OK if the file HMAC
+// matches its signature, and 500 Internal Server Error otherwise.
+func (hd handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	f, _, err := req.FormFile("file")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+	sig, err := hex.DecodeString(req.FormValue("signature"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	hd.mux.Lock()
+
+	hd.h.Reset()
+	io.Copy(hd.h, f)
+	sum := hd.h.Sum([]byte{})
+
+	hd.mux.Unlock()
+	if !insecureCompare(sig, sum) {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	// 200 OK
 }
 
 // upload uploads a file and hex-encoded signature, and returns the response.
@@ -176,53 +184,54 @@ func upload(url string, buf []byte, name, sig string) (*http.Response, error) {
 }
 
 // timedUpload sends a request and returns the time it takes to receive a response.
-func timedUpload(url string, buf []byte, name, sig string) (int64, error) {
+func timedUpload(url string, buf []byte, name, sig string) int64 {
 	start := time.Now()
-	_, err := upload(url, buf, name, sig)
-	if err != nil {
-		return 0, err
+	if _, err := upload(url, buf, name, sig); err != nil {
+		panic(err)
 	}
-	return time.Since(start).Nanoseconds(), nil
+	return time.Since(start).Nanoseconds()
 }
 
 // breakServer returns a valid HMAC for uploading an arbitrary file.
-func breakServer(url string, buf []byte, name string, size int) ([]byte, error) {
+func breakServer(url string, buf []byte, name string, size int) []byte {
 	res := make([]byte, size)
-	for i := range res {
+	loop := func(i int) byte {
 		var (
-			b    byte
 			best int64
+			b    byte
 		)
 		for j := 0; j <= 0xff; j++ {
 			res[i] = byte(j)
-			t, err := timedUpload(url, buf, name, hex.EncodeToString(res))
-			if err != nil {
-				return nil, err
-			}
-			if t > best {
-				b = byte(j)
+			sig := hex.EncodeToString(res)
+			if t := timedUpload(url, buf, name, sig); t > best {
 				best = t
+				b = byte(j)
 			}
 		}
-		fmt.Printf("%02x", b)
+		return b
+	}
+	// Double-check each byte to compensate for timing errors.
+	for i := range res {
+		prev, b := loop(i), loop(i)
+		for b != prev {
+			prev = b
+			b = loop(i)
+		}
 		res[i] = b
+		fmt.Printf("%02x", b)
 	}
 	fmt.Println()
-	return res, nil
+	return res
 }
 
 // printHMACAndBreakServer prints a valid HMAC and attempts to break the server.
 func printHMACAndBreakServer(h hash.Hash, url string, buf []byte, name string) {
 	h.Reset()
 	h.Write(buf)
-
 	fmt.Printf("attempting to upload %s...\n%x\n", name, h.Sum([]byte{}))
-	sig, err := breakServer(url, buf, name, h.Size())
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	resp, err := upload(url, buf, name, hex.EncodeToString(sig))
+
+	sig := hex.EncodeToString(breakServer(url, buf, name, h.Size()))
+	resp, err := upload(url, buf, name, sig)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -233,19 +242,18 @@ func printHMACAndBreakServer(h hash.Hash, url string, buf []byte, name string) {
 }
 
 func main() {
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	defer l.Close()
-
 	key := RandomBytes(RandomRange(8, 64))
 	h := NewHMAC(sha1.New, key)
 
-	http.HandleFunc(path, insecureHandler(h))
-	go http.Serve(l, nil)
-
+	go func() {
+		log.Fatal(http.ListenAndServe(addr, NewHandler(h)))
+	}()
+	// Wait for the server.
+	if conn, err := net.DialTimeout("tcp", addr, time.Second); err != nil {
+		log.Fatal(err)
+	} else {
+		conn.Close()
+	}
 	url := fmt.Sprintf("http://%s%s", addr, path)
 	buf := new(bytes.Buffer)
 
