@@ -50,20 +50,19 @@ func XORSingleByte(dst, src []byte, b byte) {
 func breakSingleXOR(buf []byte) byte {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
-
-	var best float64
-	var key byte
-
+	var (
+		best float64
+		b    byte
+	)
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i <= 0xff; i++ {
-		b := byte(i)
-		XORSingleByte(tmp, buf, b)
+		XORSingleByte(tmp, buf, byte(i))
 		if score := scoreBytes(tmp); score > best {
 			best = score
-			key = b
+			b = byte(i)
 		}
 	}
-	return key
+	return b
 }
 
 // decryptAndPrint reads hex-encoded ciphertext and prints plaintext.

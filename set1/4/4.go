@@ -46,44 +46,43 @@ func XORSingleByte(dst, src []byte, b byte) {
 	}
 }
 
-// bestSingleXOR returns the key and highest score for a decryption attempt.
-func bestSingleXOR(buf []byte) (byte, float64) {
+// bestSingleXOR returns the score and possible key for a decryption attempt.
+func bestSingleXOR(buf []byte) (float64, byte) {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
-
-	var best float64
-	var key byte
-
+	var (
+		best float64
+		b    byte
+	)
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i <= 0xff; i++ {
-		b := byte(i)
-		XORSingleByte(tmp, buf, b)
+		XORSingleByte(tmp, buf, byte(i))
 		if score := scoreBytes(tmp); score > best {
 			best = score
-			key = b
+			b = byte(i)
 		}
 	}
-	return key, best
+	return best, b
 }
 
 // decryptAndPrint reads hex-encoded input, decrypts the single line (if any)
 // that was encrypted with single-byte XOR, and prints the message.
 func decryptAndPrint(in io.Reader) {
 	input := bufio.NewScanner(in)
-
-	var best float64
-	var buf []byte
-
+	var (
+		best float64
+		buf  []byte
+	)
 	for input.Scan() {
 		line, err := hex.DecodeString(input.Text())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		if key, score := bestSingleXOR(line); score > best {
+		if score, b := bestSingleXOR(line); score > best {
 			best = score
 			buf = make([]byte, len(line))
-			XORSingleByte(buf, line, key)
+			XORSingleByte(buf, line, b)
 		}
 	}
 	if err := input.Err(); err != nil {

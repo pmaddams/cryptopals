@@ -100,14 +100,14 @@ func encryptAndPrint(in io.Reader, b cipher.Block) {
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
 func decryptAndPrint(in io.Reader, b cipher.Block) {
 	in = base64.NewDecoder(base64.StdEncoding, in)
-	var buf []byte
-	var err error
-	if buf, err = ioutil.ReadAll(in); err != nil {
+	buf, err := ioutil.ReadAll(in)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
 	NewECBDecrypter(b).CryptBlocks(buf, buf)
-	if buf, err = PKCS7Unpad(buf, b.BlockSize()); err != nil {
+	buf, err = PKCS7Unpad(buf, b.BlockSize())
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
