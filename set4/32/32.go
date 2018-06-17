@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
@@ -23,76 +24,6 @@ const (
 	addr  = "localhost:9000"
 	path  = "/test"
 )
-
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
-	}
-	return m
-}
-
-// XORBytes produces the XOR combination of two buffers.
-func XORBytes(dst, b1, b2 []byte) int {
-	n := min(len(b1), len(b2))
-	for i := 0; i < n; i++ {
-		dst[i] = b1[i] ^ b2[i]
-	}
-	return n
-}
-
-// hmac contains data for generating a hash-based message authentication code.
-type hmac struct {
-	hash.Hash
-	ipad []byte
-	opad []byte
-	buf  *bytes.Buffer
-}
-
-// NewHMAC takes a hash and key, and returns a new HMAC hash.
-func NewHMAC(f func() hash.Hash, key []byte) hash.Hash {
-	h := f()
-	// If the key is too long, hash it.
-	if len(key) > h.BlockSize() {
-		h.Write(key)
-		key = h.Sum([]byte{})
-		h.Reset()
-	}
-	ipad := bytes.Repeat([]byte{0x36}, h.BlockSize())
-	opad := bytes.Repeat([]byte{0x5c}, h.BlockSize())
-
-	XORBytes(opad, opad, key)
-	XORBytes(ipad, ipad, key)
-
-	return &hmac{h, ipad, opad, new(bytes.Buffer)}
-}
-
-// Reset resets the hash.
-func (h *hmac) Reset() {
-	h.buf.Reset()
-}
-
-// Write writes data to the hash.
-func (h *hmac) Write(buf []byte) (int, error) {
-	return h.buf.Write(buf)
-}
-
-// Sum appends a checksum to the given buffer.
-func (h *hmac) Sum(buf []byte) []byte {
-	h.Hash.Write(h.ipad)
-	h.Hash.Write(h.buf.Bytes())
-
-	sum := h.Hash.Sum([]byte{})
-	h.Hash.Reset()
-
-	h.Hash.Write(h.opad)
-	h.Hash.Write(sum)
-
-	sum = h.Hash.Sum([]byte{})
-	h.Hash.Reset()
-
-	return append(buf, sum...)
-}
 
 // RandomRange returns a pseudo-random non-negative integer in [lo, hi].
 // The output should not be used in a security-sensitive context.
@@ -243,7 +174,7 @@ func printHMACAndBreakServer(h hash.Hash, url string, buf []byte, name string) {
 
 func main() {
 	key := RandomBytes(RandomRange(8, 64))
-	h := NewHMAC(sha1.New, key)
+	h := hmac.New(sha1.New, key)
 
 	go func() {
 		log.Fatal(http.ListenAndServe(addr, NewHandler(h)))
