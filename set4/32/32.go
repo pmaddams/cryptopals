@@ -126,15 +126,15 @@ func insecureCompare(b1, b2 []byte) bool {
 	return len(b1) == len(b2)
 }
 
-// handler contains a hash and mutex to prevent concurrent hashing.
+// handler contains a hash and mutex reference for write locking.
 type handler struct {
 	h   hash.Hash
-	mux sync.Mutex
+	mux *sync.Mutex
 }
 
 // NewHandler takes a hash and returns an insecure HTTP handler.
 func NewHandler(h hash.Hash) http.Handler {
-	return handler{h: h}
+	return handler{h, new(sync.Mutex)}
 }
 
 // ServeHTTP responds to upload requests with 200 OK if the file HMAC
@@ -195,9 +195,11 @@ func timedUpload(url string, buf []byte, name, sig string) int64 {
 // breakServer returns a valid HMAC for uploading an arbitrary file.
 func breakServer(url string, buf []byte, name string, size int) []byte {
 	res := make([]byte, size)
-	var b byte
 	loop := func(i int) byte {
-		var best int64
+		var (
+			best int64
+			b    byte
+		)
 		for j := 0; j <= 0xff; j++ {
 			res[i] = byte(j)
 			sig := hex.EncodeToString(res)
@@ -210,14 +212,10 @@ func breakServer(url string, buf []byte, name string, size int) []byte {
 	}
 	// Double-check each byte to compensate for timing errors.
 	for i := range res {
-		var (
-			ok      bool
-			prev, b byte
-		)
-		for !ok || b != prev {
+		prev, b := loop(i), loop(i)
+		for b != prev {
 			prev = b
 			b = loop(i)
-			ok = true
 		}
 		res[i] = b
 		fmt.Printf("%02x", b)
