@@ -1,16 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
-	"errors"
+	"crypto/sha256"
 	"fmt"
-	"io"
 	"math/big"
+	"os"
 	"strings"
 )
 
 const (
-	p = `ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024
+	defaultP = `ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024
 e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd
 3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec
 6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f
@@ -18,61 +19,56 @@ e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd
 c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552
 bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff
 fffffffffffff`
-	g = `2`
+	defaultG = `2`
 )
 
-// DHParameters contains a modulus and base.
-type DHParameters struct {
-	P, G *big.Int
-}
-
-// DHPublicKey contains parameters and a public key.
-type DHPublicKey struct {
-	DHParameters
-	pub *big.Int
-}
-
-// DHPrivateKey contains a public key and private key.
+// DHPrivateKey contains Diffie-Hellman parameters and a key pair.
 type DHPrivateKey struct {
-	DHPublicKey
-	priv *big.Int
+	p, g, pub, priv *big.Int
 }
 
-// DHGenerateParams initializes a set of parameters.
-func DHGenerateParams(params *DHParameters) error {
-	var ok bool
-	if params.P, ok = new(big.Int).SetString(strings.Replace(p, "\n", "", -1), 16); !ok {
-		return errors.New("DHGenerateParams: invalid parameters")
-	}
-	if params.G, ok = new(big.Int).SetString(g, 16); !ok {
-		return errors.New("DHGenerateParams: invalid parameters")
-	}
-	return nil
-}
+// DHGenerateKey takes a prime modulus and generator, and returns a private key.
+func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
+	dh := new(DHPrivateKey)
+	dh.p = new(big.Int).Set(p)
+	dh.g = new(big.Int).Set(g)
 
-// DHGenerateKey initializes a private key.
-func DHGenerateKey(priv *DHPrivateKey, r io.Reader) error {
 	var err error
-	if priv.P == nil || priv.G == nil {
-		return errors.New("DHGenerateKey: uninitialized parameters")
+	if dh.priv, err = rand.Int(rand.Reader, dh.p); err != nil {
+		panic(err)
 	}
-	if priv.priv, err = rand.Int(r, priv.P); err != nil {
-		return err
-	}
-	priv.pub = new(big.Int).Exp(priv.G, priv.priv, priv.P)
+	dh.pub = new(big.Int).Exp(dh.g, dh.priv, dh.p)
 
-	return nil
+	return dh
+}
+
+// Public returns the public key.
+func (dh *DHPrivateKey) Public() *big.Int {
+	return dh.pub
+}
+
+// Secret takes a public key and returns a shared secret.
+func (dh *DHPrivateKey) Secret(pub *big.Int) *big.Int {
+	return new(big.Int).Exp(pub, dh.priv, dh.p)
 }
 
 func main() {
-	var priv DHPrivateKey
-	if err := DHGenerateParams(&priv.DHParameters); err != nil {
-		panic(err)
+	p, ok := new(big.Int).SetString(strings.Replace(defaultP, "\n", "", -1), 16)
+	if !ok {
+		panic("invalid parameters")
 	}
-	if err := DHGenerateKey(&priv, rand.Reader); err != nil {
-		panic(err)
+	g, ok := new(big.Int).SetString(defaultG, 16)
+	if !ok {
+		panic("invalid parameters")
 	}
-	fmt.Println(priv)
-	fmt.Println(priv.priv)
-	fmt.Println(priv.pub)
+	alice, bob := DHGenerateKey(p, g), DHGenerateKey(p, g)
+
+	s1 := alice.Secret(bob.Public()).Bytes()
+	s2 := bob.Secret(alice.Public()).Bytes()
+
+	if !bytes.Equal(s1, s2) {
+		fmt.Fprintln(os.Stderr, "key exchange failed")
+		return
+	}
+	fmt.Printf("%x\n%x\n", sha256.Sum256(s1), sha256.Sum256(s2))
 }
