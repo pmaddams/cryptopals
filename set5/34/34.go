@@ -156,7 +156,6 @@ func main() {
 
 	alice.connect(mallory, alice.dh.Public())
 	mallory.accept(alice, mallory.dh.p)
-
 	mallory.connect(bob, mallory.dh.p)
 	bob.accept(mallory, bob.dh.Public())
 
@@ -165,12 +164,10 @@ func main() {
 
 	alice.send(mallory, alice.iv, []byte("hello world"))
 	mallory.send(bob, alice.iv, mallory.buf.Bytes())
-
-	fmt.Println(string(mallory.buf.Bytes()))
+	fmt.Println(mallory.buf.String())
 	mallory.buf.Reset()
 
 	bob.send(mallory, bob.iv, bob.buf.Bytes())
 	mallory.send(alice, bob.iv, mallory.buf.Bytes())
-
-	fmt.Println(string(mallory.buf.Bytes()))
+	fmt.Println(mallory.buf.String())
 }
