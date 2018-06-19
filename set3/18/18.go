@@ -14,9 +14,6 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // BytesToUint64s converts a buffer to a slice of unsigned 64-bit integers.
 func BytesToUint64s(buf []byte) []uint64 {
 	nums := make([]uint64, len(buf)/8)

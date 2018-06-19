@@ -13,9 +13,6 @@ import (
 	"unicode/utf8"
 )
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // UserData returns a string with arbitrary data inserted in the middle.
 func UserData(s string) string {
 	const (
@@ -113,7 +110,7 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 func main() {
-	key := RandomBytes(aesBlockSize)
+	key := RandomBytes(aes.BlockSize)
 	fmt.Println(strconv.Quote(string(key)))
 
 	b, err := aes.NewCipher(key)
@@ -124,7 +121,7 @@ func main() {
 	dec := cipher.NewCBCDecrypter(b, key)
 
 	ciphertext := encryptedUserData("", enc)
-	blocks := Blocks(ciphertext, aesBlockSize)
+	blocks := Blocks(ciphertext, aes.BlockSize)
 	copy(blocks[2], blocks[0])
 	clear(blocks[1])
 
@@ -138,7 +135,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	blocks = Blocks([]byte(plaintext), aesBlockSize)
+	blocks = Blocks([]byte(plaintext), aes.BlockSize)
 	XORBytes(blocks[0], blocks[0], blocks[2])
 	fmt.Println(strconv.Quote(string(blocks[0])))
 }

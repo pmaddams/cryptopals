@@ -15,9 +15,6 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // min returns the smaller of two integers.
 func min(n, m int) int {
 	if n < m {

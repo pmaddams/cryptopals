@@ -10,9 +10,6 @@ import (
 	"net/url"
 )
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // ProfileFor returns a query string identifying an email address as a user.
 func ProfileFor(email string) string {
 	return url.Values{
@@ -128,7 +125,7 @@ func decryptedRoleAdmin(buf []byte, dec cipher.BlockMode) bool {
 }
 
 func main() {
-	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
@@ -137,8 +134,8 @@ func main() {
 	toCut := encryptedProfileFor("XXXXXXXXXXadmin", enc)
 	toPaste := encryptedProfileFor("anonymous.coward@guerrillamail.com", enc)
 
-	cut := toCut[len(toCut)-aesBlockSize:]
-	paste := toPaste[:len(toPaste)-aesBlockSize]
+	cut := toCut[len(toCut)-aes.BlockSize:]
+	paste := toPaste[:len(toPaste)-aes.BlockSize]
 	if decryptedRoleAdmin(append(paste, cut...), dec) {
 		fmt.Println("success")
 	}

@@ -11,9 +11,6 @@ import (
 	"strings"
 )
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // UserData returns a string with arbitrary data inserted in the middle.
 func UserData(s string) string {
 	const (
@@ -125,7 +122,7 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 func main() {
-	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
@@ -139,7 +136,7 @@ func main() {
 	XORBytes(data, data, mask)
 
 	buf := encryptedUserData(string(data), enc)
-	target := buf[aesBlockSize : 2*aesBlockSize]
+	target := buf[aes.BlockSize : 2*aes.BlockSize]
 	XORBytes(target, target, mask)
 
 	if decryptedAdminTrue(buf, dec) {

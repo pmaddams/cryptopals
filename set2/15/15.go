@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/aes"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,9 +11,6 @@ import (
 	"os"
 	"strconv"
 )
-
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
 
 // PKCS7Unpad returns a buffer with PKCS#7 padding removed.
 func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
@@ -57,7 +55,7 @@ func unpadAndPrint(in io.Reader, blockSize int) {
 
 func main() {
 	var blockSize int
-	flag.IntVar(&blockSize, "b", aesBlockSize, "block size")
+	flag.IntVar(&blockSize, "b", aes.BlockSize, "block size")
 	flag.Parse()
 	if blockSize <= 0 || blockSize > 0xff {
 		fmt.Fprintln(os.Stderr, "invalid block size")

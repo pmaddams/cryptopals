@@ -2,14 +2,12 @@ package main
 
 import (
 	"bufio"
+	"crypto/aes"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 )
-
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
 
 // Blocks divides a buffer into blocks.
 func Blocks(buf []byte, n int) [][]byte {
@@ -45,7 +43,7 @@ func detectAndPrintECB(in io.Reader) {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		if IdenticalBlocks(line, aesBlockSize) {
+		if IdenticalBlocks(line, aes.BlockSize) {
 			fmt.Println(hex.EncodeToString(line))
 		}
 	}

@@ -15,9 +15,6 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // ecbDecrypter embeds cipher.Block, hiding its methods.
 type ecbDecrypter struct{ b cipher.Block }
 
@@ -93,11 +90,11 @@ func RandomBytes(n int) []byte {
 
 // NewCTREditor takes a buffer and creates a CTREditor with a random key.
 func NewCTREditor(buf []byte) (*CTREditor, error) {
-	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		return nil, err
 	}
-	iv := RandomBytes(aesBlockSize)
+	iv := RandomBytes(aes.BlockSize)
 	stream := cipher.NewCTR(b, iv)
 	stream.XORKeyStream(buf, buf)
 

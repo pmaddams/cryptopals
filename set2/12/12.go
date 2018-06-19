@@ -17,9 +17,6 @@ aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq
 dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
 YnkK`
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // ecbEncrypter embeds cipher.Block, hiding its methods.
 type ecbEncrypter struct{ b cipher.Block }
 
@@ -85,7 +82,7 @@ func dup(buf []byte) []byte {
 
 // ecbEncryptionOracle returns an ECB encryption oracle function.
 func ecbEncryptionOracle() func([]byte) []byte {
-	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
@@ -120,7 +117,7 @@ func (x *ecbBreaker) detectParameters() error {
 	probe := []byte{}
 	initLen := len(x.oracle(probe))
 	for padLen := 0; ; padLen++ {
-		if padLen > aesBlockSize {
+		if padLen > aes.BlockSize {
 			return errors.New("detectParameters: block size greater than 16")
 		}
 		probe = append(probe, x.a)

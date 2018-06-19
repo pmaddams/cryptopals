@@ -15,9 +15,6 @@ import (
 	"sync"
 )
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // sample is a file with symbol frequencies similar to the expected plaintext.
 const sample = "alice.txt"
 
@@ -227,7 +224,7 @@ func init() {
 }
 
 func main() {
-	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}

@@ -14,9 +14,6 @@ import (
 	"time"
 )
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // randomLine returns a random line from a file containing base64-encoded strings.
 func randomLine(filename string) ([]byte, error) {
 	f, err := os.Open(filename)
@@ -218,7 +215,7 @@ func (x *cbcBreaker) breakOracle() ([]byte, error) {
 }
 
 func main() {
-	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	iv, ciphertext, err := encryptedRandomLine("17.txt", b)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

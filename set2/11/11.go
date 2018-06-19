@@ -10,9 +10,6 @@ import (
 	"time"
 )
 
-// AES always has a block size of 128 bits (16 bytes).
-const aesBlockSize = 16
-
 // ecbEncrypter embeds cipher.Block, hiding its methods.
 type ecbEncrypter struct{ b cipher.Block }
 
@@ -58,7 +55,7 @@ func RandomBytes(n int) []byte {
 
 // RandomEncrypter returns either ECB or CBC encryption mode with a random key.
 func RandomEncrypter() cipher.BlockMode {
-	b, err := aes.NewCipher(RandomBytes(aesBlockSize))
+	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
@@ -124,12 +121,12 @@ func IdenticalBlocks(buf []byte, blockSize int) bool {
 
 // ecbProbe returns a buffer that can be used to detect ECB mode.
 func ecbProbe() []byte {
-	return bytes.Repeat([]byte{'a'}, 3*aesBlockSize)
+	return bytes.Repeat([]byte{'a'}, 3*aes.BlockSize)
 }
 
 // detectECB returns true if the mode oracle is using ECB mode.
 func detectECB(oracle func([]byte) []byte) bool {
-	return IdenticalBlocks(oracle(ecbProbe()), aesBlockSize)
+	return IdenticalBlocks(oracle(ecbProbe()), aes.BlockSize)
 }
 
 func main() {
