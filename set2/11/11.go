@@ -11,16 +11,16 @@ import (
 )
 
 // ecbEncrypter embeds cipher.Block, hiding its methods.
-type ecbEncrypter struct{ b cipher.Block }
+type ecbEncrypter struct{ c cipher.Block }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{b}
+func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{c}
 }
 
 // BlockSize returns the block size of the cipher.
 func (mode ecbEncrypter) BlockSize() int {
-	return mode.b.BlockSize()
+	return mode.c.BlockSize()
 }
 
 // CryptBlocks encrypts a buffer in ECB mode.
@@ -28,7 +28,7 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 	// The src buffer length must be a multiple of the block size,
 	// and the dst buffer must be at least the length of src.
 	for n := mode.BlockSize(); len(src) > 0; {
-		mode.b.Encrypt(dst[:n], src[:n])
+		mode.c.Encrypt(dst[:n], src[:n])
 		dst = dst[n:]
 		src = src[n:]
 	}
@@ -55,15 +55,15 @@ func RandomBytes(n int) []byte {
 
 // RandomEncrypter returns either ECB or CBC encryption mode with a random key.
 func RandomEncrypter() cipher.BlockMode {
-	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
 	switch RandomRange(0, 1) {
 	case 0:
-		return NewECBEncrypter(b)
+		return NewECBEncrypter(c)
 	default:
-		return cipher.NewCBCEncrypter(b, RandomBytes(b.BlockSize()))
+		return cipher.NewCBCEncrypter(c, RandomBytes(c.BlockSize()))
 	}
 }
 

@@ -16,11 +16,11 @@ import (
 const secret = "YELLOW SUBMARINE"
 
 // ecb embeds cipher.Block, hiding its methods.
-type ecb struct{ b cipher.Block }
+type ecb struct{ c cipher.Block }
 
 // BlockSize returns the block size of the cipher.
 func (x ecb) BlockSize() int {
-	return x.b.BlockSize()
+	return x.c.BlockSize()
 }
 
 // cryptBlocks encrypts or decrypts a buffer in ECB mode.
@@ -38,26 +38,26 @@ func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
 type ecbEncrypter struct{ ecb }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{ecb{b}}
+func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{ecb{c}}
 }
 
 // ecbEncrypter.CryptBlocks encrypts a buffer in ECB mode.
 func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
-	mode.cryptBlocks(dst, src, mode.b.Encrypt)
+	mode.cryptBlocks(dst, src, mode.c.Encrypt)
 }
 
 // ecbDecrypter embeds ecb.
 type ecbDecrypter struct{ ecb }
 
 // NewECBDecrypter returns a block mode for ECB decryption.
-func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
-	return ecbDecrypter{ecb{b}}
+func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
+	return ecbDecrypter{ecb{c}}
 }
 
 // ecbDecrypter.CryptBlocks decrypts a buffer in ECB mode.
 func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
-	mode.cryptBlocks(dst, src, mode.b.Decrypt)
+	mode.cryptBlocks(dst, src, mode.c.Decrypt)
 }
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
@@ -86,27 +86,27 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 }
 
 // encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func encryptAndPrint(in io.Reader, b cipher.Block) {
+func encryptAndPrint(in io.Reader, c cipher.Block) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	buf = PKCS7Pad(buf, b.BlockSize())
-	NewECBEncrypter(b).CryptBlocks(buf, buf)
+	buf = PKCS7Pad(buf, c.BlockSize())
+	NewECBEncrypter(c).CryptBlocks(buf, buf)
 	fmt.Println(base64.StdEncoding.EncodeToString(buf))
 }
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, b cipher.Block) {
+func decryptAndPrint(in io.Reader, c cipher.Block) {
 	in = base64.NewDecoder(base64.StdEncoding, in)
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	NewECBDecrypter(b).CryptBlocks(buf, buf)
-	buf, err = PKCS7Unpad(buf, b.BlockSize())
+	NewECBDecrypter(c).CryptBlocks(buf, buf)
+	buf, err = PKCS7Unpad(buf, c.BlockSize())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -117,7 +117,7 @@ func decryptAndPrint(in io.Reader, b cipher.Block) {
 var e = flag.Bool("e", false, "encrypt")
 
 func main() {
-	b, err := aes.NewCipher([]byte(secret))
+	c, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
@@ -126,9 +126,9 @@ func main() {
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if *e {
-			encryptAndPrint(os.Stdin, b)
+			encryptAndPrint(os.Stdin, c)
 		} else {
-			decryptAndPrint(os.Stdin, b)
+			decryptAndPrint(os.Stdin, c)
 		}
 	}
 	for _, name := range files {
@@ -138,9 +138,9 @@ func main() {
 			continue
 		}
 		if *e {
-			encryptAndPrint(f, b)
+			encryptAndPrint(f, c)
 		} else {
-			decryptAndPrint(f, b)
+			decryptAndPrint(f, c)
 		}
 		f.Close()
 	}

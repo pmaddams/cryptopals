@@ -20,16 +20,16 @@ dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
 YnkK`
 
 // ecbEncrypter embeds cipher.Block, hiding its methods.
-type ecbEncrypter struct{ b cipher.Block }
+type ecbEncrypter struct{ c cipher.Block }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{b}
+func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{c}
 }
 
 // BlockSize returns the block size of the cipher.
 func (mode ecbEncrypter) BlockSize() int {
-	return mode.b.BlockSize()
+	return mode.c.BlockSize()
 }
 
 // CryptBlocks encrypts a buffer in ECB mode.
@@ -37,7 +37,7 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 	// The src buffer length must be a multiple of the block size,
 	// and the dst buffer must be at least the length of src.
 	for n := mode.BlockSize(); len(src) > 0; {
-		mode.b.Encrypt(dst[:n], src[:n])
+		mode.c.Encrypt(dst[:n], src[:n])
 		dst = dst[n:]
 		src = src[n:]
 	}
@@ -94,11 +94,11 @@ func dup(buf []byte) []byte {
 
 // ecbEncryptionOracleWithPrefix returns an ECB encryption oracle function with prefix.
 func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
-	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
-	mode := NewECBEncrypter(b)
+	mode := NewECBEncrypter(c)
 	prefix := RandomBytes(RandomRange(5, 10))
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {

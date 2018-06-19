@@ -34,13 +34,13 @@ func XORBytes(dst, b1, b2 []byte) int {
 
 // cbc contains a block cipher and initialization vector.
 type cbc struct {
-	b  cipher.Block
+	c  cipher.Block
 	iv []byte
 }
 
 // BlockSize returns the block size of the cipher.
 func (x cbc) BlockSize() int {
-	return x.b.BlockSize()
+	return x.c.BlockSize()
 }
 
 // cbcEncrypter embeds cbc.
@@ -52,11 +52,11 @@ func dup(buf []byte) []byte {
 }
 
 // NewCBCEncrypter returns a block mode for CBC encryption.
-func NewCBCEncrypter(b cipher.Block, iv []byte) cipher.BlockMode {
-	if b.BlockSize() != len(iv) {
+func NewCBCEncrypter(c cipher.Block, iv []byte) cipher.BlockMode {
+	if c.BlockSize() != len(iv) {
 		panic("NewCBCEncrypter: initialization vector length must equal block size")
 	}
-	return cbcEncrypter{cbc{b, dup(iv)}}
+	return cbcEncrypter{cbc{c, dup(iv)}}
 }
 
 // cbcEncrypter.CryptBlocks encrypts a buffer in CBC mode.
@@ -65,7 +65,7 @@ func (mode cbcEncrypter) CryptBlocks(dst, src []byte) {
 	// and the dst buffer must be at least the length of src.
 	for n := mode.BlockSize(); len(src) > 0; {
 		XORBytes(dst, src, mode.iv)
-		mode.b.Encrypt(dst[:n], src[:n])
+		mode.c.Encrypt(dst[:n], src[:n])
 		copy(mode.iv, dst[:n])
 		dst, src = dst[n:], src[n:]
 	}
@@ -75,11 +75,11 @@ func (mode cbcEncrypter) CryptBlocks(dst, src []byte) {
 type cbcDecrypter struct{ cbc }
 
 // NewCBCDecrypter returns a block mode for CBC decryption.
-func NewCBCDecrypter(b cipher.Block, iv []byte) cipher.BlockMode {
-	if b.BlockSize() != len(iv) {
+func NewCBCDecrypter(c cipher.Block, iv []byte) cipher.BlockMode {
+	if c.BlockSize() != len(iv) {
 		panic("NewCBCDecrypter: initialization vector length must equal block size")
 	}
-	return cbcDecrypter{cbc{b, iv}}
+	return cbcDecrypter{cbc{c, iv}}
 }
 
 // cbcDecrypter.CryptBlocks decrypts a buffer in CBC mode.
@@ -92,7 +92,7 @@ func (mode cbcDecrypter) CryptBlocks(dst, src []byte) {
 	for len(src) > 0 {
 		// Save the ciphertext as the new initialization vector.
 		copy(tmp, src[:n])
-		mode.b.Decrypt(dst[:n], src[:n])
+		mode.c.Decrypt(dst[:n], src[:n])
 		XORBytes(dst, dst, mode.iv)
 		copy(mode.iv, tmp)
 		dst, src = dst[n:], src[n:]
@@ -154,21 +154,21 @@ func decryptAndPrint(in io.Reader, mode cipher.BlockMode) {
 var e = flag.Bool("e", false, "encrypt")
 
 func main() {
-	b, err := aes.NewCipher([]byte(secret))
+	c, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		panic(err)
 	}
-	iv := make([]byte, b.BlockSize())
+	iv := make([]byte, c.BlockSize())
 
 	flag.Parse()
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if *e {
-			mode := NewCBCEncrypter(b, iv)
+			mode := NewCBCEncrypter(c, iv)
 			encryptAndPrint(os.Stdin, mode)
 		} else {
-			mode := NewCBCDecrypter(b, iv)
+			mode := NewCBCDecrypter(c, iv)
 			decryptAndPrint(os.Stdin, mode)
 		}
 	}
@@ -179,10 +179,10 @@ func main() {
 			continue
 		}
 		if *e {
-			mode := NewCBCEncrypter(b, iv)
+			mode := NewCBCEncrypter(c, iv)
 			encryptAndPrint(f, mode)
 		} else {
-			mode := NewCBCDecrypter(b, iv)
+			mode := NewCBCDecrypter(c, iv)
 			decryptAndPrint(f, mode)
 		}
 		f.Close()

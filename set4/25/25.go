@@ -16,16 +16,16 @@ import (
 const secret = "YELLOW SUBMARINE"
 
 // ecbDecrypter embeds cipher.Block, hiding its methods.
-type ecbDecrypter struct{ b cipher.Block }
+type ecbDecrypter struct{ c cipher.Block }
 
 // NewECBDecrypter returns a block mode for ECB Decryption.
-func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
-	return ecbDecrypter{b}
+func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
+	return ecbDecrypter{c}
 }
 
 // BlockSize returns the block size of the cipher.
 func (mode ecbDecrypter) BlockSize() int {
-	return mode.b.BlockSize()
+	return mode.c.BlockSize()
 }
 
 // CryptBlocks decrypts a buffer in ECB mode.
@@ -33,7 +33,7 @@ func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
 	// The src buffer length must be a multiple of the block size,
 	// and the dst buffer must be at least the length of src.
 	for n := mode.BlockSize(); len(src) > 0; {
-		mode.b.Decrypt(dst[:n], src[:n])
+		mode.c.Decrypt(dst[:n], src[:n])
 		dst = dst[n:]
 		src = src[n:]
 	}
@@ -60,12 +60,12 @@ func decryptECB(in io.Reader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, err := aes.NewCipher([]byte(secret))
+	c, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		return nil, err
 	}
-	NewECBDecrypter(b).CryptBlocks(buf, buf)
-	buf, err = PKCS7Unpad(buf, b.BlockSize())
+	NewECBDecrypter(c).CryptBlocks(buf, buf)
+	buf, err = PKCS7Unpad(buf, c.BlockSize())
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func decryptECB(in io.Reader) ([]byte, error) {
 
 // CTREditor permits random-access CTR editing.
 type CTREditor struct {
-	b          cipher.Block
+	c          cipher.Block
 	iv         []byte
 	ciphertext []byte
 }
@@ -90,15 +90,15 @@ func RandomBytes(n int) []byte {
 
 // NewCTREditor takes a buffer and creates a CTREditor with a random key.
 func NewCTREditor(buf []byte) (*CTREditor, error) {
-	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		return nil, err
 	}
 	iv := RandomBytes(aes.BlockSize)
-	stream := cipher.NewCTR(b, iv)
+	stream := cipher.NewCTR(c, iv)
 	stream.XORKeyStream(buf, buf)
 
-	return &CTREditor{b, iv, buf}, nil
+	return &CTREditor{c, iv, buf}, nil
 }
 
 // Edit takes new plaintext and an offset, and edits the ciphertext.
@@ -107,7 +107,7 @@ func (e *CTREditor) Edit(plaintext []byte, offset int) error {
 		return errors.New("Edit: invalid offset")
 	}
 	// Decrypt before copying the new data.
-	stream := cipher.NewCTR(e.b, e.iv)
+	stream := cipher.NewCTR(e.c, e.iv)
 	stream.XORKeyStream(e.ciphertext, e.ciphertext)
 
 	if len(e.ciphertext) < offset+len(plaintext) {
@@ -118,7 +118,7 @@ func (e *CTREditor) Edit(plaintext []byte, offset int) error {
 	target := e.ciphertext[offset : offset+len(plaintext)]
 
 	// Regenerate the stream cipher.
-	stream = cipher.NewCTR(e.b, e.iv)
+	stream = cipher.NewCTR(e.c, e.iv)
 	stream.XORKeyStream(target, target)
 	return nil
 }

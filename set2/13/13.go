@@ -28,11 +28,11 @@ func RoleAdmin(query string) bool {
 }
 
 // ecb embeds cipher.Block, hiding its methods.
-type ecb struct{ b cipher.Block }
+type ecb struct{ c cipher.Block }
 
 // BlockSize returns the block size of the cipher.
 func (x ecb) BlockSize() int {
-	return x.b.BlockSize()
+	return x.c.BlockSize()
 }
 
 // cryptBlocks encrypts or decrypts a buffer in ECB mode.
@@ -50,26 +50,26 @@ func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
 type ecbEncrypter struct{ ecb }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{ecb{b}}
+func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{ecb{c}}
 }
 
 // ecbEncrypter.CryptBlocks encrypts a buffer in ECB mode.
 func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
-	mode.cryptBlocks(dst, src, mode.b.Encrypt)
+	mode.cryptBlocks(dst, src, mode.c.Encrypt)
 }
 
 // ecbDecrypter embeds ecb.
 type ecbDecrypter struct{ ecb }
 
 // NewECBDecrypter returns a block mode for ECB decryption.
-func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
-	return ecbDecrypter{ecb{b}}
+func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
+	return ecbDecrypter{ecb{c}}
 }
 
 // ecbDecrypter.CryptBlocks decrypts a buffer in ECB mode.
 func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
-	mode.cryptBlocks(dst, src, mode.b.Decrypt)
+	mode.cryptBlocks(dst, src, mode.c.Decrypt)
 }
 
 // RandomBytes returns a random buffer of the desired length.
@@ -125,11 +125,11 @@ func decryptedRoleAdmin(buf []byte, dec cipher.BlockMode) bool {
 }
 
 func main() {
-	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
-	enc, dec := NewECBEncrypter(b), NewECBDecrypter(b)
+	enc, dec := NewECBEncrypter(c), NewECBDecrypter(c)
 
 	toCut := encryptedProfileFor("XXXXXXXXXXadmin", enc)
 	toPaste := encryptedProfileFor("anonymous.coward@guerrillamail.com", enc)

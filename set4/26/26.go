@@ -38,16 +38,16 @@ func RandomBytes(n int) []byte {
 }
 
 // encryptedUserData returns an encrypted string with arbitrary data inserted in the middle.
-func encryptedUserData(s string, b cipher.Block, iv []byte) []byte {
+func encryptedUserData(s string, c cipher.Block, iv []byte) []byte {
 	buf := []byte(UserData(s))
-	cipher.NewCTR(b, iv).XORKeyStream(buf, buf)
+	cipher.NewCTR(c, iv).XORKeyStream(buf, buf)
 	return buf
 }
 
 // decryptedAdminTrue returns true if a decrypted semicolon-separated string contains "admin=true".
-func decryptedAdminTrue(buf []byte, b cipher.Block, iv []byte) bool {
+func decryptedAdminTrue(buf []byte, c cipher.Block, iv []byte) bool {
 	tmp := make([]byte, len(buf))
-	cipher.NewCTR(b, iv).XORKeyStream(tmp, buf)
+	cipher.NewCTR(c, iv).XORKeyStream(tmp, buf)
 	return AdminTrue(string(tmp))
 }
 
@@ -91,21 +91,21 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 func main() {
-	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
-	iv := RandomBytes(b.BlockSize())
+	iv := RandomBytes(c.BlockSize())
 
 	data := []byte("XXXXX;admin=true")
 	mask := xorMask(data)
 	XORBytes(data, data, mask)
 
-	buf := encryptedUserData(string(data), b, iv)
+	buf := encryptedUserData(string(data), c, iv)
 	target := buf[2*aes.BlockSize : 3*aes.BlockSize]
 	XORBytes(target, target, mask)
 
-	if decryptedAdminTrue(buf, b, iv) {
+	if decryptedAdminTrue(buf, c, iv) {
 		fmt.Println("success")
 	}
 }

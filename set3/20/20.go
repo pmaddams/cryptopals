@@ -157,7 +157,7 @@ func RandomBytes(n int) []byte {
 }
 
 // decodeAndEncrypt reads lines of base64-encoded text and encrypts them with an identical CTR keystream.
-func decodeAndEncrypt(in io.Reader, b cipher.Block, iv []byte) ([][]byte, error) {
+func decodeAndEncrypt(in io.Reader, c cipher.Block, iv []byte) ([][]byte, error) {
 	input := bufio.NewScanner(in)
 	var res [][]byte
 	for input.Scan() {
@@ -165,7 +165,7 @@ func decodeAndEncrypt(in io.Reader, b cipher.Block, iv []byte) ([][]byte, error)
 		if err != nil {
 			return nil, err
 		}
-		stream := cipher.NewCTR(b, iv)
+		stream := cipher.NewCTR(c, iv)
 		stream.XORKeyStream(line, line)
 		res = append(res, line)
 	}
@@ -224,16 +224,16 @@ func init() {
 }
 
 func main() {
-	b, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
-	iv := RandomBytes(b.BlockSize())
+	iv := RandomBytes(c.BlockSize())
 
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		lines, err := decodeAndEncrypt(os.Stdin, b, iv)
+		lines, err := decodeAndEncrypt(os.Stdin, c, iv)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -246,7 +246,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		lines, err := decodeAndEncrypt(f, b, iv)
+		lines, err := decodeAndEncrypt(f, c, iv)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
