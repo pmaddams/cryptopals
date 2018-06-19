@@ -3,8 +3,11 @@ package main
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha1"
+	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 )
@@ -60,6 +63,36 @@ func RandomBytes(n int) []byte {
 	return res
 }
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
+func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
+	}
+	// Find the number (and value) of padding bytes.
+	n := blockSize - (len(buf) % blockSize)
+
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
+}
+
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	if len(buf) < blockSize {
+		return nil, errors.New("PKCS7Unpad: invalid padding")
+	}
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	if int(b) == 0 || int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
+		return nil, errors.New("PKCS7Unpad: invalid padding")
+	}
+	return dup(buf)[:len(buf)-int(b)], nil
+}
+
 type bot struct {
 	dh  *DHPrivateKey
 	key []byte
@@ -67,7 +100,11 @@ type bot struct {
 	buf *bytes.Buffer
 }
 
-func (sender *bot) Connect(receiver *bot, pub *big.Int) {
+func newBot() *bot {
+	return &bot{buf: new(bytes.Buffer)}
+}
+
+func (sender *bot) connect(receiver *bot, pub *big.Int) {
 	receiver.dh = DHGenerateKey(sender.dh.p, sender.dh.g)
 
 	receiver.key = make([]byte, aes.BlockSize)
@@ -77,7 +114,7 @@ func (sender *bot) Connect(receiver *bot, pub *big.Int) {
 	receiver.iv = RandomBytes(aes.BlockSize)
 }
 
-func (sender *bot) Accept(receiver *bot, pub *big.Int) {
+func (sender *bot) accept(receiver *bot, pub *big.Int) {
 	receiver.key = make([]byte, aes.BlockSize)
 	array := sha1.Sum(receiver.dh.Secret(pub))
 	copy(receiver.key, array[:])
@@ -85,7 +122,24 @@ func (sender *bot) Accept(receiver *bot, pub *big.Int) {
 	receiver.iv = RandomBytes(aes.BlockSize)
 }
 
-func (sender *bot) Send(receiver *bot, iv, msg []byte) {
+func (sender *bot) send(receiver *bot, iv, msg []byte) {
+	c1, err := aes.NewCipher(sender.key)
+	if err != nil {
+		panic(err)
+	}
+	msg = PKCS7Pad(msg, c1.BlockSize())
+	cipher.NewCBCEncrypter(c1, iv).CryptBlocks(msg, msg)
+
+	c2, err := aes.NewCipher(receiver.key)
+	if err != nil {
+		panic(err)
+	}
+	cipher.NewCBCDecrypter(c2, iv).CryptBlocks(msg, msg)
+	msg, err = PKCS7Unpad(msg, c2.BlockSize())
+	if err != nil {
+		panic(err)
+	}
+	receiver.buf.Write(msg)
 }
 
 func main() {
@@ -97,9 +151,12 @@ func main() {
 	if !ok {
 		panic("invalid parameters")
 	}
-	alice, bob := new(bot), new(bot)
+	alice, bob := newBot(), newBot()
 	alice.dh = DHGenerateKey(p, g)
 
-	alice.Connect(bob, alice.dh.Public())
-	bob.Accept(alice, bob.dh.Public())
+	alice.connect(bob, alice.dh.Public())
+	bob.accept(alice, bob.dh.Public())
+	alice.send(bob, alice.iv, []byte("hello world"))
+
+	fmt.Println(string(bob.buf.Bytes()))
 }
