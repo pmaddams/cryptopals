@@ -62,6 +62,11 @@ func RandomBytes(n int) []byte {
 	return res
 }
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
 	if blockSize < 0 || blockSize > 0xff {
@@ -70,7 +75,7 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	// Find the number (and value) of padding bytes.
 	n := blockSize - (len(buf) % blockSize)
 
-	return append(buf, bytes.Repeat([]byte{byte(n)}, n)...)
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
 }
 
 // PKCS7Unpad returns a buffer with PKCS#7 padding removed.
@@ -84,12 +89,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
 		return nil, errors.New("PKCS7Unpad: invalid padding")
 	}
-	return buf[:len(buf)-int(b)], nil
-}
-
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
+	return dup(buf)[:len(buf)-int(b)], nil
 }
 
 // ecbEncryptionOracleWithPrefix returns an ECB encryption oracle function with prefix.
@@ -105,7 +105,7 @@ func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
 		panic(err)
 	}
 	return func(buf []byte) []byte {
-		buf = append(prefix, append(dup(buf), decoded...)...)
+		buf = append(prefix, append(buf, decoded...)...)
 		buf = PKCS7Pad(buf, mode.BlockSize())
 		mode.CryptBlocks(buf, buf)
 		return buf

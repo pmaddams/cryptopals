@@ -39,6 +39,11 @@ func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
 // PKCS7Unpad returns a buffer with PKCS#7 padding removed.
 func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	if len(buf) < blockSize {
@@ -50,7 +55,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
 		return nil, errors.New("PKCS7Unpad: invalid padding")
 	}
-	return buf[:len(buf)-int(b)], nil
+	return dup(buf)[:len(buf)-int(b)], nil
 }
 
 // decryptECB takes base64-encoded, ECB-encrypted input and returns the plaintext.

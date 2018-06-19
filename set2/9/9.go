@@ -10,11 +10,20 @@ import (
 	"strconv"
 )
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
+	}
+	// Find the number (and value) of padding bytes.
 	n := blockSize - (len(buf) % blockSize)
 
-	return append(buf, bytes.Repeat([]byte{byte(n)}, n)...)
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
 }
 
 // padAndPrint reads lines of text and displays them with PKCS#7 padding added.

@@ -60,6 +60,11 @@ func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
 	mode.cryptBlocks(dst, src, mode.c.Decrypt)
 }
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
 	if blockSize < 0 || blockSize > 0xff {
@@ -68,7 +73,7 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	// Find the number (and value) of padding bytes.
 	n := blockSize - (len(buf) % blockSize)
 
-	return append(buf, bytes.Repeat([]byte{byte(n)}, n)...)
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
 }
 
 // PKCS7Unpad returns a buffer with PKCS#7 padding removed.
@@ -82,7 +87,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
 		return nil, errors.New("PKCS7Unpad: invalid padding")
 	}
-	return buf[:len(buf)-int(b)], nil
+	return dup(buf)[:len(buf)-int(b)], nil
 }
 
 // encryptAndPrint reads plaintext and prints base64-encoded ciphertext.

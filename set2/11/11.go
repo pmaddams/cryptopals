@@ -67,6 +67,11 @@ func RandomEncrypter() cipher.BlockMode {
 	}
 }
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
 	if blockSize < 0 || blockSize > 0xff {
@@ -75,12 +80,7 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	// Find the number (and value) of padding bytes.
 	n := blockSize - (len(buf) % blockSize)
 
-	return append(buf, bytes.Repeat([]byte{byte(n)}, n)...)
-}
-
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
 }
 
 // ecbModeOracle returns an ECB/CBC mode oracle function.
@@ -88,7 +88,7 @@ func ecbModeOracle(mode cipher.BlockMode) func([]byte) []byte {
 	prefix := RandomBytes(RandomRange(5, 10))
 	suffix := RandomBytes(RandomRange(5, 10))
 	return func(buf []byte) []byte {
-		buf = append(prefix, append(dup(buf), suffix...)...)
+		buf = append(prefix, append(buf, suffix...)...)
 		buf = PKCS7Pad(buf, mode.BlockSize())
 		mode.CryptBlocks(buf, buf)
 		return buf
