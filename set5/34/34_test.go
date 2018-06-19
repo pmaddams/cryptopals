@@ -16,14 +16,13 @@ func TestSecret(t *testing.T) {
 	if !ok {
 		panic("invalid parameters")
 	}
-	for i := 0; i < 5; i++ {
-		a, b := DHGenerateKey(p, g), DHGenerateKey(p, g)
+	a, b := DHGenerateKey(p, g), DHGenerateKey(p, g)
 
-		s1 := a.Secret(b.Public())
-		s2 := b.Secret(a.Public())
+	s1 := a.Secret(b.Public())
+	s2 := b.Secret(a.Public())
 
-		if !bytes.Equal(s1, s2) {
-			t.Errorf(`Secrets not equal:
+	if !bytes.Equal(s1, s2) {
+		t.Errorf(`Secrets not equal:
 p = %x
 g = %x
 a = %x
@@ -32,7 +31,6 @@ b = %x
 B = %x
 (B^a)%%p = %x
 (A^b)%%p = %x`,
-				p, g, a.priv, a.pub, b.priv, b.pub, s1, s2)
-		}
+			p, g, a.priv, a.pub, b.priv, b.pub, s1, s2)
 	}
 }
