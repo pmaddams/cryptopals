@@ -151,12 +151,26 @@ func main() {
 	if !ok {
 		panic("invalid parameters")
 	}
-	alice, bob := newBot(), newBot()
+	alice, bob, mallory := newBot(), newBot(), newBot()
 	alice.dh = DHGenerateKey(p, g)
 
-	alice.connect(bob, alice.dh.Public())
-	bob.accept(alice, bob.dh.Public())
-	alice.send(bob, alice.iv, []byte("hello world"))
+	alice.connect(mallory, alice.dh.Public())
+	mallory.accept(alice, mallory.dh.p)
 
-	fmt.Println(string(bob.buf.Bytes()))
+	mallory.connect(bob, mallory.dh.p)
+	bob.accept(mallory, bob.dh.Public())
+
+	array := sha1.Sum([]byte{})
+	copy(mallory.key, array[:])
+
+	alice.send(mallory, alice.iv, []byte("hello world"))
+	mallory.send(bob, alice.iv, mallory.buf.Bytes())
+
+	fmt.Println(string(mallory.buf.Bytes()))
+	mallory.buf.Reset()
+
+	bob.send(mallory, bob.iv, bob.buf.Bytes())
+	mallory.send(alice, bob.iv, mallory.buf.Bytes())
+
+	fmt.Println(string(mallory.buf.Bytes()))
 }
