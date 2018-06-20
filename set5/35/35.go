@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -13,7 +14,7 @@ import (
 )
 
 const (
-	defaultP = `ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024
+	defaultPrime = `ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024
 e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd
 3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec
 6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f
@@ -21,44 +22,41 @@ e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd
 c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552
 bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff
 fffffffffffff`
-	defaultG = `2`
+	defaultGenerator = `2`
 )
 
 var (
-	zero      *big.Int
-	one       *big.Int
-	p         *big.Int
-	pMinusOne *big.Int
+	zero          *big.Int
+	one           *big.Int
+	prime         *big.Int
+	primeMinusOne *big.Int
+	generator     *big.Int
 )
 
-// DHPrivateKey contains Diffie-Hellman parameters and a key pair.
+// DHPrivateKey contains a key pair.
 type DHPrivateKey struct {
-	p, g, pub, priv *big.Int
+	pub crypto.PublicKey
+	n   *big.Int
 }
 
-// DHGenerateKey takes a prime modulus and generator, and returns a private key.
-func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	dh := new(DHPrivateKey)
-	dh.p = new(big.Int).Set(p)
-	dh.g = new(big.Int).Set(g)
-
-	var err error
-	if dh.priv, err = rand.Int(rand.Reader, dh.p); err != nil {
+// DHGenerateKey generates a key pair.
+func DHGenerateKey() *DHPrivateKey {
+	n, err := rand.Int(rand.Reader, prime)
+	if err != nil {
 		panic(err)
 	}
-	dh.pub = new(big.Int).Exp(dh.g, dh.priv, dh.p)
-
-	return dh
+	pub := crypto.PublicKey(new(big.Int).Exp(generator, n, prime))
+	return &DHPrivateKey{pub, n}
 }
 
 // Public returns the public key.
-func (dh *DHPrivateKey) Public() *big.Int {
-	return dh.pub
+func (priv *DHPrivateKey) Public() crypto.PublicKey {
+	return priv.pub
 }
 
 // Secret takes a public key and returns a shared secret.
-func (dh *DHPrivateKey) Secret(pub *big.Int) []byte {
-	return new(big.Int).Exp(pub, dh.priv, dh.p).Bytes()
+func (priv *DHPrivateKey) Secret(pub crypto.PublicKey) []byte {
+	return new(big.Int).Exp(pub.(*big.Int), priv.n, prime).Bytes()
 }
 
 // RandomBytes returns a random buffer of the desired length.
@@ -100,6 +98,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return dup(buf)[:len(buf)-int(b)], nil
 }
 
+// bot contains contains data for simulating a man-in-the-middle attack.
 type bot struct {
 	*DHPrivateKey
 	key []byte
@@ -107,12 +106,14 @@ type bot struct {
 	buf *bytes.Buffer
 }
 
+// newBot returns a bot.
 func newBot() *bot {
 	return &bot{buf: new(bytes.Buffer)}
 }
 
-func (sender *bot) connect(receiver *bot, pub *big.Int) {
-	receiver.DHPrivateKey = DHGenerateKey(sender.p, sender.g)
+// connect initiates Diffie-Hellman key exchange from one bot to another.
+func (sender *bot) connect(receiver *bot, pub crypto.PublicKey) {
+	receiver.DHPrivateKey = DHGenerateKey()
 
 	receiver.key = make([]byte, aes.BlockSize)
 	array := sha1.Sum(receiver.Secret(pub))
@@ -121,7 +122,8 @@ func (sender *bot) connect(receiver *bot, pub *big.Int) {
 	receiver.iv = RandomBytes(aes.BlockSize)
 }
 
-func (sender *bot) accept(receiver *bot, pub *big.Int) {
+// accept completes Diffie-Hellman key exchange from one bot to another.
+func (sender *bot) accept(receiver *bot, pub crypto.PublicKey) {
 	receiver.key = make([]byte, aes.BlockSize)
 	array := sha1.Sum(receiver.Secret(pub))
 	copy(receiver.key, array[:])
@@ -129,24 +131,25 @@ func (sender *bot) accept(receiver *bot, pub *big.Int) {
 	receiver.iv = RandomBytes(aes.BlockSize)
 }
 
-func (sender *bot) send(receiver *bot, iv, msg []byte) {
+// send sends a message encrypted with AES-CBC from one bot to another.
+func (sender *bot) send(receiver *bot, iv, buf []byte) {
 	c1, err := aes.NewCipher(sender.key)
 	if err != nil {
 		panic(err)
 	}
-	msg = PKCS7Pad(msg, c1.BlockSize())
-	cipher.NewCBCEncrypter(c1, iv).CryptBlocks(msg, msg)
+	buf = PKCS7Pad(buf, c1.BlockSize())
+	cipher.NewCBCEncrypter(c1, iv).CryptBlocks(buf, buf)
 
 	c2, err := aes.NewCipher(receiver.key)
 	if err != nil {
 		panic(err)
 	}
-	cipher.NewCBCDecrypter(c2, iv).CryptBlocks(msg, msg)
-	msg, err = PKCS7Unpad(msg, c2.BlockSize())
+	cipher.NewCBCDecrypter(c2, iv).CryptBlocks(buf, buf)
+	buf, err = PKCS7Unpad(buf, c2.BlockSize())
 	if err != nil {
 		panic(err)
 	}
-	receiver.buf.Write(msg)
+	receiver.buf.Write(buf)
 }
 
 // equal returns true if n and m are equal.
@@ -154,9 +157,9 @@ func equal(n, m *big.Int) bool {
 	return n.Cmp(m) == 0
 }
 
-func simulateMITM(g *big.Int) {
+func simulateMITM() {
 	alice, bob, mallory := newBot(), newBot(), newBot()
-	alice.DHPrivateKey = DHGenerateKey(p, g)
+	alice.DHPrivateKey = DHGenerateKey()
 
 	alice.connect(mallory, alice.Public())
 	mallory.connect(bob, alice.Public())
@@ -166,15 +169,16 @@ func simulateMITM(g *big.Int) {
 
 	var secret *big.Int
 	switch {
-	case equal(g, one):
+	case equal(generator, one):
 		secret = one
-	case equal(g, p):
+	case equal(generator, prime):
 		secret = zero
-	case equal(g, pMinusOne):
-		if equal(alice.Public(), one) || equal(bob.Public(), one) {
+	case equal(generator, primeMinusOne):
+		if equal(alice.Public().(*big.Int), one) ||
+			equal(bob.Public().(*big.Int), one) {
 			secret = one
 		} else {
-			secret = pMinusOne
+			secret = primeMinusOne
 		}
 	default:
 		panic("simulateMITM: invalid generator")
@@ -197,14 +201,22 @@ func init() {
 	one = big.NewInt(1)
 
 	var ok bool
-	if p, ok = new(big.Int).SetString(strings.Replace(defaultP, "\n", "", -1), 16); !ok {
+	if prime, ok = new(big.Int).SetString(strings.Replace(defaultPrime, "\n", "", -1), 16); !ok {
 		panic("invalid prime")
 	}
-	pMinusOne = new(big.Int).Sub(p, one)
+	primeMinusOne = new(big.Int).Sub(prime, one)
+	if generator, ok = new(big.Int).SetString(defaultGenerator, 16); !ok {
+		panic("invalid generator")
+	}
 }
 
 func main() {
-	simulateMITM(one)
-	simulateMITM(p)
-	simulateMITM(pMinusOne)
+	generator = one
+	simulateMITM()
+
+	generator = prime
+	simulateMITM()
+
+	generator = primeMinusOne
+	simulateMITM()
 }
