@@ -94,7 +94,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 }
 
 type bot struct {
-	dh  *DHPrivateKey
+	*DHPrivateKey
 	key []byte
 	iv  []byte
 	buf *bytes.Buffer
@@ -105,10 +105,10 @@ func newBot() *bot {
 }
 
 func (sender *bot) connect(receiver *bot, pub *big.Int) {
-	receiver.dh = DHGenerateKey(sender.dh.p, sender.dh.g)
+	receiver.DHPrivateKey = DHGenerateKey(sender.p, sender.g)
 
 	receiver.key = make([]byte, aes.BlockSize)
-	array := sha1.Sum(receiver.dh.Secret(pub))
+	array := sha1.Sum(receiver.Secret(pub))
 	copy(receiver.key, array[:])
 
 	receiver.iv = RandomBytes(aes.BlockSize)
@@ -116,7 +116,7 @@ func (sender *bot) connect(receiver *bot, pub *big.Int) {
 
 func (sender *bot) accept(receiver *bot, pub *big.Int) {
 	receiver.key = make([]byte, aes.BlockSize)
-	array := sha1.Sum(receiver.dh.Secret(pub))
+	array := sha1.Sum(receiver.Secret(pub))
 	copy(receiver.key, array[:])
 
 	receiver.iv = RandomBytes(aes.BlockSize)
@@ -144,13 +144,13 @@ func (sender *bot) send(receiver *bot, iv, msg []byte) {
 
 func mitm(p, g *big.Int) {
 	alice, bob, mallory := newBot(), newBot(), newBot()
-	alice.dh = DHGenerateKey(p, g)
+	alice.DHPrivateKey = DHGenerateKey(p, g)
 
-	alice.connect(mallory, alice.dh.Public())
-	mallory.connect(bob, alice.dh.Public())
+	alice.connect(mallory, alice.Public())
+	mallory.connect(bob, alice.Public())
 
-	bob.accept(mallory, bob.dh.Public())
-	mallory.accept(alice, bob.dh.Public())
+	bob.accept(mallory, bob.Public())
+	mallory.accept(alice, bob.Public())
 
 	switch {
 	case g.Cmp(big.NewInt(1)) == 0:
