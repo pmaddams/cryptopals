@@ -24,6 +24,13 @@ fffffffffffff`
 	defaultG = `2`
 )
 
+var (
+	zero      *big.Int
+	one       *big.Int
+	p         *big.Int
+	pMinusOne *big.Int
+)
+
 // DHPrivateKey contains Diffie-Hellman parameters and a key pair.
 type DHPrivateKey struct {
 	p, g, pub, priv *big.Int
@@ -142,7 +149,12 @@ func (sender *bot) send(receiver *bot, iv, msg []byte) {
 	receiver.buf.Write(msg)
 }
 
-func mitm(p, g *big.Int) {
+// equal returns true if n and m are equal.
+func equal(n, m *big.Int) bool {
+	return n.Cmp(m) == 0
+}
+
+func simulateMITM(g *big.Int) {
 	alice, bob, mallory := newBot(), newBot(), newBot()
 	alice.DHPrivateKey = DHGenerateKey(p, g)
 
@@ -152,14 +164,24 @@ func mitm(p, g *big.Int) {
 	bob.accept(mallory, bob.Public())
 	mallory.accept(alice, bob.Public())
 
+	var secret *big.Int
 	switch {
-	case g.Cmp(big.NewInt(1)) == 0:
-		array := sha1.Sum(big.NewInt(1).Bytes())
-		copy(mallory.key, array[:])
-	case g.Cmp(p) == 0:
-		array := sha1.Sum(big.NewInt(0).Bytes())
-		copy(mallory.key, array[:])
+	case equal(g, one):
+		secret = one
+	case equal(g, p):
+		secret = zero
+	case equal(g, pMinusOne):
+		if equal(alice.Public(), one) || equal(bob.Public(), one) {
+			secret = one
+		} else {
+			secret = pMinusOne
+		}
+	default:
+		panic("simulateMITM: invalid generator")
 	}
+	array := sha1.Sum(secret.Bytes())
+	copy(mallory.key, array[:])
+
 	alice.send(mallory, alice.iv, []byte("hello world"))
 	mallory.send(bob, alice.iv, mallory.buf.Bytes())
 	fmt.Println(mallory.buf.String())
@@ -170,11 +192,19 @@ func mitm(p, g *big.Int) {
 	fmt.Println(mallory.buf.String())
 }
 
-func main() {
-	p, ok := new(big.Int).SetString(strings.Replace(defaultP, "\n", "", -1), 16)
-	if !ok {
-		panic("invalid parameters")
+func init() {
+	zero = big.NewInt(0)
+	one = big.NewInt(1)
+
+	var ok bool
+	if p, ok = new(big.Int).SetString(strings.Replace(defaultP, "\n", "", -1), 16); !ok {
+		panic("invalid prime")
 	}
-	mitm(p, big.NewInt(1))
-	mitm(p, p)
+	pMinusOne = new(big.Int).Sub(p, one)
+}
+
+func main() {
+	simulateMITM(one)
+	simulateMITM(p)
+	simulateMITM(pMinusOne)
 }
