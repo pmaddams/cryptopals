@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
@@ -22,46 +23,49 @@ fffffffffffff`
 	defaultG = `2`
 )
 
-// DHPrivateKey contains Diffie-Hellman parameters and a key pair.
+var (
+	p *big.Int
+	g *big.Int
+)
+
+// DHPrivateKey contains a key pair.
 type DHPrivateKey struct {
-	p, g, pub, priv *big.Int
+	pub crypto.PublicKey
+	n   *big.Int
 }
 
-// DHGenerateKey takes a prime modulus and generator, and returns a private key.
-func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	dh := new(DHPrivateKey)
-	dh.p = new(big.Int).Set(p)
-	dh.g = new(big.Int).Set(g)
-
-	var err error
-	if dh.priv, err = rand.Int(rand.Reader, dh.p); err != nil {
+// DHGenerateKey generates a key pair.
+func DHGenerateKey() *DHPrivateKey {
+	n, err := rand.Int(rand.Reader, p)
+	if err != nil {
 		panic(err)
 	}
-	dh.pub = new(big.Int).Exp(dh.g, dh.priv, dh.p)
-
-	return dh
+	pub := crypto.PublicKey(new(big.Int).Exp(g, n, p))
+	return &DHPrivateKey{pub, n}
 }
 
 // Public returns the public key.
-func (dh *DHPrivateKey) Public() *big.Int {
-	return dh.pub
+func (priv *DHPrivateKey) Public() crypto.PublicKey {
+	return priv.pub
 }
 
 // Secret takes a public key and returns a shared secret.
-func (dh *DHPrivateKey) Secret(pub *big.Int) []byte {
-	return new(big.Int).Exp(pub, dh.priv, dh.p).Bytes()
+func (priv *DHPrivateKey) Secret(pub crypto.PublicKey) []byte {
+	return new(big.Int).Exp(pub.(*big.Int), priv.n, p).Bytes()
+}
+
+func init() {
+	var ok bool
+	if p, ok = new(big.Int).SetString(strings.Replace(defaultP, "\n", "", -1), 16); !ok {
+		panic("invalid prime")
+	}
+	if g, ok = new(big.Int).SetString(defaultG, 16); !ok {
+		panic("invalid generator")
+	}
 }
 
 func main() {
-	p, ok := new(big.Int).SetString(strings.Replace(defaultP, "\n", "", -1), 16)
-	if !ok {
-		panic("invalid parameters")
-	}
-	g, ok := new(big.Int).SetString(defaultG, 16)
-	if !ok {
-		panic("invalid parameters")
-	}
-	alice, bob := DHGenerateKey(p, g), DHGenerateKey(p, g)
+	alice, bob := DHGenerateKey(), DHGenerateKey()
 
 	s1 := alice.Secret(bob.Public())
 	s2 := bob.Secret(alice.Public())
