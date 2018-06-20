@@ -21,6 +21,6 @@ b = %x
 B = %x
 (B^a)%%p = %x
 (A^b)%%p = %x`,
-			p, g, a.n, a.Public(), b.n, b.Public(), s1, s2)
+			prime, generator, a.n, a.Public(), b.n, b.Public(), s1, s2)
 	}
 }
