@@ -148,6 +148,7 @@ func mitm(p, g *big.Int) {
 
 	alice.connect(mallory, alice.dh.Public())
 	mallory.connect(bob, alice.dh.Public())
+
 	bob.accept(mallory, bob.dh.Public())
 	mallory.accept(alice, bob.dh.Public())
 

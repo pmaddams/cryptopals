@@ -155,9 +155,10 @@ func main() {
 	alice.dh = DHGenerateKey(p, g)
 
 	alice.connect(mallory, alice.dh.Public())
-	mallory.accept(alice, mallory.dh.p)
 	mallory.connect(bob, mallory.dh.p)
+
 	bob.accept(mallory, bob.dh.Public())
+	mallory.accept(alice, mallory.dh.p)
 
 	array := sha1.Sum([]byte{})
 	copy(mallory.key, array[:])
