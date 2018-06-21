@@ -2,11 +2,21 @@ package main
 
 import (
 	"bytes"
+	"math/big"
+	"strings"
 	"testing"
 )
 
 func TestSecret(t *testing.T) {
-	a, b := DHGenerateKey(), DHGenerateKey()
+	p, ok := new(big.Int).SetString(strings.Replace(defaultP, "\n", "", -1), 16)
+	if !ok || !p.ProbablyPrime(0) {
+		panic("invalid prime")
+	}
+	g, ok := new(big.Int).SetString(defaultG, 16)
+	if !ok {
+		panic("invalid generator")
+	}
+	a, b := DHGenerateKey(p, g), DHGenerateKey(p, g)
 
 	s1 := a.Secret(b.Public())
 	s2 := b.Secret(a.Public())
@@ -21,6 +31,6 @@ b = %x
 B = %x
 (B^a)%%p = %x
 (A^b)%%p = %x`,
-			prime, generator, a.n, a.Public(), b.n, b.Public(), s1, s2)
+			p, g, a.n, a.Public(), b.n, b.Public(), s1, s2)
 	}
 }
