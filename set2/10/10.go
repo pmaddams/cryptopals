@@ -32,18 +32,18 @@ func XORBytes(dst, b1, b2 []byte) int {
 	return n
 }
 
-// cbc contains a block cipher and initialization vector.
+// cbc represents a generic CBC block mode.
 type cbc struct {
 	c  cipher.Block
 	iv []byte
 }
 
-// BlockSize returns the block size of the cipher.
+// BlockSize returns the cipher block size.
 func (x cbc) BlockSize() int {
 	return x.c.BlockSize()
 }
 
-// cbcEncrypter embeds cbc.
+// cbcEncrypter represents a CBC encryption block mode.
 type cbcEncrypter struct{ cbc }
 
 // dup returns a copy of a buffer.
@@ -71,7 +71,7 @@ func (mode cbcEncrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
-// cbcDecrypter embeds cbc.
+// cbcDecrypter represents a CBC decryption block mode.
 type cbcDecrypter struct{ cbc }
 
 // NewCBCDecrypter returns a block mode for CBC decryption.

@@ -62,7 +62,7 @@ func PrefixedSHA1(sum []byte, n int) (hash.Hash, error) {
 	return h, nil
 }
 
-// mac contains a hash and secret key.
+// mac represents a hash for a secret-prefix message authentication code.
 type mac struct {
 	hash.Hash
 	key []byte

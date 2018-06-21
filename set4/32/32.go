@@ -57,20 +57,20 @@ func insecureCompare(b1, b2 []byte) bool {
 	return len(b1) == len(b2)
 }
 
-// handler contains a hash and mutex reference for write locking.
+// handler represents an HTTP handler.
 type handler struct {
-	h   hash.Hash
-	mux *sync.Mutex
+	hash.Hash
+	*sync.Mutex
 }
 
-// NewHandler takes a hash and returns an insecure HTTP handler.
+// NewHandler takes a hash and returns an HTTP handler.
 func NewHandler(h hash.Hash) http.Handler {
 	return handler{h, new(sync.Mutex)}
 }
 
 // ServeHTTP responds to upload requests with 200 OK if the file HMAC
 // matches its signature, and 500 Internal Server Error otherwise.
-func (hd handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	f, _, err := req.FormFile("file")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -81,13 +81,14 @@ func (hd handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	hd.mux.Lock()
+	// Acquire a lock to prevent concurrent hashing.
+	h.Lock()
 
-	hd.h.Reset()
-	io.Copy(hd.h, f)
-	sum := hd.h.Sum([]byte{})
+	h.Reset()
+	io.Copy(h, f)
+	sum := h.Sum([]byte{})
 
-	hd.mux.Unlock()
+	h.Unlock()
 	if !insecureCompare(sig, sum) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

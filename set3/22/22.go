@@ -18,7 +18,7 @@ const (
 	temperMask2 = 0xefc60000
 )
 
-// MT contains state for the MT19937 (32-bit Mersenne Twister) PRNG.
+// MT represents an MT19937 (32-bit Mersenne Twister) PRNG.
 type MT struct {
 	state [arraySize]uint32
 	pos   int

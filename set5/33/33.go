@@ -23,7 +23,7 @@ fffffffffffff`
 	defaultGenerator = `2`
 )
 
-// DHPrivateKey contains a prime modulus, generator, and key pair.
+// DHPrivateKey represents a set of Diffie-Hellman parameters and key pair.
 type DHPrivateKey struct {
 	p   *big.Int
 	g   *big.Int

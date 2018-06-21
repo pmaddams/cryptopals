@@ -24,7 +24,7 @@ fffffffffffff`
 	defaultGenerator = `2`
 )
 
-// DHPrivateKey contains a prime modulus, generator, and key pair.
+// DHPrivateKey represents a set of Diffie-Hellman parameters and key pair.
 type DHPrivateKey struct {
 	p   *big.Int
 	g   *big.Int
@@ -60,13 +60,13 @@ type srp struct {
 	password string
 }
 
-// SRPServer is an SRP server.
+// SRPServer represents an SRP server.
 type SRPServer struct {
 	srp
 	verifier *big.Int
 }
 
-// SRPClient is an SRP client.
+// SRPClient represents an SRP client.
 type SRPClient struct {
 	srp
 	scrambler *big.Int

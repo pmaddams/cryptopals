@@ -15,7 +15,7 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
-// ecbDecrypter embeds cipher.Block, hiding its methods.
+// ecbDecrypter represents an ECB decryption block mode.
 type ecbDecrypter struct{ c cipher.Block }
 
 // NewECBDecrypter returns a block mode for ECB Decryption.
@@ -23,7 +23,7 @@ func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
 	return ecbDecrypter{c}
 }
 
-// BlockSize returns the block size of the cipher.
+// BlockSize returns the cipher block size.
 func (mode ecbDecrypter) BlockSize() int {
 	return mode.c.BlockSize()
 }

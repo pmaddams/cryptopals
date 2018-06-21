@@ -32,7 +32,7 @@ func Uint64sToBytes(nums []uint64) []byte {
 	return buf
 }
 
-// ctr contains a block cipher and initialization vector.
+// ctr represents a CTR mode stream cipher.
 type ctr struct {
 	c   cipher.Block
 	ctr []uint64

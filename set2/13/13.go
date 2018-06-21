@@ -27,10 +27,10 @@ func RoleAdmin(query string) bool {
 	return v.Get("role") == "admin"
 }
 
-// ecb embeds cipher.Block, hiding its methods.
+// ecb represents a generic ECB block mode.
 type ecb struct{ c cipher.Block }
 
-// BlockSize returns the block size of the cipher.
+// BlockSize returns the cipher block size.
 func (x ecb) BlockSize() int {
 	return x.c.BlockSize()
 }
@@ -46,7 +46,7 @@ func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
 	}
 }
 
-// ecbEncrypter embeds ecb.
+// ecbEncrypter represents an ECB encryption block mode.
 type ecbEncrypter struct{ ecb }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
@@ -59,7 +59,7 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 	mode.cryptBlocks(dst, src, mode.c.Encrypt)
 }
 
-// ecbDecrypter embeds ecb.
+// ecbDecrypter represents an ECB decryption block mode.
 type ecbDecrypter struct{ ecb }
 
 // NewECBDecrypter returns a block mode for ECB decryption.

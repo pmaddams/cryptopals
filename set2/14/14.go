@@ -19,7 +19,7 @@ aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq
 dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
 YnkK`
 
-// ecbEncrypter embeds cipher.Block, hiding its methods.
+// ecbEncrypter represents an ECB encryption block mode.
 type ecbEncrypter struct{ c cipher.Block }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
@@ -27,7 +27,7 @@ func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
 	return ecbEncrypter{c}
 }
 
-// BlockSize returns the block size of the cipher.
+// BlockSize returns the cipher block size.
 func (mode ecbEncrypter) BlockSize() int {
 	return mode.c.BlockSize()
 }

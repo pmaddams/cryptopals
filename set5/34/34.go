@@ -25,7 +25,7 @@ fffffffffffff`
 	defaultGenerator = `2`
 )
 
-// DHPrivateKey contains a prime modulus, generator, and key pair.
+// DHPrivateKey represents a set of Diffie-Hellman parameters and key pair.
 type DHPrivateKey struct {
 	p   *big.Int
 	g   *big.Int
@@ -92,7 +92,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return dup(buf)[:len(buf)-int(b)], nil
 }
 
-// bot contains contains data for simulating a man-in-the-middle attack.
+// bot is a simulated agent that participates in Diffie-Hellman key exchange.
 type bot struct {
 	*DHPrivateKey
 	key []byte

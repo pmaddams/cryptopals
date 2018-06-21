@@ -13,7 +13,7 @@ import (
 
 const secret = "ICE"
 
-// xorCipher is a repeating XOR stream cipher.
+// xorCipher represents a repeating XOR stream cipher.
 type xorCipher struct {
 	key []byte
 	pos int

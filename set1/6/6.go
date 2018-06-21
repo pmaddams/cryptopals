@@ -193,7 +193,7 @@ func breakRepeatingXOR(buf []byte) ([]byte, error) {
 	return key, nil
 }
 
-// xorCipher is a repeating XOR stream cipher.
+// xorCipher represents a repeating XOR stream cipher.
 type xorCipher struct {
 	key []byte
 	pos int
