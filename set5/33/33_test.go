@@ -8,11 +8,11 @@ import (
 )
 
 func TestSecret(t *testing.T) {
-	p, ok := new(big.Int).SetString(strings.Replace(defaultP, "\n", "", -1), 16)
+	p, ok := new(big.Int).SetString(strings.Replace(defaultPrime, "\n", "", -1), 16)
 	if !ok || !p.ProbablyPrime(0) {
 		panic("invalid prime")
 	}
-	g, ok := new(big.Int).SetString(defaultG, 16)
+	g, ok := new(big.Int).SetString(defaultGenerator, 16)
 	if !ok {
 		panic("invalid generator")
 	}
