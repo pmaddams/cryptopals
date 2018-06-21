@@ -151,7 +151,7 @@ func (sender *bot) send(receiver *bot, iv, buf []byte) {
 	receiver.buf.Write(buf)
 }
 
-// equal returns true if n and m are equal.
+// equal returns true if two arbitrary-precision integers are equal.
 func equal(n, m *big.Int) bool {
 	return n.Cmp(m) == 0
 }
