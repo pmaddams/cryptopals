@@ -61,10 +61,10 @@ func RandomBytes(n int) []byte {
 
 // srp represents a generic SRP (Secure Remote Password) communicator.
 type srp struct {
-	*DHPrivateKey
 	*gob.Decoder
 	*gob.Encoder
 	*log.Logger
+	*DHPrivateKey
 	email string
 	salt  []byte
 }
@@ -76,22 +76,21 @@ type SRPServer struct {
 }
 
 // NewSRPServer returns an SRP server.
-func NewSRPServer(p, g *big.Int, conn net.Conn, log *log.Logger, email, password string) *SRPServer {
-	dh := DHGenerateKey(p, g)
+func NewSRPServer(conn net.Conn, log *log.Logger, p, g *big.Int, email, password string) *SRPServer {
 	salt := RandomBytes(8)
 
 	h := sha256.New()
 	h.Write(salt)
 	h.Write([]byte(password))
 	x := new(big.Int).SetBytes(h.Sum([]byte{}))
-	verifier := new(big.Int).Exp(dh.g, x, dh.p)
+	verifier := new(big.Int).Exp(g, x, p)
 
 	return &SRPServer{
 		srp{
-			dh,
 			gob.NewDecoder(conn),
 			gob.NewEncoder(conn),
 			log,
+			DHGenerateKey(p, g),
 			email,
 			salt,
 		},
@@ -106,13 +105,13 @@ type SRPClient struct {
 }
 
 // NewSRPClient returns an SRP client.
-func NewSRPClient(p, g *big.Int, conn net.Conn, log *log.Logger, email, password string) *SRPClient {
+func NewSRPClient(conn net.Conn, log *log.Logger, p, g *big.Int, email, password string) *SRPClient {
 	return &SRPClient{
 		srp{
-			DHGenerateKey(p, g),
 			gob.NewDecoder(conn),
 			gob.NewEncoder(conn),
 			log,
+			DHGenerateKey(p, g),
 			email,
 			nil,
 		},
