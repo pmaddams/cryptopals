@@ -1,15 +1,11 @@
 package main
 
 import (
-	_ "bytes"
 	"crypto"
 	"crypto/rand"
-	_ "crypto/sha256"
-	_ "fmt"
+	"log"
 	"math/big"
 	"net"
-	_ "os"
-	_ "strings"
 )
 
 const (
@@ -52,10 +48,11 @@ func (priv *DHPrivateKey) Secret(pub crypto.PublicKey) []byte {
 	return new(big.Int).Exp(pub.(*big.Int), priv.n, priv.p).Bytes()
 }
 
-// srp represents a generic SRP communicator.
+// srp represents a generic SRP (Secure Remote Password) communicator.
 type srp struct {
 	*DHPrivateKey
-	conn     net.Conn
+	net.Conn
+	*log.Logger
 	email    string
 	password string
 }
@@ -66,10 +63,17 @@ type SRPServer struct {
 	v *big.Int
 }
 
+// NewSRPServer returns an SRP server.
+func NewSRPServer(p, g *big.Int, conn net.Conn, log *log.Logger, email, password string) *SRPServer {
+	return &SRPServer{srp{DHGenerateKey(p, g), conn, log, email, password}, new(big.Int)}
+}
+
 // SRPClient represents an SRP client.
-type SRPClient struct {
-	srp
-	u *big.Int
+type SRPClient srp
+
+// NewSRPClient returns an SRP client.
+func NewSRPClient(p, g *big.Int, conn net.Conn, log *log.Logger, email, password string) *SRPClient {
+	return &SRPClient{DHGenerateKey(p, g), conn, log, email, password}
 }
 
 func main() {
