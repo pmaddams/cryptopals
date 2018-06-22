@@ -63,13 +63,13 @@ type srp struct {
 // SRPServer represents an SRP server.
 type SRPServer struct {
 	srp
-	verifier *big.Int
+	v *big.Int
 }
 
 // SRPClient represents an SRP client.
 type SRPClient struct {
 	srp
-	scrambler *big.Int
+	u *big.Int
 }
 
 func main() {
