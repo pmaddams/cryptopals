@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"math/big"
+	weak "math/rand"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSecret(t *testing.T) {
@@ -32,5 +34,26 @@ B = %x
 (B^a)%%p = %x
 (A^b)%%p = %x`,
 			p, g, a.n, a.Public(), b.n, b.Public(), s1, s2)
+	}
+}
+
+func TestRandomBytes(t *testing.T) {
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	n := weak.Intn(1024)
+
+	var cases [][]byte
+	for i := 0; i < 5; i++ {
+		buf := RandomBytes(n)
+		if len(buf) != n {
+			t.Errorf("RandomBytes(%v) == %v, length %v",
+				n, buf, len(buf))
+		}
+		cases = append(cases, buf)
+		for j := 0; j < i; j++ {
+			if bytes.Equal(cases[i], cases[j]) {
+				t.Errorf("RandomBytes created identical buffers %v and %v",
+					cases[i], cases[j])
+			}
+		}
 	}
 }
