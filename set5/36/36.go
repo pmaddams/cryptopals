@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math/big"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -107,7 +108,7 @@ func (l srpListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &srpConn{conn: conn, config: l.srv}, nil
+	return &srpConn{conn: conn, config: l.srv, mux: new(sync.Mutex)}, nil
 }
 
 func (l srpListener) Close() error {
@@ -129,16 +130,20 @@ func (clt *SRPClient) Dial(network, addr string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &srpConn{conn: conn, config: clt}, nil
+	return &srpConn{conn: conn, config: clt, mux: new(sync.Mutex)}, nil
 }
 
 type srpConn struct {
 	conn   net.Conn
 	config interface{}
+	mux    *sync.Mutex
 	auth   bool
 }
 
 func (conn *srpConn) handshake() error {
+	conn.mux.Lock()
+	defer conn.mux.Unlock()
+
 	if conn.auth {
 		return nil
 	}
@@ -203,11 +208,17 @@ func (state *clientHandshakeState) ReceiveOK() error {
 }
 
 func (conn *srpConn) Read(buf []byte) (int, error) {
-	return 0, nil
+	if err := conn.handshake(); err != nil {
+		return 0, err
+	}
+	return conn.conn.Read(buf)
 }
 
 func (conn *srpConn) Write(buf []byte) (int, error) {
-	return 0, nil
+	if err := conn.handshake(); err != nil {
+		return 0, err
+	}
+	return conn.conn.Write(buf)
 }
 
 func (conn *srpConn) Close() error {
