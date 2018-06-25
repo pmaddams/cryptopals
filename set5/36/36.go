@@ -1,15 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"crypto"
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"io"
+	"log"
 	"math/big"
 	"net"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -294,19 +294,24 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	done := make(chan struct{})
 	go func() {
 		conn, err := l.Accept()
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
-		if _, err := io.Copy(os.Stdout, conn); err != nil {
-			panic(err)
+		input := bufio.NewScanner(conn)
+		for input.Scan() {
+			fmt.Println(input.Text())
 		}
+		close(done)
 	}()
 	clt := NewSRPClient(p, g, "user", "password")
 	conn, err := clt.Dial("tcp", "localhost:4000")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprintln(conn, "hello world")
+	fmt.Fprintln(conn, "success")
+	conn.Close()
+	<-done
 }
