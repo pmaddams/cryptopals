@@ -150,13 +150,33 @@ func (conn *srpConn) handshake() error {
 	return errors.New("handshake: invalid configuration")
 }
 
+func (conn *srpConn) serverHandshake(srv *SRPServer) error {
+	return nil
+}
+
 type serverHandshakeState struct {
 	email    string
 	password string
 	hmac     []byte
 }
 
-func (conn *srpConn) serverHandshake(srv *SRPServer) error {
+func (state *serverHandshakeState) ReceiveLogin() error {
+	return nil
+}
+
+func (state *serverHandshakeState) SendResponse() error {
+	return nil
+}
+
+func (state *serverHandshakeState) ReceiveHMAC() error {
+	return nil
+}
+
+func (state *serverHandshakeState) SendOK() error {
+	return nil
+}
+
+func (conn *srpConn) clientHandshake(clt *SRPClient) error {
 	return nil
 }
 
@@ -166,7 +186,19 @@ type clientHandshakeState struct {
 	ok   bool
 }
 
-func (conn *srpConn) clientHandshake(clt *SRPClient) error {
+func (state *clientHandshakeState) SendLogin() error {
+	return nil
+}
+
+func (state *clientHandshakeState) ReceiveResponse() error {
+	return nil
+}
+
+func (state *clientHandshakeState) SendHMAC() error {
+	return nil
+}
+
+func (state *clientHandshakeState) ReceiveOK() error {
 	return nil
 }
 
@@ -179,27 +211,27 @@ func (conn *srpConn) Write(buf []byte) (int, error) {
 }
 
 func (conn *srpConn) Close() error {
-	return nil
+	return conn.conn.Close()
 }
 
 func (conn *srpConn) LocalAddr() net.Addr {
-	return nil
+	return conn.conn.LocalAddr()
 }
 
 func (conn *srpConn) RemoteAddr() net.Addr {
-	return nil
+	return conn.conn.RemoteAddr()
 }
 
 func (conn *srpConn) SetDeadline(t time.Time) error {
-	return nil
+	return conn.conn.SetDeadline(t)
 }
 
 func (conn *srpConn) SetReadDeadline(t time.Time) error {
-	return nil
+	return conn.conn.SetReadDeadline(t)
 }
 
 func (conn *srpConn) SetWriteDeadline(t time.Time) error {
-	return nil
+	return conn.conn.SetWriteDeadline(t)
 }
 
 func main() {
