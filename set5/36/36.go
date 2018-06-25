@@ -148,14 +148,31 @@ func (conn *srpConn) handshake() error {
 		return nil
 	}
 	if srv, ok := conn.config.(*SRPServer); ok {
-		return conn.serverHandshake(srv)
+		if err := conn.serverHandshake(srv); err != nil {
+			return err
+		}
 	} else if clt, ok := conn.config.(*SRPClient); ok {
-		return conn.clientHandshake(clt)
+		if err := conn.clientHandshake(clt); err != nil {
+			return err
+		}
+	} else {
+		return errors.New("handshake: invalid configuration")
 	}
-	return errors.New("handshake: invalid configuration")
+	conn.auth = true
+	return nil
 }
 
 func (conn *srpConn) serverHandshake(srv *SRPServer) error {
+	state := new(serverHandshakeState)
+	if err := state.ReceiveLogin(); err != nil {
+		return err
+	} else if err = state.SendResponse(); err != nil {
+		return err
+	} else if err = state.ReceiveHMAC(); err != nil {
+		return err
+	} else if err = state.SendOK(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -182,6 +199,16 @@ func (state *serverHandshakeState) SendOK() error {
 }
 
 func (conn *srpConn) clientHandshake(clt *SRPClient) error {
+	state := new(clientHandshakeState)
+	if err := state.SendLogin(); err != nil {
+		return err
+	} else if err = state.ReceiveResponse(); err != nil {
+		return err
+	} else if err = state.SendHMAC(); err != nil {
+		return err
+	} else if err = state.ReceiveOK(); err != nil {
+		return err
+	}
 	return nil
 }
 
