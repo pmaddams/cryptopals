@@ -5,8 +5,12 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"fmt"
+	"io"
 	"math/big"
 	"net"
+	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -123,6 +127,10 @@ type SRPClient struct {
 	*DHPrivateKey
 	email    string
 	password string
+}
+
+func NewSRPClient(p, g *big.Int, email, password string) *SRPClient {
+	return &SRPClient{DHGenerateKey(p, g), email, password}
 }
 
 func (clt *SRPClient) Dial(network, addr string) (net.Conn, error) {
@@ -273,4 +281,32 @@ func (conn *srpConn) SetWriteDeadline(t time.Time) error {
 }
 
 func main() {
+	p, ok := new(big.Int).SetString(strings.Replace(defaultPrime, "\n", "", -1), 16)
+	if !ok || !p.ProbablyPrime(0) {
+		panic("invalid prime")
+	}
+	g, ok := new(big.Int).SetString(defaultGenerator, 16)
+	if !ok {
+		panic("invalid generator")
+	}
+	srv := NewSRPServer(p, g)
+	l, err := srv.Listen("tcp", "localhost:4000")
+	if err != nil {
+		panic(err)
+	}
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			panic(err)
+		}
+		if _, err := io.Copy(os.Stdout, conn); err != nil {
+			panic(err)
+		}
+	}()
+	clt := NewSRPClient(p, g, "user", "password")
+	conn, err := clt.Dial("tcp", "localhost:4000")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Fprintln(conn, "hello world")
 }
