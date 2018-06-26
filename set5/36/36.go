@@ -175,46 +175,35 @@ func (conn *srpConn) handshake() error {
 }
 
 type serverHandshakeState struct {
-	email      string
-	r          record
-	clientPub  *big.Int
-	u          *big.Int
-	clientHMAC []byte
+	rec       record
+	clientPub *big.Int
+	u         *big.Int
 }
 
 func serverHandshake(conn net.Conn, srv *SRPServer) error {
 	state := new(serverHandshakeState)
-	if err := state.ReceiveLogin(conn); err != nil {
+	if err := state.receiveLoginAndSendResponse(conn, srv); err != nil {
 		return err
-	} else if err = state.SendResponse(conn, srv); err != nil {
-		return err
-	} else if err = state.ReceiveHMAC(conn); err != nil {
-		return err
-	} else if err = state.SendOK(conn, srv); err != nil {
+	} else if err = state.receiveHMACAndSendOK(conn, srv); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (state *serverHandshakeState) ReceiveLogin(conn net.Conn) error {
-	var clientPub string
-	_, err := fmt.Fscanf(conn, "email: %s\npublic key: %s\n", &(state.email), &clientPub)
+func (state *serverHandshakeState) receiveLoginAndSendResponse(conn net.Conn, srv *SRPServer) error {
+	var email, clientPub string
+	_, err := fmt.Fscanf(conn, "email: %s\npublic key: %s\n", &email, &clientPub)
 	if err != nil {
 		return err
 	}
 	var ok bool
+	if state.rec, ok = srv.db[email]; !ok {
+		return errors.New("receiveLoginAndSendResponse: user not found")
+	}
 	if state.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
-		return errors.New("ReceiveLogin: invalid public key")
+		return errors.New("receiveLoginAndSendResponse: invalid public key")
 	}
-	return nil
-}
-
-func (state *serverHandshakeState) SendResponse(conn net.Conn, srv *SRPServer) error {
-	var ok bool
-	if state.r, ok = srv.db[state.email]; !ok {
-		return errors.New("SendResponse: user not found")
-	}
-	sessionPub := new(big.Int).Mul(big.NewInt(3), state.r.v)
+	sessionPub := new(big.Int).Mul(big.NewInt(3), state.rec.v)
 	sessionPub = sessionPub.Add(sessionPub, srv.pub)
 
 	h := sha256.New()
@@ -222,27 +211,25 @@ func (state *serverHandshakeState) SendResponse(conn net.Conn, srv *SRPServer) e
 	h.Write(sessionPub.Bytes())
 	state.u = new(big.Int).SetBytes(h.Sum([]byte{}))
 
-	_, err := fmt.Fprintf(conn, "salt: %s\npublic key: %s\n",
-		hex.EncodeToString(state.r.salt), hex.EncodeToString(sessionPub.Bytes()))
-
-	return err
-}
-
-func (state *serverHandshakeState) ReceiveHMAC(conn net.Conn) error {
-	var clientHMAC string
-	_, err := fmt.Fscanf(conn, "hmac: %s\n", &clientHMAC)
-	if err != nil {
-		return err
-	}
-	state.clientHMAC, err = hex.DecodeString(clientHMAC)
+	_, err = fmt.Fprintf(conn, "salt: %s\npublic key: %s\n",
+		hex.EncodeToString(state.rec.salt), hex.EncodeToString(sessionPub.Bytes()))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (state *serverHandshakeState) SendOK(conn net.Conn, srv *SRPServer) error {
-	secret := new(big.Int).Exp(state.r.v, state.u, srv.p)
+func (state *serverHandshakeState) receiveHMACAndSendOK(conn net.Conn, srv *SRPServer) error {
+	var s string
+	_, err := fmt.Fscanf(conn, "hmac: %s\n", &s)
+	if err != nil {
+		return err
+	}
+	clientHMAC, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	secret := new(big.Int).Exp(state.rec.v, state.u, srv.p)
 	secret = secret.Mul(state.clientPub, secret)
 	secret = secret.Exp(secret, srv.n, srv.p)
 
@@ -250,10 +237,9 @@ func (state *serverHandshakeState) SendOK(conn net.Conn, srv *SRPServer) error {
 	h.Write(secret.Bytes())
 	k := h.Sum([]byte{})
 
-	h = hmac.New(sha256.New, state.r.salt)
+	h = hmac.New(sha256.New, state.rec.salt)
 	h.Write(k)
-
-	if !hmac.Equal(h.Sum([]byte{}), state.clientHMAC) {
+	if !hmac.Equal(clientHMAC, h.Sum([]byte{})) {
 		return errors.New("SendOK: invalid hmac")
 	}
 	fmt.Fprintln(conn, "ok")
