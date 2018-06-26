@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"crypto"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -186,37 +187,75 @@ func serverHandshake(conn net.Conn, srv *SRPServer) error {
 }
 
 type serverHandshakeState struct {
-	email    string
-	password string
-	hmac     []byte
+	email      string
+	r          record
+	pub        crypto.PublicKey
+	u          *big.Int
+	clientHMAC []byte
 }
 
 func (state *serverHandshakeState) ReceiveLogin(conn net.Conn) error {
-	_, err := fmt.Fscanf(conn, "email: %s\npassword: %s\n",
-		&(state.email), &(state.password))
-
-	return err
+	var pub string
+	_, err := fmt.Fscanf(conn, "email: %s\npub: %s\n", &(state.email), &pub)
+	if err != nil {
+		return err
+	}
+	var ok bool
+	if state.pub, ok = new(big.Int).SetString(pub, 16); !ok {
+		return errors.New("ReceiveLogin: invalid public key")
+	}
+	return nil
 }
 
 func (state *serverHandshakeState) SendResponse(conn net.Conn, srv *SRPServer) error {
-	r, ok := srv.db[state.email]
-	if !ok {
+	var ok bool
+	if state.r, ok = srv.db[state.email]; !ok {
 		return errors.New("SendResponse: user not found")
 	}
-	pub := new(big.Int).Mul(big.NewInt(3), r.v)
+	pub := new(big.Int).Mul(big.NewInt(3), state.r.v)
 	pub = pub.Add(pub, srv.pub.(*big.Int))
 
+	h := sha256.New()
+	h.Write(state.pub.(*big.Int).Bytes())
+	h.Write(pub.Bytes())
+	state.u = new(big.Int).SetBytes(h.Sum([]byte{}))
+
 	_, err := fmt.Fprintf(conn, "salt: %s\npub: %s\n",
-		hex.EncodeToString(r.salt), hex.EncodeToString(pub.Bytes()))
+		hex.EncodeToString(state.r.salt), hex.EncodeToString(pub.Bytes()))
 
 	return err
 }
 
 func (state *serverHandshakeState) ReceiveHMAC(conn net.Conn) error {
+	var clientHMAC string
+	_, err := fmt.Fscanf(conn, "hmac: %s\n", &clientHMAC)
+	if err != nil {
+		return err
+	}
+	state.clientHMAC, err = hex.DecodeString(clientHMAC)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (state *serverHandshakeState) SendOK(conn net.Conn, srv *SRPServer) error {
+	secret := new(big.Int).Exp(state.r.v, state.u, srv.p)
+	secret = secret.Mul(state.pub.(*big.Int), secret)
+	secret = secret.Exp(secret, srv.n, srv.p)
+
+	h := sha256.New()
+	h.Write(secret.Bytes())
+	k := h.Sum([]byte{})
+
+	h = hmac.New(sha256.New, state.r.salt)
+	h.Write(k)
+
+	if !hmac.Equal(h.Sum([]byte{}), state.clientHMAC) {
+		return errors.New("SendOK: invalid hmac")
+	}
+	fmt.Fprintln(conn, "ok")
+
 	return nil
 }
 
@@ -241,8 +280,8 @@ type clientHandshakeState struct {
 }
 
 func (state *clientHandshakeState) SendLogin(conn net.Conn, clt *SRPClient) error {
-	_, err := fmt.Fprintf(conn, "email: %s\npassword: %s\n",
-		clt.email, clt.password)
+	_, err := fmt.Fprintf(conn, "email: %s\npub: %s\n",
+		clt.email, hex.EncodeToString(clt.pub.(*big.Int).Bytes()))
 
 	return err
 }
@@ -264,10 +303,46 @@ func (state *clientHandshakeState) ReceiveResponse(conn net.Conn) error {
 }
 
 func (state *clientHandshakeState) SendHMAC(conn net.Conn, clt *SRPClient) error {
+	h := sha256.New()
+	h.Write(clt.pub.(*big.Int).Bytes())
+	h.Write(state.pub.(*big.Int).Bytes())
+	u := new(big.Int).SetBytes(h.Sum([]byte{}))
+
+	h.Reset()
+	h.Write(state.salt)
+	h.Write([]byte(clt.password))
+	x := new(big.Int).SetBytes(h.Sum([]byte{}))
+
+	fst := new(big.Int).Exp(clt.g, x, clt.p)
+	fst = fst.Mul(big.NewInt(3), fst)
+	fst = fst.Mod(fst, clt.p)
+	fst = fst.Sub(state.pub.(*big.Int), fst)
+
+	snd := new(big.Int).Mul(u, x)
+	snd = snd.Add(clt.n, snd)
+
+	secret := new(big.Int).Exp(fst, snd, clt.p)
+
+	h.Reset()
+	h.Write(secret.Bytes())
+	k := h.Sum([]byte{})
+
+	h = hmac.New(sha256.New, state.salt)
+	h.Write(k)
+
+	fmt.Fprintf(conn, "hmac: %x\n", h.Sum([]byte{}))
+
 	return nil
 }
 
 func (state *clientHandshakeState) ReceiveOK(conn net.Conn) error {
+	var s string
+	if _, err := fmt.Fscanln(conn, &s); err != nil {
+		return err
+	}
+	if s != "ok" {
+		return errors.New("ReceiveOK: invalid response")
+	}
 	return nil
 }
 
