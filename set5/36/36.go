@@ -192,8 +192,7 @@ func serverHandshake(conn net.Conn, srv *SRPServer) error {
 
 func (state *serverHandshakeState) receiveLoginAndSendResponse(conn net.Conn, srv *SRPServer) error {
 	var email, clientPub string
-	_, err := fmt.Fscanf(conn, "email: %s\npublic key: %s\n", &email, &clientPub)
-	if err != nil {
+	if _, err := fmt.Fscanf(conn, "email: %s\npublic key: %s\n", &email, &clientPub); err != nil {
 		return err
 	}
 	var ok bool
@@ -211,9 +210,8 @@ func (state *serverHandshakeState) receiveLoginAndSendResponse(conn net.Conn, sr
 	h.Write(sessionPub.Bytes())
 	state.u = new(big.Int).SetBytes(h.Sum([]byte{}))
 
-	_, err = fmt.Fprintf(conn, "salt: %s\npublic key: %s\n",
-		hex.EncodeToString(state.rec.salt), hex.EncodeToString(sessionPub.Bytes()))
-	if err != nil {
+	if _, err := fmt.Fprintf(conn, "salt: %s\npublic key: %s\n",
+		hex.EncodeToString(state.rec.salt), hex.EncodeToString(sessionPub.Bytes())); err != nil {
 		return err
 	}
 	return nil
@@ -221,8 +219,7 @@ func (state *serverHandshakeState) receiveLoginAndSendResponse(conn net.Conn, sr
 
 func (state *serverHandshakeState) receiveHMACAndSendOK(conn net.Conn, srv *SRPServer) error {
 	var s string
-	_, err := fmt.Fscanf(conn, "hmac: %s\n", &s)
-	if err != nil {
+	if _, err := fmt.Fscanf(conn, "hmac: %s\n", &s); err != nil {
 		return err
 	}
 	clientHMAC, err := hex.DecodeString(s)
@@ -254,29 +251,22 @@ type clientHandshakeState struct {
 
 func clientHandshake(conn net.Conn, clt *SRPClient) error {
 	state := new(clientHandshakeState)
-	if err := state.SendLogin(conn, clt); err != nil {
+	if err := state.sendLoginAndReceiveResponse(conn, clt); err != nil {
 		return err
-	} else if err = state.ReceiveResponse(conn); err != nil {
-		return err
-	} else if err = state.SendHMAC(conn, clt); err != nil {
-		return err
-	} else if err = state.ReceiveOK(conn); err != nil {
+	} else if err = state.sendHMACAndReceiveOK(conn, clt); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (state *clientHandshakeState) SendLogin(conn net.Conn, clt *SRPClient) error {
-	_, err := fmt.Fprintf(conn, "email: %s\npublic key: %s\n",
-		clt.email, hex.EncodeToString(clt.pub.Bytes()))
-
-	return err
-}
-
-func (state *clientHandshakeState) ReceiveResponse(conn net.Conn) error {
+func (state *clientHandshakeState) sendLoginAndReceiveResponse(conn net.Conn, clt *SRPClient) error {
+	var err error
+	if _, err = fmt.Fprintf(conn, "email: %s\npublic key: %s\n",
+		clt.email, hex.EncodeToString(clt.pub.Bytes())); err != nil {
+		return err
+	}
 	var salt, sessionPub string
-	_, err := fmt.Fscanf(conn, "salt: %s\npublic key: %s\n", &salt, &sessionPub)
-	if err != nil {
+	if _, err = fmt.Fscanf(conn, "salt: %s\npublic key: %s\n", &salt, &sessionPub); err != nil {
 		return err
 	}
 	if state.salt, err = hex.DecodeString(salt); err != nil {
@@ -289,7 +279,7 @@ func (state *clientHandshakeState) ReceiveResponse(conn net.Conn) error {
 	return nil
 }
 
-func (state *clientHandshakeState) SendHMAC(conn net.Conn, clt *SRPClient) error {
+func (state *clientHandshakeState) sendHMACAndReceiveOK(conn net.Conn, clt *SRPClient) error {
 	h := sha256.New()
 	h.Write(clt.pub.Bytes())
 	h.Write(state.sessionPub.Bytes())
@@ -302,12 +292,9 @@ func (state *clientHandshakeState) SendHMAC(conn net.Conn, clt *SRPClient) error
 
 	fst := new(big.Int).Exp(clt.g, x, clt.p)
 	fst = fst.Mul(big.NewInt(3), fst)
-	fst = fst.Mod(fst, clt.p)
 	fst = fst.Sub(state.sessionPub, fst)
-
 	snd := new(big.Int).Mul(u, x)
 	snd = snd.Add(clt.n, snd)
-
 	secret := new(big.Int).Exp(fst, snd, clt.p)
 
 	h.Reset()
@@ -316,13 +303,8 @@ func (state *clientHandshakeState) SendHMAC(conn net.Conn, clt *SRPClient) error
 
 	h = hmac.New(sha256.New, state.salt)
 	h.Write(k)
-
 	fmt.Fprintf(conn, "hmac: %x\n", h.Sum([]byte{}))
 
-	return nil
-}
-
-func (state *clientHandshakeState) ReceiveOK(conn net.Conn) error {
 	var s string
 	if _, err := fmt.Fscanln(conn, &s); err != nil {
 		return err
