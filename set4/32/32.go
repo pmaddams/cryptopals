@@ -181,10 +181,10 @@ func main() {
 		log.Fatal(http.ListenAndServe(addr, NewHandler(h)))
 	}()
 	// Wait for the server.
-	if conn, err := net.DialTimeout("tcp", addr, time.Second); err != nil {
+	if c, err := net.DialTimeout("tcp", addr, time.Second); err != nil {
 		log.Fatal(err)
 	} else {
-		conn.Close()
+		c.Close()
 	}
 	url := fmt.Sprintf("http://%s%s", addr, path)
 	buf := new(bytes.Buffer)
