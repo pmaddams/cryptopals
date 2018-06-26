@@ -156,16 +156,18 @@ func (conn *srpConn) handshake() error {
 
 	if conn.auth {
 		return nil
-	}
-	if srv, ok := conn.config.(*SRPServer); ok {
+	} else if srv, ok := conn.config.(*SRPServer); ok {
 		if err := serverHandshake(conn.inner, srv); err != nil {
+			conn.Close()
 			return err
 		}
 	} else if clt, ok := conn.config.(*SRPClient); ok {
 		if err := clientHandshake(conn.inner, clt); err != nil {
+			conn.Close()
 			return err
 		}
 	} else {
+		conn.Close()
 		return errors.New("handshake: invalid configuration")
 	}
 	conn.auth = true
