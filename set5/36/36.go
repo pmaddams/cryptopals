@@ -29,6 +29,8 @@ fffffffffffff`
 	defaultGenerator = `2`
 )
 
+const addr = "localhost:4000"
+
 // DHPrivateKey represents a set of Diffie-Hellman parameters and key pair.
 type DHPrivateKey struct {
 	p   *big.Int
@@ -348,7 +350,7 @@ func main() {
 	srv := NewSRPServer(p, g)
 	srv.CreateUser("user", "password")
 
-	l, err := srv.Listen("tcp", "localhost:4000")
+	l, err := srv.Listen("tcp", addr)
 	if err != nil {
 		panic(err)
 	}
@@ -365,7 +367,7 @@ func main() {
 		close(done)
 	}()
 	clt := NewSRPClient(p, g, "user", "password")
-	c, err := clt.Dial("tcp", "localhost:4000")
+	c, err := clt.Dial("tcp", addr)
 	if err != nil {
 		panic(err)
 	}

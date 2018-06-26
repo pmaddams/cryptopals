@@ -19,10 +19,11 @@ import (
 	"time"
 )
 
+const delay = 5 * time.Millisecond
+
 const (
-	delay = 5 * time.Millisecond
-	addr  = "localhost:9000"
-	path  = "/test"
+	addr = "localhost:9000"
+	path = "/test"
 )
 
 // RandomRange returns a pseudo-random non-negative integer in [lo, hi].

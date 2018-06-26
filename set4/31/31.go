@@ -18,10 +18,11 @@ import (
 	"time"
 )
 
+const delay = 5 * time.Millisecond
+
 const (
-	delay = 5 * time.Millisecond
-	addr  = "localhost:9000"
-	path  = "/test"
+	addr = "localhost:9000"
+	path = "/test"
 )
 
 // min returns the smaller of two integers.
