@@ -30,7 +30,7 @@ type DHPrivateKey struct {
 	p   *big.Int
 	g   *big.Int
 	n   *big.Int
-	pub crypto.PublicKey
+	pub *big.Int
 }
 
 // DHGenerateKey generates a private key.
@@ -39,7 +39,7 @@ func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
 	if err != nil {
 		panic(err)
 	}
-	pub := crypto.PublicKey(new(big.Int).Exp(g, n, p))
+	pub := new(big.Int).Exp(g, n, p)
 	return &DHPrivateKey{p, g, n, pub}
 }
 

@@ -34,7 +34,7 @@ type DHPrivateKey struct {
 	p   *big.Int
 	g   *big.Int
 	n   *big.Int
-	pub crypto.PublicKey
+	pub *big.Int
 }
 
 // DHGenerateKey generates a private key.
@@ -43,7 +43,7 @@ func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
 	if err != nil {
 		panic(err)
 	}
-	pub := crypto.PublicKey(new(big.Int).Exp(g, n, p))
+	pub := new(big.Int).Exp(g, n, p)
 	return &DHPrivateKey{p, g, n, pub}
 }
 
@@ -191,7 +191,7 @@ func serverHandshake(conn net.Conn, srv *SRPServer) error {
 type serverHandshakeState struct {
 	email      string
 	r          record
-	pub        crypto.PublicKey
+	pub        *big.Int
 	u          *big.Int
 	clientHMAC []byte
 }
@@ -215,10 +215,10 @@ func (state *serverHandshakeState) SendResponse(conn net.Conn, srv *SRPServer) e
 		return errors.New("SendResponse: user not found")
 	}
 	pub := new(big.Int).Mul(big.NewInt(3), state.r.v)
-	pub = pub.Add(pub, srv.pub.(*big.Int))
+	pub = pub.Add(pub, srv.pub)
 
 	h := sha256.New()
-	h.Write(state.pub.(*big.Int).Bytes())
+	h.Write(state.pub.Bytes())
 	h.Write(pub.Bytes())
 	state.u = new(big.Int).SetBytes(h.Sum([]byte{}))
 
@@ -243,7 +243,7 @@ func (state *serverHandshakeState) ReceiveHMAC(conn net.Conn) error {
 
 func (state *serverHandshakeState) SendOK(conn net.Conn, srv *SRPServer) error {
 	secret := new(big.Int).Exp(state.r.v, state.u, srv.p)
-	secret = secret.Mul(state.pub.(*big.Int), secret)
+	secret = secret.Mul(state.pub, secret)
 	secret = secret.Exp(secret, srv.n, srv.p)
 
 	h := sha256.New()
@@ -277,13 +277,13 @@ func clientHandshake(conn net.Conn, clt *SRPClient) error {
 
 type clientHandshakeState struct {
 	salt []byte
-	pub  crypto.PublicKey
+	pub  *big.Int
 	ok   bool
 }
 
 func (state *clientHandshakeState) SendLogin(conn net.Conn, clt *SRPClient) error {
 	_, err := fmt.Fprintf(conn, "email: %s\npub: %s\n",
-		clt.email, hex.EncodeToString(clt.pub.(*big.Int).Bytes()))
+		clt.email, hex.EncodeToString(clt.pub.Bytes()))
 
 	return err
 }
@@ -306,8 +306,8 @@ func (state *clientHandshakeState) ReceiveResponse(conn net.Conn) error {
 
 func (state *clientHandshakeState) SendHMAC(conn net.Conn, clt *SRPClient) error {
 	h := sha256.New()
-	h.Write(clt.pub.(*big.Int).Bytes())
-	h.Write(state.pub.(*big.Int).Bytes())
+	h.Write(clt.pub.Bytes())
+	h.Write(state.pub.Bytes())
 	u := new(big.Int).SetBytes(h.Sum([]byte{}))
 
 	h.Reset()
@@ -318,7 +318,7 @@ func (state *clientHandshakeState) SendHMAC(conn net.Conn, clt *SRPClient) error
 	fst := new(big.Int).Exp(clt.g, x, clt.p)
 	fst = fst.Mul(big.NewInt(3), fst)
 	fst = fst.Mod(fst, clt.p)
-	fst = fst.Sub(state.pub.(*big.Int), fst)
+	fst = fst.Sub(state.pub, fst)
 
 	snd := new(big.Int).Mul(u, x)
 	snd = snd.Add(clt.n, snd)
