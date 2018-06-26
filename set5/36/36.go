@@ -329,29 +329,12 @@ func (c *srpConn) Write(buf []byte) (int, error) {
 	return c.inner.Write(buf)
 }
 
-func (c *srpConn) Close() error {
-	return c.inner.Close()
-}
-
-func (c *srpConn) LocalAddr() net.Addr {
-	return c.inner.LocalAddr()
-}
-
-func (c *srpConn) RemoteAddr() net.Addr {
-	return c.inner.RemoteAddr()
-}
-
-func (c *srpConn) SetDeadline(t time.Time) error {
-	return c.inner.SetDeadline(t)
-}
-
-func (c *srpConn) SetReadDeadline(t time.Time) error {
-	return c.inner.SetReadDeadline(t)
-}
-
-func (c *srpConn) SetWriteDeadline(t time.Time) error {
-	return c.inner.SetWriteDeadline(t)
-}
+func (c *srpConn) Close() error                       { return c.inner.Close() }
+func (c *srpConn) LocalAddr() net.Addr                { return c.inner.LocalAddr() }
+func (c *srpConn) RemoteAddr() net.Addr               { return c.inner.RemoteAddr() }
+func (c *srpConn) SetDeadline(t time.Time) error      { return c.inner.SetDeadline(t) }
+func (c *srpConn) SetReadDeadline(t time.Time) error  { return c.inner.SetReadDeadline(t) }
+func (c *srpConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteDeadline(t) }
 
 func main() {
 	p, ok := new(big.Int).SetString(strings.Replace(defaultPrime, "\n", "", -1), 16)
