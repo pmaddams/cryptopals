@@ -59,18 +59,22 @@ func (priv *DHPrivateKey) Secret(pub crypto.PublicKey) []byte {
 	return new(big.Int).Exp(pub.(*big.Int), priv.n, priv.p).Bytes()
 }
 
+// record represents a database record of a user's login information.
 type record struct {
 	v    *big.Int
 	salt []byte
 }
 
+// database represents a database of users.
 type database map[string]record
 
+// SRPServer represents a server implementing SRP (Secure Remote Password).
 type SRPServer struct {
 	*DHPrivateKey
 	db database
 }
 
+// NewSRPServer returns a new SRP server.
 func NewSRPServer(p, g *big.Int) *SRPServer {
 	return &SRPServer{DHGenerateKey(p, g), make(map[string]record)}
 }
@@ -84,6 +88,7 @@ func RandomBytes(n int) []byte {
 	return res
 }
 
+// CreateUser creates a new user in the SRP server database.
 func (srv *SRPServer) CreateUser(email, password string) {
 	salt := RandomBytes(8)
 
@@ -98,6 +103,7 @@ func (srv *SRPServer) CreateUser(email, password string) {
 	srv.db[email] = record{v, salt}
 }
 
+// Listen prepares the server to accept SRP connections.
 func (srv *SRPServer) Listen(network, addr string) (net.Listener, error) {
 	l, err := net.Listen(network, addr)
 	if err != nil {
@@ -106,11 +112,13 @@ func (srv *SRPServer) Listen(network, addr string) (net.Listener, error) {
 	return srpListener{l, srv}, nil
 }
 
+// srpListener represents a socket ready to accept SRP connections.
 type srpListener struct {
 	l   net.Listener
 	srv *SRPServer
 }
 
+// Accept accepts an SRP connection on a listening socket.
 func (l srpListener) Accept() (net.Conn, error) {
 	c, err := l.l.Accept()
 	if err != nil {
@@ -119,24 +127,22 @@ func (l srpListener) Accept() (net.Conn, error) {
 	return &srpConn{inner: c, config: l.srv, mux: new(sync.Mutex)}, nil
 }
 
-func (l srpListener) Close() error {
-	return l.l.Close()
-}
+func (l srpListener) Close() error   { return l.l.Close() }
+func (l srpListener) Addr() net.Addr { return l.l.Addr() }
 
-func (l srpListener) Addr() net.Addr {
-	return l.l.Addr()
-}
-
+// SRPClient represents a client implementing SRP (Secure Remote Password).
 type SRPClient struct {
 	*DHPrivateKey
 	email    string
 	password string
 }
 
+// NewSRPClient returns a new Secure Remote Password client.
 func NewSRPClient(p, g *big.Int, email, password string) *SRPClient {
 	return &SRPClient{DHGenerateKey(p, g), email, password}
 }
 
+// Dial connects the SRP client to a server.
 func (clt *SRPClient) Dial(network, addr string) (net.Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
@@ -145,6 +151,7 @@ func (clt *SRPClient) Dial(network, addr string) (net.Conn, error) {
 	return &srpConn{inner: c, config: clt, mux: new(sync.Mutex)}, nil
 }
 
+// srpConn represents the state of an SRP connection.
 type srpConn struct {
 	inner  net.Conn
 	config interface{}
@@ -152,6 +159,9 @@ type srpConn struct {
 	auth   bool
 }
 
+// handshake checks if the current SRP connection is authenticated.
+// If not, it attempts to execute the authentication protocol.
+// If the handshake fails, it closes the connection.
 func (c *srpConn) handshake() error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
@@ -176,12 +186,15 @@ func (c *srpConn) handshake() error {
 	return nil
 }
 
+// serverHandshakeState represents the state that must be stored by
+// the server in order to execute the authentication protocol.
 type serverHandshakeState struct {
 	rec       record
 	clientPub *big.Int
 	u         *big.Int
 }
 
+// serverHandshake executes the authentication protocol for the server.
 func serverHandshake(c net.Conn, srv *SRPServer) error {
 	state := new(serverHandshakeState)
 	if err := state.receiveLoginAndSendResponse(c, srv); err != nil {
@@ -192,6 +205,7 @@ func serverHandshake(c net.Conn, srv *SRPServer) error {
 	return nil
 }
 
+// receiveLoginAndSendResponse receives login information and sends back a salt and session key.
 func (state *serverHandshakeState) receiveLoginAndSendResponse(c net.Conn, srv *SRPServer) error {
 	var email, clientPub string
 	if _, err := fmt.Fscanf(c, "email: %s\npublic key: %s\n", &email, &clientPub); err != nil {
@@ -219,6 +233,7 @@ func (state *serverHandshakeState) receiveLoginAndSendResponse(c net.Conn, srv *
 	return nil
 }
 
+// receiveHMACAndSendOK receives an HMAC and sends back an OK message.
 func (state *serverHandshakeState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) error {
 	var s string
 	if _, err := fmt.Fscanf(c, "hmac: %s\n", &s); err != nil {
@@ -246,11 +261,14 @@ func (state *serverHandshakeState) receiveHMACAndSendOK(c net.Conn, srv *SRPServ
 	return nil
 }
 
+// clientHandshakeState represents the state that must be stored by
+// the client in order to execute the authentication protocol.
 type clientHandshakeState struct {
 	salt       []byte
 	sessionPub *big.Int
 }
 
+// clientHandshake executes the authentication protocol for the client.
 func clientHandshake(c net.Conn, clt *SRPClient) error {
 	state := new(clientHandshakeState)
 	if err := state.sendLoginAndReceiveResponse(c, clt); err != nil {
@@ -261,6 +279,7 @@ func clientHandshake(c net.Conn, clt *SRPClient) error {
 	return nil
 }
 
+// sendLoginAndReceiveResponse sends login information and receives back a salt and session key.
 func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *SRPClient) error {
 	var err error
 	if _, err = fmt.Fprintf(c, "email: %s\npublic key: %s\n",
@@ -281,6 +300,7 @@ func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *
 	return nil
 }
 
+// sendHMACAndReceiveOK sends an HMAC and receives back an OK message.
 func (state *clientHandshakeState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClient) error {
 	h := sha256.New()
 	h.Write(clt.pub.Bytes())
@@ -317,6 +337,7 @@ func (state *clientHandshakeState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClie
 	return nil
 }
 
+// Read reads data from an SRP connection.
 func (c *srpConn) Read(buf []byte) (int, error) {
 	if err := c.handshake(); err != nil {
 		return 0, err
@@ -324,6 +345,7 @@ func (c *srpConn) Read(buf []byte) (int, error) {
 	return c.inner.Read(buf)
 }
 
+// Write writes data to an SRP connection.
 func (c *srpConn) Write(buf []byte) (int, error) {
 	if err := c.handshake(); err != nil {
 		return 0, err
