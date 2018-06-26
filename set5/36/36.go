@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -191,17 +192,24 @@ type serverHandshakeState struct {
 }
 
 func (state *serverHandshakeState) ReceiveLogin(conn net.Conn) error {
-	if _, err := fmt.Fscanf(conn, "email: %s\n", &(state.email)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fscanf(conn, "password: %s\n", &(state.password)); err != nil {
-		return err
-	}
-	return nil
+	_, err := fmt.Fscanf(conn, "email: %s\npassword: %s\n",
+		&(state.email), &(state.password))
+
+	return err
 }
 
 func (state *serverHandshakeState) SendResponse(conn net.Conn, srv *SRPServer) error {
-	return nil
+	r, ok := srv.db[state.email]
+	if !ok {
+		return errors.New("SendResponse: user not found")
+	}
+	pub := new(big.Int).Mul(big.NewInt(3), r.v)
+	pub = pub.Add(pub, srv.pub.(*big.Int))
+
+	_, err := fmt.Fprintf(conn, "salt: %s\npub: %s\n",
+		hex.EncodeToString(r.salt), hex.EncodeToString(pub.Bytes()))
+
+	return err
 }
 
 func (state *serverHandshakeState) ReceiveHMAC(conn net.Conn) error {
@@ -233,16 +241,25 @@ type clientHandshakeState struct {
 }
 
 func (state *clientHandshakeState) SendLogin(conn net.Conn, clt *SRPClient) error {
-	if _, err := fmt.Fprintf(conn, "email: %s\n", clt.email); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(conn, "password: %s\n", clt.email); err != nil {
-		return err
-	}
-	return nil
+	_, err := fmt.Fprintf(conn, "email: %s\npassword: %s\n",
+		clt.email, clt.password)
+
+	return err
 }
 
 func (state *clientHandshakeState) ReceiveResponse(conn net.Conn) error {
+	var salt, pub string
+	_, err := fmt.Fscanf(conn, "salt: %s\npub: %s\n", &salt, &pub)
+	if err != nil {
+		return err
+	}
+	if state.salt, err = hex.DecodeString(salt); err != nil {
+		return err
+	}
+	var ok bool
+	if state.pub, ok = new(big.Int).SetString(pub, 16); !ok {
+		return errors.New("ReceiveResponse: invalid public key")
+	}
 	return nil
 }
 
