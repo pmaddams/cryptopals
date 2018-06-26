@@ -114,21 +114,21 @@ func (srv *SRPServer) Listen(network, addr string) (net.Listener, error) {
 
 // srpListener represents a socket ready to accept SRP connections.
 type srpListener struct {
-	l   net.Listener
-	srv *SRPServer
+	inner net.Listener
+	srv   *SRPServer
 }
 
 // Accept accepts an SRP connection on a listening socket.
 func (l srpListener) Accept() (net.Conn, error) {
-	c, err := l.l.Accept()
+	c, err := l.inner.Accept()
 	if err != nil {
 		return nil, err
 	}
 	return &srpConn{inner: c, config: l.srv, mux: new(sync.Mutex)}, nil
 }
 
-func (l srpListener) Close() error   { return l.l.Close() }
-func (l srpListener) Addr() net.Addr { return l.l.Addr() }
+func (l srpListener) Close() error   { return l.inner.Close() }
+func (l srpListener) Addr() net.Addr { return l.inner.Addr() }
 
 // SRPClient represents a client implementing SRP (Secure Remote Password).
 type SRPClient struct {
