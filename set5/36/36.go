@@ -112,7 +112,7 @@ func (l srpListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &srpConn{conn: conn, config: l.srv, mux: new(sync.Mutex)}, nil
+	return &srpConn{inner: conn, config: l.srv, mux: new(sync.Mutex)}, nil
 }
 
 func (l srpListener) Close() error {
@@ -138,11 +138,11 @@ func (clt *SRPClient) Dial(network, addr string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &srpConn{conn: conn, config: clt, mux: new(sync.Mutex)}, nil
+	return &srpConn{inner: conn, config: clt, mux: new(sync.Mutex)}, nil
 }
 
 type srpConn struct {
-	conn   net.Conn
+	inner  net.Conn
 	config interface{}
 	mux    *sync.Mutex
 	auth   bool
@@ -156,11 +156,11 @@ func (conn *srpConn) handshake() error {
 		return nil
 	}
 	if srv, ok := conn.config.(*SRPServer); ok {
-		if err := conn.serverHandshake(srv); err != nil {
+		if err := serverHandshake(conn.inner, srv); err != nil {
 			return err
 		}
 	} else if clt, ok := conn.config.(*SRPClient); ok {
-		if err := conn.clientHandshake(clt); err != nil {
+		if err := clientHandshake(conn.inner, clt); err != nil {
 			return err
 		}
 	} else {
@@ -170,15 +170,15 @@ func (conn *srpConn) handshake() error {
 	return nil
 }
 
-func (conn *srpConn) serverHandshake(srv *SRPServer) error {
+func serverHandshake(conn net.Conn, srv *SRPServer) error {
 	state := new(serverHandshakeState)
-	if err := state.ReceiveLogin(); err != nil {
+	if err := state.ReceiveLogin(conn); err != nil {
 		return err
-	} else if err = state.SendResponse(); err != nil {
+	} else if err = state.SendResponse(conn, srv); err != nil {
 		return err
-	} else if err = state.ReceiveHMAC(); err != nil {
+	} else if err = state.ReceiveHMAC(conn); err != nil {
 		return err
-	} else if err = state.SendOK(); err != nil {
+	} else if err = state.SendOK(conn, srv); err != nil {
 		return err
 	}
 	return nil
@@ -190,31 +190,37 @@ type serverHandshakeState struct {
 	hmac     []byte
 }
 
-func (state *serverHandshakeState) ReceiveLogin() error {
+func (state *serverHandshakeState) ReceiveLogin(conn net.Conn) error {
+	if _, err := fmt.Fscanf(conn, "email: %s\n", &(state.email)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fscanf(conn, "password: %s\n", &(state.password)); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (state *serverHandshakeState) SendResponse() error {
+func (state *serverHandshakeState) SendResponse(conn net.Conn, srv *SRPServer) error {
 	return nil
 }
 
-func (state *serverHandshakeState) ReceiveHMAC() error {
+func (state *serverHandshakeState) ReceiveHMAC(conn net.Conn) error {
 	return nil
 }
 
-func (state *serverHandshakeState) SendOK() error {
+func (state *serverHandshakeState) SendOK(conn net.Conn, srv *SRPServer) error {
 	return nil
 }
 
-func (conn *srpConn) clientHandshake(clt *SRPClient) error {
+func clientHandshake(conn net.Conn, clt *SRPClient) error {
 	state := new(clientHandshakeState)
-	if err := state.SendLogin(); err != nil {
+	if err := state.SendLogin(conn, clt); err != nil {
 		return err
-	} else if err = state.ReceiveResponse(); err != nil {
+	} else if err = state.ReceiveResponse(conn); err != nil {
 		return err
-	} else if err = state.SendHMAC(); err != nil {
+	} else if err = state.SendHMAC(conn, clt); err != nil {
 		return err
-	} else if err = state.ReceiveOK(); err != nil {
+	} else if err = state.ReceiveOK(conn); err != nil {
 		return err
 	}
 	return nil
@@ -226,19 +232,25 @@ type clientHandshakeState struct {
 	ok   bool
 }
 
-func (state *clientHandshakeState) SendLogin() error {
+func (state *clientHandshakeState) SendLogin(conn net.Conn, clt *SRPClient) error {
+	if _, err := fmt.Fprintf(conn, "email: %s\n", clt.email); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(conn, "password: %s\n", clt.email); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (state *clientHandshakeState) ReceiveResponse() error {
+func (state *clientHandshakeState) ReceiveResponse(conn net.Conn) error {
 	return nil
 }
 
-func (state *clientHandshakeState) SendHMAC() error {
+func (state *clientHandshakeState) SendHMAC(conn net.Conn, clt *SRPClient) error {
 	return nil
 }
 
-func (state *clientHandshakeState) ReceiveOK() error {
+func (state *clientHandshakeState) ReceiveOK(conn net.Conn) error {
 	return nil
 }
 
@@ -246,38 +258,38 @@ func (conn *srpConn) Read(buf []byte) (int, error) {
 	if err := conn.handshake(); err != nil {
 		return 0, err
 	}
-	return conn.conn.Read(buf)
+	return conn.inner.Read(buf)
 }
 
 func (conn *srpConn) Write(buf []byte) (int, error) {
 	if err := conn.handshake(); err != nil {
 		return 0, err
 	}
-	return conn.conn.Write(buf)
+	return conn.inner.Write(buf)
 }
 
 func (conn *srpConn) Close() error {
-	return conn.conn.Close()
+	return conn.inner.Close()
 }
 
 func (conn *srpConn) LocalAddr() net.Addr {
-	return conn.conn.LocalAddr()
+	return conn.inner.LocalAddr()
 }
 
 func (conn *srpConn) RemoteAddr() net.Addr {
-	return conn.conn.RemoteAddr()
+	return conn.inner.RemoteAddr()
 }
 
 func (conn *srpConn) SetDeadline(t time.Time) error {
-	return conn.conn.SetDeadline(t)
+	return conn.inner.SetDeadline(t)
 }
 
 func (conn *srpConn) SetReadDeadline(t time.Time) error {
-	return conn.conn.SetReadDeadline(t)
+	return conn.inner.SetReadDeadline(t)
 }
 
 func (conn *srpConn) SetWriteDeadline(t time.Time) error {
-	return conn.conn.SetWriteDeadline(t)
+	return conn.inner.SetWriteDeadline(t)
 }
 
 func main() {
@@ -290,6 +302,8 @@ func main() {
 		panic("invalid generator")
 	}
 	srv := NewSRPServer(p, g)
+	srv.CreateUser("user", "password")
+
 	l, err := srv.Listen("tcp", "localhost:4000")
 	if err != nil {
 		panic(err)
