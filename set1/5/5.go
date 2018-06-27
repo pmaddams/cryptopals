@@ -73,8 +73,8 @@ func decryptAndPrint(in io.Reader, stream cipher.Stream) error {
 var d = flag.Bool("d", false, "decrypt")
 
 func main() {
-	flag.Parse()
 	var fn func(io.Reader, cipher.Stream) error
+	flag.Parse()
 	if *d {
 		fn = decryptAndPrint
 	} else {

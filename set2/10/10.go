@@ -160,9 +160,10 @@ func main() {
 		panic(err)
 	}
 	iv := make([]byte, c.BlockSize())
-
-	var fn func(io.Reader, cipher.BlockMode) error
-	var mode cipher.BlockMode
+	var (
+		fn   func(io.Reader, cipher.BlockMode) error
+		mode cipher.BlockMode
+	)
 	flag.Parse()
 	if *e {
 		fn = encryptAndPrint
