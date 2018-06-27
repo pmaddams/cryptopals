@@ -166,7 +166,6 @@ type srpConn struct {
 func (c *srpConn) handshake() error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-
 	if c.auth {
 		return nil
 	} else if srv, ok := c.config.(*SRPServer); ok {
@@ -331,8 +330,7 @@ func (state *clientHandshakeState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClie
 	var s string
 	if _, err := fmt.Fscanln(c, &s); err != nil {
 		return err
-	}
-	if s != "ok" {
+	} else if s != "ok" {
 		return errors.New("ReceiveOK: invalid response")
 	}
 	return nil
