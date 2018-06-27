@@ -362,26 +362,21 @@ func (c *srpConn) SetReadDeadline(t time.Time) error  { return c.inner.SetReadDe
 func (c *srpConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteDeadline(t) }
 
 // runProtocol runs the Secure Remote Password protocol interactively.
-func runProtocol(network, addr string, p, g *big.Int) {
-	input := bufio.NewScanner(os.Stdin)
-
+func runProtocol(network, addr string, p, g *big.Int) error {
+	var dbEmail, dbPassword string
 	fmt.Print("database email: ")
-	if !input.Scan() || len(input.Text()) == 0 {
-		return
+	if _, err := fmt.Scanln(&dbEmail); err != nil {
+		return err
 	}
-	dbEmail := input.Text()
 	fmt.Print("database password: ")
-	if !input.Scan() || len(input.Text()) == 0 {
-		return
+	if _, err := fmt.Scanln(&dbPassword); err != nil {
+		return err
 	}
-	dbPassword := input.Text()
-
 	srv := NewSRPServer(p, g)
 	srv.CreateUser(dbEmail, dbPassword)
-
 	l, err := srv.Listen(network, addr)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	done := make(chan struct{})
 	go func() {
@@ -395,34 +390,33 @@ func runProtocol(network, addr string, p, g *big.Int) {
 		}
 		close(done)
 	}()
+	var userEmail, userPassword string
 	fmt.Print("user email: ")
-	if !input.Scan() || len(input.Text()) == 0 {
-		return
+	if _, err := fmt.Scanln(&userEmail); err != nil {
+		return err
 	}
-	userEmail := input.Text()
 	fmt.Print("user password: ")
-	if !input.Scan() || len(input.Text()) == 0 {
-		return
+	if _, err := fmt.Scanln(&userPassword); err != nil {
+		return err
 	}
-	userPassword := input.Text()
-
 	clt := NewSRPClient(p, g, userEmail, userPassword)
 	fmt.Print("connecting...")
-
 	c, err := clt.Dial(network, addr)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	if _, err := c.Read([]byte{}); err != nil {
 		fmt.Println("failure")
-		return
+		return nil
 	}
 	fmt.Println("success")
-	for input.Scan() {
+	for input := bufio.NewScanner(os.Stdin); input.Scan(); {
 		fmt.Fprintln(c, input.Text())
 	}
 	c.Close()
 	<-done
+
+	return nil
 }
 
 func main() {
@@ -434,5 +428,7 @@ func main() {
 	if !ok {
 		panic("invalid generator")
 	}
-	runProtocol("tcp", addr, p, g)
+	if err := runProtocol("tcp", addr, p, g); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 }
