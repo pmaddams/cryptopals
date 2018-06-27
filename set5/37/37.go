@@ -131,23 +131,23 @@ func (l srpListener) Accept() (net.Conn, error) {
 func (l srpListener) Close() error   { return l.inner.Close() }
 func (l srpListener) Addr() net.Addr { return l.inner.Addr() }
 
-// SRPCracker represents a cracker attacking SRP (Secure Remote Password).
-type SRPCracker struct {
+// SRPBreaker represents a malicious client attacking SRP (Secure Remote Password).
+type SRPBreaker struct {
 	email string
 }
 
-// NewSRPCracker returns a new Secure Remote Password cracker.
-func NewSRPCracker(email string) *SRPCracker {
-	return &SRPCracker{email}
+// NewSRPBreaker returns a new Secure Remote Password breaker.
+func NewSRPBreaker(email string) *SRPBreaker {
+	return &SRPBreaker{email}
 }
 
-// Dial connects the SRP cracker to a server.
-func (crk *SRPCracker) Dial(network, addr string) (net.Conn, error) {
+// Dial connects the SRP breaker to a server.
+func (x *SRPBreaker) Dial(network, addr string) (net.Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
 	}
-	return &srpConn{inner: c, config: crk, mux: new(sync.Mutex)}, nil
+	return &srpConn{inner: c, config: x, mux: new(sync.Mutex)}, nil
 }
 
 // srpConn represents the state of an SRP connection.
@@ -171,8 +171,8 @@ func (c *srpConn) handshake() error {
 			c.Close()
 			return err
 		}
-	} else if crk, ok := c.config.(*SRPCracker); ok {
-		if err := crackerHandshake(c.inner, crk); err != nil {
+	} else if x, ok := c.config.(*SRPBreaker); ok {
+		if err := breakerHandshake(c.inner, x); err != nil {
 			c.Close()
 			return err
 		}
@@ -259,31 +259,31 @@ func (state *serverHandshakeState) receiveHMACAndSendOK(c net.Conn, srv *SRPServ
 	return nil
 }
 
-// crackerHandshakeState represents the state that must be stored by
-// the cracker in order to execute the authentication protocol.
-type crackerHandshakeState struct {
+// breakerHandshakeState represents the state that must be stored by
+// the breaker in order to execute the authentication protocol.
+type breakerHandshakeState struct {
 	salt []byte
 }
 
-// crackerHandshake executes the authentication protocol for the cracker.
-func crackerHandshake(c net.Conn, crk *SRPCracker) error {
-	state := new(crackerHandshakeState)
-	if err := state.sendLoginAndReceiveResponse(c, crk); err != nil {
+// breakerHandshake executes the authentication protocol for the breaker.
+func breakerHandshake(c net.Conn, x *SRPBreaker) error {
+	state := new(breakerHandshakeState)
+	if err := state.sendLoginAndReceiveResponse(c, x); err != nil {
 		return err
-	} else if err = state.sendHMACAndReceiveOK(c, crk); err != nil {
+	} else if err = state.sendHMACAndReceiveOK(c, x); err != nil {
 		return err
 	}
 	return nil
 }
 
 // sendLoginAndReceiveResponse sends login information and receives back a salt and session key.
-func (state *crackerHandshakeState) sendLoginAndReceiveResponse(c net.Conn, crk *SRPCracker) error {
+func (state *breakerHandshakeState) sendLoginAndReceiveResponse(c net.Conn, x *SRPBreaker) error {
 	var err error
-	if _, err = fmt.Fprintf(c, "email: %s\npublic key: 0\n", crk.email); err != nil {
+	if _, err = fmt.Fprintf(c, "email: %s\npublic key: 0\n", x.email); err != nil {
 		return err
 	}
-	var salt, sessionPub string
-	if _, err = fmt.Fscanf(c, "salt: %s\npublic key: %s\n", &salt, &sessionPub); err != nil {
+	var salt, unused string
+	if _, err = fmt.Fscanf(c, "salt: %s\npublic key: %s\n", &salt, &unused); err != nil {
 		return err
 	}
 	if state.salt, err = hex.DecodeString(salt); err != nil {
@@ -293,7 +293,7 @@ func (state *crackerHandshakeState) sendLoginAndReceiveResponse(c net.Conn, crk 
 }
 
 // sendHMACAndReceiveOK sends an HMAC and receives back an OK message.
-func (state *crackerHandshakeState) sendHMACAndReceiveOK(c net.Conn, crk *SRPCracker) error {
+func (state *breakerHandshakeState) sendHMACAndReceiveOK(c net.Conn, x *SRPBreaker) error {
 	h := sha256.New()
 	k := h.Sum([]byte{})
 
@@ -333,8 +333,9 @@ func (c *srpConn) SetDeadline(t time.Time) error      { return c.inner.SetDeadli
 func (c *srpConn) SetReadDeadline(t time.Time) error  { return c.inner.SetReadDeadline(t) }
 func (c *srpConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteDeadline(t) }
 
-// runProtocol runs the Secure Remote Password protocol interactively.
-func runProtocol(network, addr string, p, g *big.Int) error {
+// breakProtocol breaks the Secure Remote Password protocol interactively.
+// Note that the implementation fails to check the client's public key.
+func breakProtocol(network, addr string, p, g *big.Int) error {
 	var dbEmail, dbPassword string
 	fmt.Print("database email: ")
 	if _, err := fmt.Scanln(&dbEmail); err != nil {
@@ -367,9 +368,9 @@ func runProtocol(network, addr string, p, g *big.Int) error {
 	if _, err := fmt.Scanln(&userEmail); err != nil {
 		return err
 	}
-	crk := NewSRPCracker(userEmail)
+	x := NewSRPBreaker(userEmail)
 	fmt.Print("connecting...")
-	c, err := crk.Dial(network, addr)
+	c, err := x.Dial(network, addr)
 	if err != nil {
 		return err
 	}
@@ -396,7 +397,7 @@ func main() {
 	if !ok {
 		panic("invalid generator")
 	}
-	if err := runProtocol("tcp", addr, p, g); err != nil {
+	if err := breakProtocol("tcp", addr, p, g); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
