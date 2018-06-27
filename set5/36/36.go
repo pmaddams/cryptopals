@@ -12,6 +12,7 @@ import (
 	"log"
 	"math/big"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -360,19 +361,25 @@ func (c *srpConn) SetDeadline(t time.Time) error      { return c.inner.SetDeadli
 func (c *srpConn) SetReadDeadline(t time.Time) error  { return c.inner.SetReadDeadline(t) }
 func (c *srpConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteDeadline(t) }
 
-func main() {
-	p, ok := new(big.Int).SetString(strings.Replace(defaultPrime, "\n", "", -1), 16)
-	if !ok || !p.ProbablyPrime(0) {
-		panic("invalid prime")
-	}
-	g, ok := new(big.Int).SetString(defaultGenerator, 16)
-	if !ok {
-		panic("invalid generator")
-	}
-	srv := NewSRPServer(p, g)
-	srv.CreateUser("user", "password")
+// runProtocol runs the Secure Remote Password protocol interactively.
+func runProtocol(network, addr string, p, g *big.Int) {
+	input := bufio.NewScanner(os.Stdin)
 
-	l, err := srv.Listen("tcp", addr)
+	fmt.Print("database email: ")
+	if !input.Scan() || len(input.Text()) == 0 {
+		return
+	}
+	dbEmail := input.Text()
+	fmt.Print("database password: ")
+	if !input.Scan() || len(input.Text()) == 0 {
+		return
+	}
+	dbPassword := input.Text()
+
+	srv := NewSRPServer(p, g)
+	srv.CreateUser(dbEmail, dbPassword)
+
+	l, err := srv.Listen(network, addr)
 	if err != nil {
 		panic(err)
 	}
@@ -388,12 +395,44 @@ func main() {
 		}
 		close(done)
 	}()
-	clt := NewSRPClient(p, g, "user", "password")
-	c, err := clt.Dial("tcp", addr)
+	fmt.Print("user email: ")
+	if !input.Scan() || len(input.Text()) == 0 {
+		return
+	}
+	userEmail := input.Text()
+	fmt.Print("user password: ")
+	if !input.Scan() || len(input.Text()) == 0 {
+		return
+	}
+	userPassword := input.Text()
+
+	clt := NewSRPClient(p, g, userEmail, userPassword)
+	fmt.Print("connecting...")
+
+	c, err := clt.Dial(network, addr)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprintln(c, "success")
+	if _, err := c.Read([]byte{}); err != nil {
+		fmt.Println("failure")
+		return
+	}
+	fmt.Println("success")
+	for input.Scan() {
+		fmt.Fprintln(c, input.Text())
+	}
 	c.Close()
 	<-done
+}
+
+func main() {
+	p, ok := new(big.Int).SetString(strings.Replace(defaultPrime, "\n", "", -1), 16)
+	if !ok || !p.ProbablyPrime(0) {
+		panic("invalid prime")
+	}
+	g, ok := new(big.Int).SetString(defaultGenerator, 16)
+	if !ok {
+		panic("invalid generator")
+	}
+	runProtocol("tcp", addr, p, g)
 }
