@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -26,27 +25,21 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 // xorTwoLines reads two hex-encoded lines and prints their XOR combination.
-func xorTwoLines(in io.Reader) {
-	input := bufio.NewScanner(in)
-
-	// Read two lines and exit if either one is empty or invalid.
-	if !input.Scan() || len(input.Text()) == 0 {
-		return
+func xorTwoLines(in io.Reader) error {
+	var s1, s2 string
+	if _, err := fmt.Fscanln(in, &s1); err != nil {
+		return err
+	} else if _, err = fmt.Fscanln(in, &s2); err != nil {
+		return err
 	}
-	b1, err := hex.DecodeString(input.Text())
+	b1, err := hex.DecodeString(s1)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
-	if !input.Scan() || len(input.Text()) == 0 {
-		return
-	}
-	b2, err := hex.DecodeString(input.Text())
+	b2, err := hex.DecodeString(s2)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
-
 	// Write the data in place to the shorter buffer.
 	var dst []byte
 	if len(b1) < len(b2) {
@@ -56,13 +49,17 @@ func xorTwoLines(in io.Reader) {
 	}
 	XORBytes(dst, b1, b2)
 	fmt.Printf("%x\n", dst)
+
+	return nil
 }
 
 func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		xorTwoLines(os.Stdin)
+		if err := xorTwoLines(os.Stdin); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		return
 	}
 	for _, name := range files {
@@ -71,7 +68,9 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		xorTwoLines(f)
+		if err := xorTwoLines(f); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		f.Close()
 	}
 }
