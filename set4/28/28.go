@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -20,8 +21,8 @@ type mac struct {
 }
 
 // NewMAC takes a hash and key, and returns a new MAC hash.
-func NewMAC(f func() hash.Hash, key []byte) hash.Hash {
-	m := mac{f(), key}
+func NewMAC(fn func() hash.Hash, key []byte) hash.Hash {
+	m := mac{fn(), key}
 	m.Reset()
 	return m
 }
@@ -54,25 +55,24 @@ func RandomBytes(n int) []byte {
 }
 
 // readAndPrintMAC reads input and prints the MAC and SHA-1(key + message).
-func readAndPrintMAC(in io.Reader, mac hash.Hash, key []byte) {
+func readAndPrintMAC(in io.Reader, mac hash.Hash, key []byte) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	mac.Reset()
 	if _, err := mac.Write(buf); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	sum1 := mac.Sum([]byte{})
 	array := sha1.Sum(append(key, buf...))
 	sum2 := array[:]
 	if !bytes.Equal(sum1, sum2) {
-		fmt.Fprintln(os.Stderr, "invalid MAC")
-		return
+		return errors.New("readAndPrintMAC: invalid MAC")
 	}
 	fmt.Printf("%x\n%x\n", sum1, sum2)
+
+	return nil
 }
 
 func main() {
@@ -82,7 +82,9 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		readAndPrintMAC(os.Stdin, mac, key)
+		if err := readAndPrintMAC(os.Stdin, mac, key); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		return
 	}
 	for _, name := range files {
@@ -91,7 +93,9 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		readAndPrintMAC(f, mac, key)
+		if err := readAndPrintMAC(f, mac, key); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		f.Close()
 	}
 }

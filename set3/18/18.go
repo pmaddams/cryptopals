@@ -80,26 +80,28 @@ func (stream ctr) XORKeyStream(dst, src []byte) {
 }
 
 // encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func encryptAndPrint(in io.Reader, stream cipher.Stream) {
+func encryptAndPrint(in io.Reader, stream cipher.Stream) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	stream.XORKeyStream(buf, buf)
 	fmt.Println(base64.StdEncoding.EncodeToString(buf))
+
+	return nil
 }
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, stream cipher.Stream) {
+func decryptAndPrint(in io.Reader, stream cipher.Stream) error {
 	in = base64.NewDecoder(base64.StdEncoding, in)
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	stream.XORKeyStream(buf, buf)
 	fmt.Println(string(buf))
+
+	return nil
 }
 
 var e = flag.Bool("e", false, "encrypt")
@@ -112,14 +114,18 @@ func main() {
 	iv := make([]byte, c.BlockSize())
 	stream := NewCTR(c, iv)
 
+	var fn func(io.Reader, cipher.Stream) error
 	flag.Parse()
+	if *e {
+		fn = encryptAndPrint
+	} else {
+		fn = decryptAndPrint
+	}
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if *e {
-			encryptAndPrint(os.Stdin, stream)
-		} else {
-			decryptAndPrint(os.Stdin, stream)
+		if err := fn(os.Stdin, stream); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 	for _, name := range files {
@@ -128,10 +134,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if *e {
-			encryptAndPrint(f, stream)
-		} else {
-			decryptAndPrint(f, stream)
+		if err := fn(f, stream); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
 	}

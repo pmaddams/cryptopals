@@ -91,49 +91,54 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 }
 
 // encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func encryptAndPrint(in io.Reader, c cipher.Block) {
+func encryptAndPrint(in io.Reader, c cipher.Block) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	buf = PKCS7Pad(buf, c.BlockSize())
 	NewECBEncrypter(c).CryptBlocks(buf, buf)
 	fmt.Println(base64.StdEncoding.EncodeToString(buf))
+
+	return nil
 }
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, c cipher.Block) {
+func decryptAndPrint(in io.Reader, c cipher.Block) error {
 	in = base64.NewDecoder(base64.StdEncoding, in)
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	NewECBDecrypter(c).CryptBlocks(buf, buf)
 	buf, err = PKCS7Unpad(buf, c.BlockSize())
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	fmt.Print(string(buf))
+
+	return nil
 }
 
 var e = flag.Bool("e", false, "encrypt")
 
 func main() {
+	var fn func(io.Reader, cipher.Block) error
+	flag.Parse()
+	if *e {
+		fn = encryptAndPrint
+	} else {
+		fn = decryptAndPrint
+	}
 	c, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
-	flag.Parse()
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if *e {
-			encryptAndPrint(os.Stdin, c)
-		} else {
-			decryptAndPrint(os.Stdin, c)
+		if err := fn(os.Stdin, c); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 	for _, name := range files {
@@ -142,10 +147,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if *e {
-			encryptAndPrint(f, c)
-		} else {
-			decryptAndPrint(f, c)
+		if err := fn(f, c); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
 	}

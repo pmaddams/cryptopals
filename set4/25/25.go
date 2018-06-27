@@ -144,30 +144,31 @@ func breakCTREditor(e *CTREditor) ([]byte, error) {
 
 // decryptAndPrint generates a CTREditor from base64-encoded,
 // ECB-encrypted input, breaks it, and prints the plaintext.
-func decryptAndPrint(in io.Reader) {
+func decryptAndPrint(in io.Reader) error {
 	buf, err := decryptECB(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	e, err := NewCTREditor(buf)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	buf, err = breakCTREditor(e)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	fmt.Print(string(buf))
+
+	return nil
 }
 
 func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		decryptAndPrint(os.Stdin)
+		if err := decryptAndPrint(os.Stdin); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -175,7 +176,9 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		decryptAndPrint(f)
+		if err := decryptAndPrint(f); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		f.Close()
 	}
 }

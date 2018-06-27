@@ -51,8 +51,8 @@ type hmac struct {
 }
 
 // NewHMAC takes a hash and key, and returns a new HMAC hash.
-func NewHMAC(f func() hash.Hash, key []byte) hash.Hash {
-	h := f()
+func NewHMAC(fn func() hash.Hash, key []byte) hash.Hash {
+	h := fn()
 	// If the key is too long, hash it.
 	if len(key) > h.BlockSize() {
 		h.Write(key)
@@ -227,7 +227,7 @@ func breakServer(url string, buf []byte, name string, size int) []byte {
 }
 
 // printHMACAndBreakServer prints a valid HMAC and attempts to break the server.
-func printHMACAndBreakServer(h hash.Hash, url string, buf []byte, name string) {
+func printHMACAndBreakServer(h hash.Hash, url string, buf []byte, name string) error {
 	h.Reset()
 	h.Write(buf)
 	fmt.Printf("attempting to upload %s...\n%x\n", name, h.Sum([]byte{}))
@@ -235,12 +235,12 @@ func printHMACAndBreakServer(h hash.Hash, url string, buf []byte, name string) {
 	sig := hex.EncodeToString(breakServer(url, buf, name, h.Size()))
 	resp, err := upload(url, buf, name, sig)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	if resp.StatusCode == http.StatusOK {
 		fmt.Printf("successfully uploaded %s\n", name)
 	}
+	return nil
 }
 
 func main() {
@@ -263,7 +263,10 @@ func main() {
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		io.Copy(buf, os.Stdin)
-		printHMACAndBreakServer(h, url, buf.Bytes(), "user input")
+		err := printHMACAndBreakServer(h, url, buf.Bytes(), "user input")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		return
 	}
 	for _, name := range files {
@@ -273,8 +276,10 @@ func main() {
 			continue
 		}
 		io.Copy(buf, f)
-		printHMACAndBreakServer(h, url, buf.Bytes(), name)
-
+		err = printHMACAndBreakServer(h, url, buf.Bytes(), name)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		buf.Reset()
 		f.Close()
 	}

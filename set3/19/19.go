@@ -193,16 +193,16 @@ func XORBytes(dst, b1, b2 []byte) int {
 }
 
 // decryptAndPrint decrypts and prints buffers encrypted with an identical CTR keystream.
-func decryptAndPrint(bufs [][]byte) {
+func decryptAndPrint(bufs [][]byte) error {
 	keystream, err := breakIdenticalCTR(bufs)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	for _, buf := range bufs {
 		n := XORBytes(buf, buf, keystream)
 		fmt.Println(string(buf[:n]))
 	}
+	return nil
 }
 
 func init() {
@@ -238,7 +238,9 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		decryptAndPrint(lines)
+		if err := decryptAndPrint(lines); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -251,7 +253,9 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		decryptAndPrint(lines)
+		if err := decryptAndPrint(lines); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		f.Close()
 	}
 }

@@ -219,20 +219,20 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 }
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader) {
+func decryptAndPrint(in io.Reader) error {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	key, err := breakRepeatingXOR(buf)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	stream := NewXORCipher(key)
 	stream.XORKeyStream(buf, buf)
 	fmt.Print(string(buf))
+
+	return nil
 }
 
 func init() {
@@ -257,7 +257,9 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		decryptAndPrint(os.Stdin)
+		if err := decryptAndPrint(os.Stdin); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -265,7 +267,9 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		decryptAndPrint(f)
+		if err := decryptAndPrint(f); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		f.Close()
 	}
 }

@@ -27,15 +27,13 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 }
 
 // padAndPrint reads lines of text and displays them with PKCS#7 padding added.
-func padAndPrint(in io.Reader, blockSize int) {
+func padAndPrint(in io.Reader, blockSize int) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		buf := PKCS7Pad(input.Bytes(), blockSize)
 		fmt.Println(strconv.Quote(string(buf)))
 	}
-	if err := input.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
+	return input.Err()
 }
 
 func main() {
@@ -49,7 +47,9 @@ func main() {
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		padAndPrint(os.Stdin, blockSize)
+		if err := padAndPrint(os.Stdin, blockSize); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -57,7 +57,9 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		padAndPrint(f, blockSize)
+		if err := padAndPrint(f, blockSize); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		f.Close()
 	}
 }

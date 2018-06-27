@@ -32,22 +32,21 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 }
 
 // unpadAndPrint prints lines of PKCS#7 padded input with padding removed.
-func unpadAndPrint(in io.Reader, blockSize int) {
+func unpadAndPrint(in io.Reader, blockSize int) error {
 	input := bufio.NewReader(in)
+	L:
 	for {
 		s, err := input.ReadString('\n')
-		if err == nil {
+		switch err {
+		case nil:
 			s = s[:len(s)-1]
-		} else if err == io.EOF {
-			break
-		} else {
-			fmt.Fprintln(os.Stderr, err)
-			continue
+		case io.EOF:
+			break L
+		default:
+			return err
 		}
-		s, err = strconv.Unquote(`"` + s + `"`)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
+		if s, err = strconv.Unquote(`"` + s + `"`); err != nil {
+			return err
 		}
 		buf, err := PKCS7Unpad([]byte(s), blockSize)
 		if err != nil {
@@ -56,6 +55,7 @@ func unpadAndPrint(in io.Reader, blockSize int) {
 		}
 		fmt.Println(string(buf))
 	}
+	return nil
 }
 
 func main() {
@@ -69,7 +69,9 @@ func main() {
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		unpadAndPrint(os.Stdin, blockSize)
+		if err := unpadAndPrint(os.Stdin, blockSize); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 	for _, name := range files {
 		f, err := os.Open(name)
@@ -77,7 +79,9 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		unpadAndPrint(f, blockSize)
+		if err := unpadAndPrint(f, blockSize); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		f.Close()
 	}
 }

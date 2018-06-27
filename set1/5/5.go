@@ -39,48 +39,53 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 }
 
 // encryptAndPrint reads plaintext and prints hex-encoded ciphertext.
-func encryptAndPrint(in io.Reader, stream cipher.Stream) {
+func encryptAndPrint(in io.Reader, stream cipher.Stream) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	stream.XORKeyStream(buf, buf)
 	fmt.Println(hex.EncodeToString(buf))
+
+	return nil
 }
 
 // decryptAndPrint reads hex-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, stream cipher.Stream) {
+func decryptAndPrint(in io.Reader, stream cipher.Stream) error {
 	input := bufio.NewScanner(in)
 	var buf []byte
 	for input.Scan() {
 		line, err := hex.DecodeString(input.Text())
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
+			return err
 		}
 		buf = append(buf, line...)
 	}
 	if err := input.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	stream.XORKeyStream(buf, buf)
 	fmt.Print(string(buf))
+
+	return nil
 }
 
 var d = flag.Bool("d", false, "decrypt")
 
 func main() {
 	flag.Parse()
+	var fn func(io.Reader, cipher.Stream) error
+	if *d {
+		fn = decryptAndPrint
+	} else {
+		fn = encryptAndPrint
+	}
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		stream := NewXORCipher([]byte(secret))
-		if *d {
-			decryptAndPrint(os.Stdin, stream)
-		} else {
-			encryptAndPrint(os.Stdin, stream)
+		if err := fn(os.Stdin, stream); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 	for _, name := range files {
@@ -91,10 +96,8 @@ func main() {
 		}
 		// Since the stream is stateful, we have to re-initialize it.
 		stream := NewXORCipher([]byte(secret))
-		if *d {
-			decryptAndPrint(f, stream)
-		} else {
-			encryptAndPrint(f, stream)
+		if err := fn(f, stream); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
 	}

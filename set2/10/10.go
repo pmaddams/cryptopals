@@ -125,30 +125,31 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 }
 
 // encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func encryptAndPrint(in io.Reader, mode cipher.BlockMode) {
+func encryptAndPrint(in io.Reader, mode cipher.BlockMode) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	buf = PKCS7Pad(buf, mode.BlockSize())
 	mode.CryptBlocks(buf, buf)
 	fmt.Println(base64.StdEncoding.EncodeToString(buf))
+
+	return nil
 }
 
 // decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, mode cipher.BlockMode) {
+func decryptAndPrint(in io.Reader, mode cipher.BlockMode) error {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	mode.CryptBlocks(buf, buf)
 	if buf, err = PKCS7Unpad(buf, mode.BlockSize()); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		return err
 	}
 	fmt.Print(string(buf))
+
+	return nil
 }
 
 var e = flag.Bool("e", false, "encrypt")
@@ -160,16 +161,21 @@ func main() {
 	}
 	iv := make([]byte, c.BlockSize())
 
+	var fn func(io.Reader, cipher.BlockMode) error
+	var mode cipher.BlockMode
 	flag.Parse()
+	if *e {
+		fn = encryptAndPrint
+		mode = NewCBCEncrypter(c, iv)
+	} else {
+		fn = decryptAndPrint
+		mode = NewCBCDecrypter(c, iv)
+	}
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if *e {
-			mode := NewCBCEncrypter(c, iv)
-			encryptAndPrint(os.Stdin, mode)
-		} else {
-			mode := NewCBCDecrypter(c, iv)
-			decryptAndPrint(os.Stdin, mode)
+		if err := fn(os.Stdin, mode); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 	for _, name := range files {
@@ -178,12 +184,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if *e {
-			mode := NewCBCEncrypter(c, iv)
-			encryptAndPrint(f, mode)
-		} else {
-			mode := NewCBCDecrypter(c, iv)
-			decryptAndPrint(f, mode)
+		if err := fn(f, mode); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
 	}
