@@ -191,7 +191,6 @@ func (c *rpConn) handshake() error {
 type serverHandshakeState struct {
 	rec       record
 	clientPub *big.Int
-	u         *big.Int
 }
 
 // serverHandshake executes the authentication protocol for the server.
@@ -218,11 +217,6 @@ func (state *serverHandshakeState) receiveLoginAndSendResponse(c net.Conn, srv *
 	if state.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
 		return errors.New("receiveLoginAndSendResponse: invalid public key")
 	}
-	h := sha256.New()
-	h.Write(state.clientPub.Bytes())
-	h.Write(srv.pub.Bytes())
-	state.u = new(big.Int).SetBytes(h.Sum([]byte{}))
-
 	if _, err := fmt.Fprintf(c, "salt: %s\npublic key: %s\n",
 		hex.EncodeToString(state.rec.salt), hex.EncodeToString(srv.pub.Bytes())); err != nil {
 		return err
@@ -240,11 +234,16 @@ func (state *serverHandshakeState) receiveHMACAndSendOK(c net.Conn, srv *RPServe
 	if err != nil {
 		return err
 	}
-	secret := new(big.Int).Exp(state.rec.v, state.u, srv.p)
+	h := sha256.New()
+	h.Write(state.clientPub.Bytes())
+	h.Write(srv.pub.Bytes())
+	u := new(big.Int).SetBytes(h.Sum([]byte{}))
+
+	secret := new(big.Int).Exp(state.rec.v, u, srv.p)
 	secret = secret.Mul(state.clientPub, secret)
 	secret = secret.Exp(secret, srv.n, srv.p)
 
-	h := sha256.New()
+	h.Reset()
 	h.Write(secret.Bytes())
 	k := h.Sum([]byte{})
 
