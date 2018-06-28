@@ -60,24 +60,16 @@ func (priv *DHPrivateKey) Secret(pub crypto.PublicKey) []byte {
 	return new(big.Int).Exp(pub.(*big.Int), priv.n, priv.p).Bytes()
 }
 
-// record represents a database record of a user's login information.
-type record struct {
-	v    *big.Int
-	salt []byte
-}
-
-// database represents a database of users.
-type database map[string]record
-
-// PwdServer represents a server implementing a remote password protocol.
-type PwdServer struct {
+// PwdBreaker represents a man-in-the-middle attacking a remote password protocol.
+type PwdBreaker struct {
 	*DHPrivateKey
-	db database
+	clientEmail string
+	clientHMAC  []byte
 }
 
-// NewPwdServer returns a new remote password server.
-func NewPwdServer(p, g *big.Int) *PwdServer {
-	return &PwdServer{DHGenerateKey(p, g), make(map[string]record)}
+// NewPwdBreaker returns a new remote password breaker.
+func NewPwdBreaker(p, g *big.Int) *PwdBreaker {
+	return &PwdBreaker{DHPrivateKey: DHGenerateKey(p, g)}
 }
 
 // RandomBytes returns a random buffer of the desired length.
@@ -89,34 +81,19 @@ func RandomBytes(n int) []byte {
 	return res
 }
 
-// CreateUser creates a new user in the remote password server database.
-func (srv *PwdServer) CreateUser(email, password string) {
-	salt := RandomBytes(8)
-
-	h := sha256.New()
-	h.Write(salt)
-	h.Write([]byte(password))
-
-	x := new(big.Int).SetBytes(h.Sum([]byte{}))
-	v := new(big.Int).Exp(srv.g, x, srv.p)
-
-	// Don't store the password.
-	srv.db[email] = record{v, salt}
-}
-
-// Listen prepares the server to accept remote password connections.
-func (srv *PwdServer) Listen(network, addr string) (net.Listener, error) {
+// Listen prepares the breaker to accept remote password connections.
+func (x *PwdBreaker) Listen(network, addr string) (net.Listener, error) {
 	l, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
 	}
-	return pwdListener{l, srv}, nil
+	return pwdListener{l, x}, nil
 }
 
 // pwdListener represents a socket ready to accept remote password connections.
 type pwdListener struct {
 	inner net.Listener
-	srv   *PwdServer
+	x     *PwdBreaker
 }
 
 // Accept accepts an remote password connection on a listening socket.
@@ -125,7 +102,7 @@ func (l pwdListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &pwdConn{inner: c, config: l.srv, mux: new(sync.Mutex)}, nil
+	return &pwdConn{inner: c, config: l.x, mux: new(sync.Mutex)}, nil
 }
 
 func (l pwdListener) Close() error   { return l.inner.Close() }
@@ -143,7 +120,7 @@ func NewPwdClient(p, g *big.Int, email, password string) *PwdClient {
 	return &PwdClient{DHGenerateKey(p, g), email, password}
 }
 
-// Dial connects the remote password client to a server.
+// Dial connects the remote password client to a breaker.
 func (clt *PwdClient) Dial(network, addr string) (net.Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
@@ -168,8 +145,8 @@ func (c *pwdConn) handshake() error {
 	defer c.mux.Unlock()
 	if c.auth {
 		return nil
-	} else if srv, ok := c.config.(*PwdServer); ok {
-		if err := serverHandshake(c.inner, srv); err != nil {
+	} else if x, ok := c.config.(*PwdBreaker); ok {
+		if err := breakerHandshake(c.inner, x); err != nil {
 			c.Close()
 			return err
 		}
@@ -186,71 +163,53 @@ func (c *pwdConn) handshake() error {
 	return nil
 }
 
-// serverHandshakeState represents the state that must be stored by
-// the server in order to execute the authentication protocol.
-type serverHandshakeState struct {
-	rec       record
+// breakerHandshakeState represents the state that must be stored by
+// the breaker in order to execute the authentication protocol.
+type breakerHandshakeState struct {
 	clientPub *big.Int
 }
 
-// serverHandshake executes the authentication protocol for the server.
-func serverHandshake(c net.Conn, srv *PwdServer) error {
-	state := new(serverHandshakeState)
-	if err := state.receiveLoginAndSendResponse(c, srv); err != nil {
+// breakerHandshake executes the authentication protocol for the breaker.
+func breakerHandshake(c net.Conn, x *PwdBreaker) error {
+	state := new(breakerHandshakeState)
+	if err := state.receiveLoginAndSendResponse(c, x); err != nil {
 		return err
-	} else if err = state.receiveHMACAndSendOK(c, srv); err != nil {
+	} else if err = state.receiveHMACAndSendOK(c, x); err != nil {
 		return err
 	}
 	return nil
 }
 
 // receiveLoginAndSendResponse receives login information and sends back a salt and the server's public key.
-func (state *serverHandshakeState) receiveLoginAndSendResponse(c net.Conn, srv *PwdServer) error {
-	var email, clientPub string
-	if _, err := fmt.Fscanf(c, "email: %s\npublic key: %s\n", &email, &clientPub); err != nil {
+func (state *breakerHandshakeState) receiveLoginAndSendResponse(c net.Conn, x *PwdBreaker) error {
+	var clientEmail, clientPub string
+	if _, err := fmt.Fscanf(c, "email: %s\npublic key: %s\n", &clientEmail, &clientPub); err != nil {
 		return err
 	}
+	// Record the client's email address.
+	x.clientEmail = clientEmail
+
 	var ok bool
-	if state.rec, ok = srv.db[email]; !ok {
-		return errors.New("receiveLoginAndSendResponse: user not found")
-	}
 	if state.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
 		return errors.New("receiveLoginAndSendResponse: invalid public key")
 	}
-	if _, err := fmt.Fprintf(c, "salt: %s\npublic key: %s\n",
-		hex.EncodeToString(state.rec.salt), hex.EncodeToString(srv.pub.Bytes())); err != nil {
+	if _, err := fmt.Fprintf(c, "salt: 00\npublic key: %s\n",
+		hex.EncodeToString(x.pub.Bytes())); err != nil {
 		return err
 	}
 	return nil
 }
 
 // receiveHMACAndSendOK receives an HMAC and sends back an OK message.
-func (state *serverHandshakeState) receiveHMACAndSendOK(c net.Conn, srv *PwdServer) error {
+func (state *breakerHandshakeState) receiveHMACAndSendOK(c net.Conn, x *PwdBreaker) error {
 	var s string
-	if _, err := fmt.Fscanf(c, "hmac: %s\n", &s); err != nil {
+	var err error
+	if _, err = fmt.Fscanf(c, "hmac: %s\n", &s); err != nil {
 		return err
 	}
-	clientHMAC, err := hex.DecodeString(s)
-	if err != nil {
+	// Record the client's HMAC.
+	if x.clientHMAC, err = hex.DecodeString(s); err != nil {
 		return err
-	}
-	h := sha256.New()
-	h.Write(state.clientPub.Bytes())
-	h.Write(srv.pub.Bytes())
-	u := new(big.Int).SetBytes(h.Sum([]byte{}))
-
-	secret := new(big.Int).Exp(state.rec.v, u, srv.p)
-	secret = secret.Mul(state.clientPub, secret)
-	secret = secret.Exp(secret, srv.n, srv.p)
-
-	h.Reset()
-	h.Write(secret.Bytes())
-	k := h.Sum([]byte{})
-
-	h = hmac.New(sha256.New, state.rec.salt)
-	h.Write(k)
-	if !hmac.Equal(clientHMAC, h.Sum([]byte{})) {
-		return errors.New("SendOK: invalid hmac")
 	}
 	fmt.Fprintln(c, "ok")
 
@@ -299,17 +258,11 @@ func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *
 // sendHMACAndReceiveOK sends an HMAC and receives back an OK message.
 func (state *clientHandshakeState) sendHMACAndReceiveOK(c net.Conn, clt *PwdClient) error {
 	h := sha256.New()
-	h.Write(clt.pub.Bytes())
-	h.Write(state.serverPub.Bytes())
-	u := new(big.Int).SetBytes(h.Sum([]byte{}))
-
-	h.Reset()
 	h.Write(state.salt)
 	h.Write([]byte(clt.password))
 	x := new(big.Int).SetBytes(h.Sum([]byte{}))
 
-	secret := new(big.Int).Mul(u, x)
-	secret = secret.Add(clt.n, secret)
+	secret := new(big.Int).Add(clt.n, x)
 	secret = secret.Exp(state.serverPub, secret, clt.p)
 
 	h.Reset()
@@ -354,18 +307,8 @@ func (c *pwdConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteD
 
 // runProtocol runs the remote password protocol interactively.
 func runProtocol(network, addr string, p, g *big.Int) error {
-	var dbEmail, dbPassword string
-	fmt.Print("database email: ")
-	if _, err := fmt.Scanln(&dbEmail); err != nil {
-		return err
-	}
-	fmt.Print("database password: ")
-	if _, err := fmt.Scanln(&dbPassword); err != nil {
-		return err
-	}
-	srv := NewPwdServer(p, g)
-	srv.CreateUser(dbEmail, dbPassword)
-	l, err := srv.Listen(network, addr)
+	x := NewPwdBreaker(p, g)
+	l, err := x.Listen(network, addr)
 	if err != nil {
 		return err
 	}
@@ -379,6 +322,7 @@ func runProtocol(network, addr string, p, g *big.Int) error {
 		for input.Scan() {
 			fmt.Println(input.Text())
 		}
+		fmt.Printf("email: %s\nhmac: %x\n", x.clientEmail, x.clientHMAC)
 		close(done)
 	}()
 	var userEmail, userPassword string
