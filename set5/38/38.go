@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto"
 	"crypto/hmac"
 	"crypto/rand"
@@ -30,7 +31,10 @@ fffffffffffff`
 	defaultGenerator = `2`
 )
 
-const addr = "localhost:4000"
+const (
+	addr = "localhost:4000"
+	dict = "passwords.txt"
+)
 
 // DHPrivateKey represents a set of Diffie-Hellman parameters and key pair.
 type DHPrivateKey struct {
@@ -64,6 +68,7 @@ func (priv *DHPrivateKey) Secret(pub crypto.PublicKey) []byte {
 type PwdBreaker struct {
 	*DHPrivateKey
 	clientEmail string
+	clientPub   *big.Int
 	clientHMAC  []byte
 }
 
@@ -77,6 +82,42 @@ func NewPwdBreaker(p, g *big.Int) *PwdBreaker {
 			pub: g,
 		},
 	}
+}
+
+// Password takes a file containing passwords and returns
+// the line, if any, that matches the client's password.
+func (x *PwdBreaker) Password(name string) (string, error) {
+	if x.clientEmail == "" || x.clientPub == nil || x.clientHMAC == nil {
+		return "", errors.New("Password: not enough information")
+	}
+	f, err := os.Open(name)
+	if err != nil {
+		return "", err
+	}
+	salt := []byte{0}
+	h1 := sha256.New()
+	h2 := hmac.New(sha256.New, salt)
+	for input := bufio.NewScanner(f); input.Scan(); {
+		password := input.Text()
+		h1.Reset()
+		h1.Write(salt)
+		h1.Write([]byte(password))
+
+		secret := new(big.Int).SetBytes(h1.Sum([]byte{}))
+		secret = secret.Exp(x.g, secret, x.p)
+		secret = secret.Mul(x.clientPub, secret)
+		secret = secret.Mod(secret, x.p)
+
+		h1.Reset()
+		h1.Write(secret.Bytes())
+
+		h2.Reset()
+		h2.Write(h1.Sum([]byte{}))
+		if bytes.Equal(h2.Sum([]byte{}), x.clientHMAC) {
+			return password, nil
+		}
+	}
+	return "", errors.New("Password: not found")
 }
 
 // RandomBytes returns a random buffer of the desired length.
@@ -172,9 +213,7 @@ func (c *pwdConn) handshake() error {
 
 // breakerHandshakeState represents the state that must be stored by
 // the breaker in order to execute the authentication protocol.
-type breakerHandshakeState struct {
-	clientPub *big.Int
-}
+type breakerHandshakeState struct{}
 
 // breakerHandshake executes the authentication protocol for the breaker.
 func breakerHandshake(c net.Conn, x *PwdBreaker) error {
@@ -196,8 +235,9 @@ func (state *breakerHandshakeState) receiveLoginAndSendResponse(c net.Conn, x *P
 	// Record the client's email address.
 	x.clientEmail = clientEmail
 
+	// Record the client's public key.
 	var ok bool
-	if state.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
+	if x.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
 		return errors.New("receiveLoginAndSendResponse: invalid public key")
 	}
 	if _, err := fmt.Fprintf(c, "salt: 00\npublic key: %s\n",
@@ -312,8 +352,8 @@ func (c *pwdConn) SetDeadline(t time.Time) error      { return c.inner.SetDeadli
 func (c *pwdConn) SetReadDeadline(t time.Time) error  { return c.inner.SetReadDeadline(t) }
 func (c *pwdConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteDeadline(t) }
 
-// runProtocol runs the remote password protocol interactively.
-func runProtocol(network, addr string, p, g *big.Int) error {
+// breakPassword runs the remote password protocol and attempts to crack the user's password.
+func breakPassword(network, addr string, p, g *big.Int, dict string) error {
 	x := NewPwdBreaker(p, g)
 	l, err := x.Listen(network, addr)
 	if err != nil {
@@ -325,11 +365,17 @@ func runProtocol(network, addr string, p, g *big.Int) error {
 		if err != nil {
 			log.Fatal(err)
 		}
-		input := bufio.NewScanner(c)
-		for input.Scan() {
-			fmt.Println(input.Text())
+		if _, err := c.Read([]byte{}); err != nil {
+			panic(err)
 		}
-		fmt.Printf("email: %s\nhmac: %x\n", x.clientEmail, x.clientHMAC)
+		fmt.Print("cracking password...")
+		password, err := x.Password(dict)
+		if err != nil {
+			fmt.Println("failure")
+		} else {
+			fmt.Printf("success\nyour email: %s\nyour password: %s\n",
+				x.clientEmail, password)
+		}
 		close(done)
 	}()
 	var userEmail, userPassword string
@@ -342,18 +388,12 @@ func runProtocol(network, addr string, p, g *big.Int) error {
 		return err
 	}
 	clt := NewPwdClient(p, g, userEmail, userPassword)
-	fmt.Print("connecting...")
 	c, err := clt.Dial(network, addr)
 	if err != nil {
 		return err
 	}
 	if _, err := c.Read([]byte{}); err != nil {
-		fmt.Println("failure")
-		return nil
-	}
-	fmt.Println("success")
-	for input := bufio.NewScanner(os.Stdin); input.Scan(); {
-		fmt.Fprintln(c, input.Text())
+		panic(err)
 	}
 	c.Close()
 	<-done
@@ -370,7 +410,7 @@ func main() {
 	if !ok {
 		panic("invalid generator")
 	}
-	if err := runProtocol("tcp", addr, p, g); err != nil {
+	if err := breakPassword("tcp", addr, p, g, dict); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
