@@ -69,7 +69,14 @@ type PwdBreaker struct {
 
 // NewPwdBreaker returns a new remote password breaker.
 func NewPwdBreaker(p, g *big.Int) *PwdBreaker {
-	return &PwdBreaker{DHPrivateKey: DHGenerateKey(p, g)}
+	return &PwdBreaker{
+		DHPrivateKey: &DHPrivateKey{
+			p:   p,
+			g:   g,
+			n:   big.NewInt(1),
+			pub: g,
+		},
+	}
 }
 
 // RandomBytes returns a random buffer of the desired length.
