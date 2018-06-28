@@ -69,15 +69,15 @@ type record struct {
 // database represents a database of users.
 type database map[string]record
 
-// RPServer represents a server implementing a remote password protocol.
-type RPServer struct {
+// PwdServer represents a server implementing a remote password protocol.
+type PwdServer struct {
 	*DHPrivateKey
 	db database
 }
 
-// NewRPServer returns a new remote password server.
-func NewRPServer(p, g *big.Int) *RPServer {
-	return &RPServer{DHGenerateKey(p, g), make(map[string]record)}
+// NewPwdServer returns a new remote password server.
+func NewPwdServer(p, g *big.Int) *PwdServer {
+	return &PwdServer{DHGenerateKey(p, g), make(map[string]record)}
 }
 
 // RandomBytes returns a random buffer of the desired length.
@@ -90,7 +90,7 @@ func RandomBytes(n int) []byte {
 }
 
 // CreateUser creates a new user in the remote password server database.
-func (srv *RPServer) CreateUser(email, password string) {
+func (srv *PwdServer) CreateUser(email, password string) {
 	salt := RandomBytes(8)
 
 	h := sha256.New()
@@ -105,55 +105,55 @@ func (srv *RPServer) CreateUser(email, password string) {
 }
 
 // Listen prepares the server to accept remote password connections.
-func (srv *RPServer) Listen(network, addr string) (net.Listener, error) {
+func (srv *PwdServer) Listen(network, addr string) (net.Listener, error) {
 	l, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
 	}
-	return rpListener{l, srv}, nil
+	return pwdListener{l, srv}, nil
 }
 
-// rpListener represents a socket ready to accept remote password connections.
-type rpListener struct {
+// pwdListener represents a socket ready to accept remote password connections.
+type pwdListener struct {
 	inner net.Listener
-	srv   *RPServer
+	srv   *PwdServer
 }
 
 // Accept accepts an remote password connection on a listening socket.
-func (l rpListener) Accept() (net.Conn, error) {
+func (l pwdListener) Accept() (net.Conn, error) {
 	c, err := l.inner.Accept()
 	if err != nil {
 		return nil, err
 	}
-	return &rpConn{inner: c, config: l.srv, mux: new(sync.Mutex)}, nil
+	return &pwdConn{inner: c, config: l.srv, mux: new(sync.Mutex)}, nil
 }
 
-func (l rpListener) Close() error   { return l.inner.Close() }
-func (l rpListener) Addr() net.Addr { return l.inner.Addr() }
+func (l pwdListener) Close() error   { return l.inner.Close() }
+func (l pwdListener) Addr() net.Addr { return l.inner.Addr() }
 
-// RPClient represents a client implementing a remote password protocol.
-type RPClient struct {
+// PwdClient represents a client implementing a remote password protocol.
+type PwdClient struct {
 	*DHPrivateKey
 	email    string
 	password string
 }
 
-// NewRPClient returns a new remote password protocol client.
-func NewRPClient(p, g *big.Int, email, password string) *RPClient {
-	return &RPClient{DHGenerateKey(p, g), email, password}
+// NewPwdClient returns a new remote password protocol client.
+func NewPwdClient(p, g *big.Int, email, password string) *PwdClient {
+	return &PwdClient{DHGenerateKey(p, g), email, password}
 }
 
 // Dial connects the remote password client to a server.
-func (clt *RPClient) Dial(network, addr string) (net.Conn, error) {
+func (clt *PwdClient) Dial(network, addr string) (net.Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
 	}
-	return &rpConn{inner: c, config: clt, mux: new(sync.Mutex)}, nil
+	return &pwdConn{inner: c, config: clt, mux: new(sync.Mutex)}, nil
 }
 
-// rpConn represents the state of a remote password connection.
-type rpConn struct {
+// pwdConn represents the state of a remote password connection.
+type pwdConn struct {
 	inner  net.Conn
 	config interface{}
 	mux    *sync.Mutex
@@ -163,17 +163,17 @@ type rpConn struct {
 // handshake checks if the current remote password connection is authenticated.
 // If not, it attempts to execute the authentication protocol.
 // If the handshake fails, it closes the connection.
-func (c *rpConn) handshake() error {
+func (c *pwdConn) handshake() error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	if c.auth {
 		return nil
-	} else if srv, ok := c.config.(*RPServer); ok {
+	} else if srv, ok := c.config.(*PwdServer); ok {
 		if err := serverHandshake(c.inner, srv); err != nil {
 			c.Close()
 			return err
 		}
-	} else if clt, ok := c.config.(*RPClient); ok {
+	} else if clt, ok := c.config.(*PwdClient); ok {
 		if err := clientHandshake(c.inner, clt); err != nil {
 			c.Close()
 			return err
@@ -194,7 +194,7 @@ type serverHandshakeState struct {
 }
 
 // serverHandshake executes the authentication protocol for the server.
-func serverHandshake(c net.Conn, srv *RPServer) error {
+func serverHandshake(c net.Conn, srv *PwdServer) error {
 	state := new(serverHandshakeState)
 	if err := state.receiveLoginAndSendResponse(c, srv); err != nil {
 		return err
@@ -205,7 +205,7 @@ func serverHandshake(c net.Conn, srv *RPServer) error {
 }
 
 // receiveLoginAndSendResponse receives login information and sends back a salt and the server's public key.
-func (state *serverHandshakeState) receiveLoginAndSendResponse(c net.Conn, srv *RPServer) error {
+func (state *serverHandshakeState) receiveLoginAndSendResponse(c net.Conn, srv *PwdServer) error {
 	var email, clientPub string
 	if _, err := fmt.Fscanf(c, "email: %s\npublic key: %s\n", &email, &clientPub); err != nil {
 		return err
@@ -225,7 +225,7 @@ func (state *serverHandshakeState) receiveLoginAndSendResponse(c net.Conn, srv *
 }
 
 // receiveHMACAndSendOK receives an HMAC and sends back an OK message.
-func (state *serverHandshakeState) receiveHMACAndSendOK(c net.Conn, srv *RPServer) error {
+func (state *serverHandshakeState) receiveHMACAndSendOK(c net.Conn, srv *PwdServer) error {
 	var s string
 	if _, err := fmt.Fscanf(c, "hmac: %s\n", &s); err != nil {
 		return err
@@ -265,7 +265,7 @@ type clientHandshakeState struct {
 }
 
 // clientHandshake executes the authentication protocol for the client.
-func clientHandshake(c net.Conn, clt *RPClient) error {
+func clientHandshake(c net.Conn, clt *PwdClient) error {
 	state := new(clientHandshakeState)
 	if err := state.sendLoginAndReceiveResponse(c, clt); err != nil {
 		return err
@@ -276,7 +276,7 @@ func clientHandshake(c net.Conn, clt *RPClient) error {
 }
 
 // sendLoginAndReceiveResponse sends login information and receives back a salt and the server's public key.
-func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *RPClient) error {
+func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *PwdClient) error {
 	var err error
 	if _, err = fmt.Fprintf(c, "email: %s\npublic key: %s\n",
 		clt.email, hex.EncodeToString(clt.pub.Bytes())); err != nil {
@@ -297,7 +297,7 @@ func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *
 }
 
 // sendHMACAndReceiveOK sends an HMAC and receives back an OK message.
-func (state *clientHandshakeState) sendHMACAndReceiveOK(c net.Conn, clt *RPClient) error {
+func (state *clientHandshakeState) sendHMACAndReceiveOK(c net.Conn, clt *PwdClient) error {
 	h := sha256.New()
 	h.Write(clt.pub.Bytes())
 	h.Write(state.serverPub.Bytes())
@@ -330,7 +330,7 @@ func (state *clientHandshakeState) sendHMACAndReceiveOK(c net.Conn, clt *RPClien
 }
 
 // Read reads data from a remote password connection.
-func (c *rpConn) Read(buf []byte) (int, error) {
+func (c *pwdConn) Read(buf []byte) (int, error) {
 	if err := c.handshake(); err != nil {
 		return 0, err
 	}
@@ -338,19 +338,19 @@ func (c *rpConn) Read(buf []byte) (int, error) {
 }
 
 // Write writes data to a remote password connection.
-func (c *rpConn) Write(buf []byte) (int, error) {
+func (c *pwdConn) Write(buf []byte) (int, error) {
 	if err := c.handshake(); err != nil {
 		return 0, err
 	}
 	return c.inner.Write(buf)
 }
 
-func (c *rpConn) Close() error                       { return c.inner.Close() }
-func (c *rpConn) LocalAddr() net.Addr                { return c.inner.LocalAddr() }
-func (c *rpConn) RemoteAddr() net.Addr               { return c.inner.RemoteAddr() }
-func (c *rpConn) SetDeadline(t time.Time) error      { return c.inner.SetDeadline(t) }
-func (c *rpConn) SetReadDeadline(t time.Time) error  { return c.inner.SetReadDeadline(t) }
-func (c *rpConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteDeadline(t) }
+func (c *pwdConn) Close() error                       { return c.inner.Close() }
+func (c *pwdConn) LocalAddr() net.Addr                { return c.inner.LocalAddr() }
+func (c *pwdConn) RemoteAddr() net.Addr               { return c.inner.RemoteAddr() }
+func (c *pwdConn) SetDeadline(t time.Time) error      { return c.inner.SetDeadline(t) }
+func (c *pwdConn) SetReadDeadline(t time.Time) error  { return c.inner.SetReadDeadline(t) }
+func (c *pwdConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteDeadline(t) }
 
 // runProtocol runs the remote password protocol interactively.
 func runProtocol(network, addr string, p, g *big.Int) error {
@@ -363,7 +363,7 @@ func runProtocol(network, addr string, p, g *big.Int) error {
 	if _, err := fmt.Scanln(&dbPassword); err != nil {
 		return err
 	}
-	srv := NewRPServer(p, g)
+	srv := NewPwdServer(p, g)
 	srv.CreateUser(dbEmail, dbPassword)
 	l, err := srv.Listen(network, addr)
 	if err != nil {
@@ -390,7 +390,7 @@ func runProtocol(network, addr string, p, g *big.Int) error {
 	if _, err := fmt.Scanln(&userPassword); err != nil {
 		return err
 	}
-	clt := NewRPClient(p, g, userEmail, userPassword)
+	clt := NewPwdClient(p, g, userEmail, userPassword)
 	fmt.Print("connecting...")
 	c, err := clt.Dial(network, addr)
 	if err != nil {
