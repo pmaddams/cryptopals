@@ -194,12 +194,12 @@ func (c *pwdConn) handshake() error {
 	if c.auth {
 		return nil
 	} else if x, ok := c.config.(*PwdBreaker); ok {
-		if err := breakerHandshake(c.inner, x); err != nil {
+		if err := pwdBreakerHandshake(c.inner, x); err != nil {
 			c.Close()
 			return err
 		}
 	} else if clt, ok := c.config.(*PwdClient); ok {
-		if err := clientHandshake(c.inner, clt); err != nil {
+		if err := pwdClientHandshake(c.inner, clt); err != nil {
 			c.Close()
 			return err
 		}
@@ -211,13 +211,13 @@ func (c *pwdConn) handshake() error {
 	return nil
 }
 
-// breakerHandshakeState represents the state that must be stored by
-// the breaker in order to execute the authentication protocol.
-type breakerHandshakeState struct{}
+// pwdBreakerState contains state stored by the breaker
+// in order to execute the authentication protocol.
+type pwdBreakerState struct{}
 
-// breakerHandshake executes the authentication protocol for the breaker.
-func breakerHandshake(c net.Conn, x *PwdBreaker) error {
-	state := new(breakerHandshakeState)
+// pwdBreakerHandshake executes the authentication protocol for the breaker.
+func pwdBreakerHandshake(c net.Conn, x *PwdBreaker) error {
+	state := new(pwdBreakerState)
 	if err := state.receiveLoginAndSendResponse(c, x); err != nil {
 		return err
 	} else if err = state.receiveHMACAndSendOK(c, x); err != nil {
@@ -227,7 +227,7 @@ func breakerHandshake(c net.Conn, x *PwdBreaker) error {
 }
 
 // receiveLoginAndSendResponse receives login information and sends back a salt and the server's public key.
-func (state *breakerHandshakeState) receiveLoginAndSendResponse(c net.Conn, x *PwdBreaker) error {
+func (state *pwdBreakerState) receiveLoginAndSendResponse(c net.Conn, x *PwdBreaker) error {
 	var clientEmail, clientPub string
 	if _, err := fmt.Fscanf(c, "email: %s\npublic key: %s\n", &clientEmail, &clientPub); err != nil {
 		return err
@@ -248,7 +248,7 @@ func (state *breakerHandshakeState) receiveLoginAndSendResponse(c net.Conn, x *P
 }
 
 // receiveHMACAndSendOK receives an HMAC and sends back an OK message.
-func (state *breakerHandshakeState) receiveHMACAndSendOK(c net.Conn, x *PwdBreaker) error {
+func (state *pwdBreakerState) receiveHMACAndSendOK(c net.Conn, x *PwdBreaker) error {
 	var s string
 	var err error
 	if _, err = fmt.Fscanf(c, "hmac: %s\n", &s); err != nil {
@@ -263,16 +263,16 @@ func (state *breakerHandshakeState) receiveHMACAndSendOK(c net.Conn, x *PwdBreak
 	return nil
 }
 
-// clientHandshakeState represents the state that must be stored by
-// the client in order to execute the authentication protocol.
-type clientHandshakeState struct {
+// pwdClientState contains state stored by the client
+// in order to execute the authentication protocol.
+type pwdClientState struct {
 	salt      []byte
 	serverPub *big.Int
 }
 
-// clientHandshake executes the authentication protocol for the client.
-func clientHandshake(c net.Conn, clt *PwdClient) error {
-	state := new(clientHandshakeState)
+// pwdClientHandshake executes the authentication protocol for the client.
+func pwdClientHandshake(c net.Conn, clt *PwdClient) error {
+	state := new(pwdClientState)
 	if err := state.sendLoginAndReceiveResponse(c, clt); err != nil {
 		return err
 	} else if err = state.sendHMACAndReceiveOK(c, clt); err != nil {
@@ -282,7 +282,7 @@ func clientHandshake(c net.Conn, clt *PwdClient) error {
 }
 
 // sendLoginAndReceiveResponse sends login information and receives back a salt and the server's public key.
-func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *PwdClient) error {
+func (state *pwdClientState) sendLoginAndReceiveResponse(c net.Conn, clt *PwdClient) error {
 	var err error
 	if _, err = fmt.Fprintf(c, "email: %s\npublic key: %s\n",
 		clt.email, hex.EncodeToString(clt.pub.Bytes())); err != nil {
@@ -303,7 +303,7 @@ func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *
 }
 
 // sendHMACAndReceiveOK sends an HMAC and receives back an OK message.
-func (state *clientHandshakeState) sendHMACAndReceiveOK(c net.Conn, clt *PwdClient) error {
+func (state *pwdClientState) sendHMACAndReceiveOK(c net.Conn, clt *PwdClient) error {
 	h := sha256.New()
 	h.Write(state.salt)
 	h.Write([]byte(clt.password))

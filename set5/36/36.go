@@ -169,12 +169,12 @@ func (c *srpConn) handshake() error {
 	if c.auth {
 		return nil
 	} else if srv, ok := c.config.(*SRPServer); ok {
-		if err := serverHandshake(c.inner, srv); err != nil {
+		if err := srpServerHandshake(c.inner, srv); err != nil {
 			c.Close()
 			return err
 		}
 	} else if clt, ok := c.config.(*SRPClient); ok {
-		if err := clientHandshake(c.inner, clt); err != nil {
+		if err := srpClientHandshake(c.inner, clt); err != nil {
 			c.Close()
 			return err
 		}
@@ -186,17 +186,17 @@ func (c *srpConn) handshake() error {
 	return nil
 }
 
-// serverHandshakeState represents the state that must be stored by
-// the server in order to execute the authentication protocol.
-type serverHandshakeState struct {
+// srpServerState contains state stored by the server
+// in order to execute the authentication protocol.
+type srpServerState struct {
 	rec       record
 	clientPub *big.Int
 	u         *big.Int
 }
 
-// serverHandshake executes the authentication protocol for the server.
-func serverHandshake(c net.Conn, srv *SRPServer) error {
-	state := new(serverHandshakeState)
+// srpServerHandshake executes the authentication protocol for the server.
+func srpServerHandshake(c net.Conn, srv *SRPServer) error {
+	state := new(srpServerState)
 	if err := state.receiveLoginAndSendResponse(c, srv); err != nil {
 		return err
 	} else if err = state.receiveHMACAndSendOK(c, srv); err != nil {
@@ -206,7 +206,7 @@ func serverHandshake(c net.Conn, srv *SRPServer) error {
 }
 
 // receiveLoginAndSendResponse receives login information and sends back a salt and session key.
-func (state *serverHandshakeState) receiveLoginAndSendResponse(c net.Conn, srv *SRPServer) error {
+func (state *srpServerState) receiveLoginAndSendResponse(c net.Conn, srv *SRPServer) error {
 	var email, clientPub string
 	if _, err := fmt.Fscanf(c, "email: %s\npublic key: %s\n", &email, &clientPub); err != nil {
 		return err
@@ -234,7 +234,7 @@ func (state *serverHandshakeState) receiveLoginAndSendResponse(c net.Conn, srv *
 }
 
 // receiveHMACAndSendOK receives an HMAC and sends back an OK message.
-func (state *serverHandshakeState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) error {
+func (state *srpServerState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) error {
 	var s string
 	if _, err := fmt.Fscanf(c, "hmac: %s\n", &s); err != nil {
 		return err
@@ -261,16 +261,16 @@ func (state *serverHandshakeState) receiveHMACAndSendOK(c net.Conn, srv *SRPServ
 	return nil
 }
 
-// clientHandshakeState represents the state that must be stored by
-// the client in order to execute the authentication protocol.
-type clientHandshakeState struct {
+// srpClientState contains state stored by the client
+// in order to execute the authentication protocol.
+type srpClientState struct {
 	salt       []byte
 	sessionPub *big.Int
 }
 
-// clientHandshake executes the authentication protocol for the client.
-func clientHandshake(c net.Conn, clt *SRPClient) error {
-	state := new(clientHandshakeState)
+// srpClientHandshake executes the authentication protocol for the client.
+func srpClientHandshake(c net.Conn, clt *SRPClient) error {
+	state := new(srpClientState)
 	if err := state.sendLoginAndReceiveResponse(c, clt); err != nil {
 		return err
 	} else if err = state.sendHMACAndReceiveOK(c, clt); err != nil {
@@ -280,7 +280,7 @@ func clientHandshake(c net.Conn, clt *SRPClient) error {
 }
 
 // sendLoginAndReceiveResponse sends login information and receives back a salt and session key.
-func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *SRPClient) error {
+func (state *srpClientState) sendLoginAndReceiveResponse(c net.Conn, clt *SRPClient) error {
 	var err error
 	if _, err = fmt.Fprintf(c, "email: %s\npublic key: %s\n",
 		clt.email, hex.EncodeToString(clt.pub.Bytes())); err != nil {
@@ -301,7 +301,7 @@ func (state *clientHandshakeState) sendLoginAndReceiveResponse(c net.Conn, clt *
 }
 
 // sendHMACAndReceiveOK sends an HMAC and receives back an OK message.
-func (state *clientHandshakeState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClient) error {
+func (state *srpClientState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClient) error {
 	h := sha256.New()
 	h.Write(clt.pub.Bytes())
 	h.Write(state.sessionPub.Bytes())
