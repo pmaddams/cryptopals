@@ -100,10 +100,10 @@ func (x *PwdBreaker) Password(name string) (string, error) {
 	h2 := hmac.New(sha256.New, salt)
 	for input := bufio.NewScanner(f); input.Scan(); {
 		password := input.Text()
+
 		h1.Reset()
 		h1.Write(salt)
 		h1.Write([]byte(password))
-
 		secret := new(big.Int).SetBytes(h1.Sum([]byte{}))
 		secret = secret.Exp(x.g, secret, x.p)
 		secret = secret.Mul(x.clientPub, secret)
@@ -111,7 +111,6 @@ func (x *PwdBreaker) Password(name string) (string, error) {
 
 		h1.Reset()
 		h1.Write(secret.Bytes())
-
 		h2.Reset()
 		h2.Write(h1.Sum([]byte{}))
 		if bytes.Equal(h2.Sum([]byte{}), x.clientHMAC) {
@@ -316,9 +315,9 @@ func (state *pwdClientState) sendHMACAndReceiveOK(c net.Conn, clt *PwdClient) er
 	h.Reset()
 	h.Write(secret.Bytes())
 	k := h.Sum([]byte{})
-
 	h = hmac.New(sha256.New, state.salt)
 	h.Write(k)
+
 	fmt.Fprintf(c, "hmac: %x\n", h.Sum([]byte{}))
 
 	var s string

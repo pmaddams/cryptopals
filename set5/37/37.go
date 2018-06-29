@@ -95,7 +95,6 @@ func (srv *SRPServer) CreateUser(email, password string) {
 	h := sha256.New()
 	h.Write(salt)
 	h.Write([]byte(password))
-
 	x := new(big.Int).SetBytes(h.Sum([]byte{}))
 	v := new(big.Int).Exp(srv.g, x, srv.p)
 
@@ -244,12 +243,9 @@ func (state *srpServerState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) er
 	secret = secret.Mul(state.clientPub, secret)
 	secret = secret.Exp(secret, srv.priv, srv.p)
 
-	h := sha256.New()
-	h.Write(secret.Bytes())
-	k := h.Sum([]byte{})
-
-	h = hmac.New(sha256.New, state.rec.salt)
-	h.Write(k)
+	k := sha256.Sum256(secret.Bytes())
+	h := hmac.New(sha256.New, state.rec.salt)
+	h.Write(k[:])
 	if !hmac.Equal(clientHMAC, h.Sum([]byte{})) {
 		return errors.New("SendOK: invalid hmac")
 	}
@@ -293,11 +289,10 @@ func (state *srpBreakerState) sendLoginAndReceiveResponse(c net.Conn, x *SRPBrea
 
 // sendHMACAndReceiveOK sends an HMAC and receives back an OK message.
 func (state *srpBreakerState) sendHMACAndReceiveOK(c net.Conn, x *SRPBreaker) error {
-	h := sha256.New()
-	k := h.Sum([]byte{})
+	k := sha256.Sum256([]byte{})
+	h := hmac.New(sha256.New, state.salt)
+	h.Write(k[:])
 
-	h = hmac.New(sha256.New, state.salt)
-	h.Write(k)
 	fmt.Fprintf(c, "hmac: %x\n", h.Sum([]byte{}))
 
 	var s string

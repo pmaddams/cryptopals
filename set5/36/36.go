@@ -95,7 +95,6 @@ func (srv *SRPServer) CreateUser(email, password string) {
 	h := sha256.New()
 	h.Write(salt)
 	h.Write([]byte(password))
-
 	x := new(big.Int).SetBytes(h.Sum([]byte{}))
 	v := new(big.Int).Exp(srv.g, x, srv.p)
 
@@ -246,12 +245,9 @@ func (state *srpServerState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) er
 	secret = secret.Mul(state.clientPub, secret)
 	secret = secret.Exp(secret, srv.priv, srv.p)
 
-	h := sha256.New()
-	h.Write(secret.Bytes())
-	k := h.Sum([]byte{})
-
-	h = hmac.New(sha256.New, state.rec.salt)
-	h.Write(k)
+	h := hmac.New(sha256.New, state.rec.salt)
+	k := sha256.Sum256(secret.Bytes())
+	h.Write(k[:])
 	if !hmac.Equal(clientHMAC, h.Sum([]byte{})) {
 		return errors.New("SendOK: invalid hmac")
 	}
@@ -321,9 +317,9 @@ func (state *srpClientState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClient) er
 	h.Reset()
 	h.Write(secret.Bytes())
 	k := h.Sum([]byte{})
-
 	h = hmac.New(sha256.New, state.salt)
 	h.Write(k)
+
 	fmt.Fprintf(c, "hmac: %x\n", h.Sum([]byte{}))
 
 	var s string
