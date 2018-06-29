@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -36,32 +35,32 @@ const (
 	dict = "passwords.txt"
 )
 
-// DHPrivateKey represents a set of Diffie-Hellman parameters and key pair.
-type DHPrivateKey struct {
+// DHPublicKey represents the public part of a Diffie-Hellman key pair.
+type DHPublicKey struct {
 	p   *big.Int
 	g   *big.Int
-	n   *big.Int
 	pub *big.Int
+}
+
+// DHPrivateKey represents a Diffie-Hellman key pair.
+type DHPrivateKey struct {
+	DHPublicKey
+	priv *big.Int
 }
 
 // DHGenerateKey generates a private key.
 func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	n, err := rand.Int(rand.Reader, p)
+	priv, err := rand.Int(rand.Reader, p)
 	if err != nil {
 		panic(err)
 	}
-	pub := new(big.Int).Exp(g, n, p)
-	return &DHPrivateKey{p, g, n, pub}
-}
-
-// Public returns the public key.
-func (priv *DHPrivateKey) Public() crypto.PublicKey {
-	return priv.pub
+	pub := new(big.Int).Exp(g, priv, p)
+	return &DHPrivateKey{DHPublicKey{p, g, pub}, priv}
 }
 
 // Secret takes a public key and returns a shared secret.
-func (priv *DHPrivateKey) Secret(pub crypto.PublicKey) []byte {
-	return new(big.Int).Exp(pub.(*big.Int), priv.n, priv.p).Bytes()
+func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
+	return new(big.Int).Exp(pub.pub, priv.priv, priv.p).Bytes()
 }
 
 // PwdBreaker represents a man-in-the-middle attacking a remote password protocol.
@@ -76,10 +75,12 @@ type PwdBreaker struct {
 func NewPwdBreaker(p, g *big.Int) *PwdBreaker {
 	return &PwdBreaker{
 		DHPrivateKey: &DHPrivateKey{
-			p:   p,
-			g:   g,
-			n:   big.NewInt(1),
-			pub: g,
+			DHPublicKey{
+				p:   p,
+				g:   g,
+				pub: g,
+			},
+			big.NewInt(1),
 		},
 	}
 }
@@ -309,7 +310,7 @@ func (state *pwdClientState) sendHMACAndReceiveOK(c net.Conn, clt *PwdClient) er
 	h.Write([]byte(clt.password))
 	x := new(big.Int).SetBytes(h.Sum([]byte{}))
 
-	secret := new(big.Int).Add(clt.n, x)
+	secret := new(big.Int).Add(clt.priv, x)
 	secret = secret.Exp(state.serverPub, secret, clt.p)
 
 	h.Reset()

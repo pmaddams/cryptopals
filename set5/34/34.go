@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -25,32 +24,32 @@ fffffffffffff`
 	defaultGenerator = `2`
 )
 
-// DHPrivateKey represents a set of Diffie-Hellman parameters and key pair.
-type DHPrivateKey struct {
+// DHPublicKey represents the public part of a Diffie-Hellman key pair.
+type DHPublicKey struct {
 	p   *big.Int
 	g   *big.Int
-	n   *big.Int
 	pub *big.Int
+}
+
+// DHPrivateKey represents a Diffie-Hellman key pair.
+type DHPrivateKey struct {
+	DHPublicKey
+	priv *big.Int
 }
 
 // DHGenerateKey generates a private key.
 func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	n, err := rand.Int(rand.Reader, p)
+	priv, err := rand.Int(rand.Reader, p)
 	if err != nil {
 		panic(err)
 	}
-	pub := new(big.Int).Exp(g, n, p)
-	return &DHPrivateKey{p, g, n, pub}
-}
-
-// Public returns the public key.
-func (priv *DHPrivateKey) Public() crypto.PublicKey {
-	return priv.pub
+	pub := new(big.Int).Exp(g, priv, p)
+	return &DHPrivateKey{DHPublicKey{p, g, pub}, priv}
 }
 
 // Secret takes a public key and returns a shared secret.
-func (priv *DHPrivateKey) Secret(pub crypto.PublicKey) []byte {
-	return new(big.Int).Exp(pub.(*big.Int), priv.n, priv.p).Bytes()
+func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
+	return new(big.Int).Exp(pub.pub, priv.priv, priv.p).Bytes()
 }
 
 // RandomBytes returns a random buffer of the desired length.
@@ -106,7 +105,7 @@ func newBot() *bot {
 }
 
 // connect initiates Diffie-Hellman key exchange from one bot to another.
-func (sender *bot) connect(receiver *bot, pub crypto.PublicKey) {
+func (sender *bot) connect(receiver *bot, pub *DHPublicKey) {
 	receiver.DHPrivateKey = DHGenerateKey(sender.p, sender.g)
 
 	receiver.key = make([]byte, aes.BlockSize)
@@ -117,7 +116,7 @@ func (sender *bot) connect(receiver *bot, pub crypto.PublicKey) {
 }
 
 // accept completes Diffie-Hellman key exchange from one bot to another.
-func (sender *bot) accept(receiver *bot, pub crypto.PublicKey) {
+func (sender *bot) accept(receiver *bot, pub *DHPublicKey) {
 	receiver.key = make([]byte, aes.BlockSize)
 	array := sha1.Sum(receiver.Secret(pub))
 	copy(receiver.key, array[:])
@@ -158,11 +157,11 @@ func main() {
 	alice, bob, mallory := newBot(), newBot(), newBot()
 	alice.DHPrivateKey = DHGenerateKey(p, g)
 
-	alice.connect(mallory, alice.Public())
-	mallory.connect(bob, p)
+	alice.connect(mallory, &alice.DHPublicKey)
+	mallory.connect(bob, &DHPublicKey{p, g, p})
 
-	bob.accept(mallory, bob.Public())
-	mallory.accept(alice, p)
+	bob.accept(mallory, &bob.DHPublicKey)
+	mallory.accept(alice, &DHPublicKey{p, g, p})
 
 	array := sha1.Sum([]byte{})
 	copy(mallory.key, array[:])
