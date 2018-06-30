@@ -6,6 +6,8 @@ import (
 	"math/big"
 )
 
+const defaultExponent = 65537
+
 var one = big.NewInt(1)
 
 // RSAPublicKey represents the public part of an RSA key pair.
@@ -37,7 +39,7 @@ func RSAGenerateKey(bits int) (*RSAPrivateKey, error) {
 	for q = randPrime(); q.Cmp(p) == 0; q = randPrime() {
 	}
 	n := new(big.Int).Mul(p, q)
-	e := big.NewInt(65537)
+	e := big.NewInt(defaultExponent)
 
 	pMinusOne := new(big.Int).Sub(p, one)
 	qMinusOne := new(big.Int).Sub(q, one)
