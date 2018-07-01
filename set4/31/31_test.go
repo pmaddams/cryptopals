@@ -44,7 +44,7 @@ func TestXORBytes(t *testing.T) {
 	}
 }
 
-func TestSum(t *testing.T) {
+func TestHMAC(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	for i := 0; i < 10; i++ {
 		key := make([]byte, 1+weak.Intn(16))

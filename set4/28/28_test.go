@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestSum(t *testing.T) {
+func TestMAC(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	key := make([]byte, 1+weak.Intn(16))
 	weak.Read(key)
