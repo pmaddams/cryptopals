@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/cipher"
 	"errors"
 	"fmt"
 	"os"
@@ -79,83 +80,105 @@ func (mt *MT) Uint32n(n uint32) uint32 {
 		float64(n-1) / float64(^uint32(0)))
 }
 
-// Range returns a pseudo-random unsigned 32-bit integer in [lo, hi].
-func (mt *MT) Range(lo, hi uint32) uint32 {
-	if lo > hi {
-		panic("Range: invalid range")
+// mtCipher represents an MT19937 stream cipher.
+type mtCipher struct {
+	*MT
+}
+
+// NewMTCipher creates a new MT19937 stream cipher.
+func NewMTCipher(seed uint32) cipher.Stream {
+	return mtCipher{NewMT(seed)}
+}
+
+// XORKeyStream encrypts a buffer with MT19937.
+func (stream mtCipher) XORKeyStream(dst, src []byte) {
+	// Panic if dst is smaller than src.
+	for i := range src {
+		dst[i] = src[i] ^ byte(stream.Uint32()&0xff)
 	}
+}
+
+// MTRandomRange returns a pseudo-random unsigned 32-bit integer in [lo, hi].
+func MTRandomRange(lo, hi uint32) uint32 {
+	if lo > hi {
+		panic("MTRandomRange: invalid range")
+	}
+	mt := NewMT(uint32(time.Now().Unix()))
 	return lo + mt.Uint32n(hi-lo+1)
 }
 
-// XORKeyStream uses the lowest 8 bits of MT19937 output as a stream cipher.
-func (mt *MT) XORKeyStream(dst, src []byte) {
-	// Panic if dst is smaller than src.
-	for i := range src {
-		dst[i] = src[i] ^ byte(mt.Uint32()&0xff)
-	}
-}
-
-// Bytes returns a pseudo-random buffer of the desired length.
-func (mt *MT) Bytes(n int) []byte {
+// MTRandomBytes returns a pseudo-random buffer of the desired length.
+func MTRandomBytes(n int) []byte {
 	res := make([]byte, n)
-	mt.XORKeyStream(res, res)
+	stream := NewMTCipher(uint32(time.Now().Unix()))
+	stream.XORKeyStream(res, res)
 	return res
 }
 
 // encryptWithPrefix returns an encrypted buffer prefixed with 5-10 random bytes.
-func (mt *MT) encryptWithPrefix(buf []byte) []byte {
-	aux := NewMT(uint32(time.Now().Unix()))
-	res := append(aux.Bytes(int(aux.Range(5, 10))), buf...)
-	mt.XORKeyStream(res, res)
+func encryptWithPrefix(stream cipher.Stream, buf []byte) []byte {
+	res := append(MTRandomBytes(int(MTRandomRange(5, 10))), buf...)
+	stream.XORKeyStream(res, res)
 	return res
 }
 
-// breakCipherSeed returns the 16-bit seed for an MT19937 stream cipher.
-func breakCipherSeed(ciphertext, plaintext []byte) (uint16, error) {
+// breakMTCipher returns the 16-bit seed for an MT19937 stream cipher.
+func breakMTCipher(ciphertext, plaintext []byte) (uint16, error) {
 	if len(ciphertext) < len(plaintext) {
-		return 0, errors.New("breakCipherSeed: invalid ciphertext")
+		return 0, errors.New("breakMTCipher: invalid ciphertext")
 	}
 	// Encrypt the length of the ciphertext, but ignore the prefix.
 	tmp := make([]byte, len(ciphertext))
 	n := len(ciphertext) - len(plaintext)
 
 	for i := 0; i < 65536; i++ {
-		mt := NewMT(uint32(i))
-		mt.XORKeyStream(tmp[:n], tmp[:n])
-		mt.XORKeyStream(tmp[n:], plaintext)
+		stream := NewMTCipher(uint32(i))
+		stream.XORKeyStream(tmp[:n], tmp[:n])
+		stream.XORKeyStream(tmp[n:], plaintext)
 		if bytes.Equal(tmp[n:], ciphertext[n:]) {
 			return uint16(i), nil
 		}
 	}
-	return 0, errors.New("breakCipherSeed: nothing found")
+	return 0, errors.New("breakMTCipher: nothing found")
 }
 
-// token returns a 128-bit password reset token using the current time.
-func (mt *MT) token() []byte {
-	return mt.Bytes(16)
+// randomToken returns a 128-bit password reset token using the current time.
+func randomToken() []byte {
+	return MTRandomBytes(16)
+}
+
+// clear overwrites a buffer with zeroes.
+func clear(buf []byte) {
+	for i := range buf {
+		buf[i] = 0
+	}
 }
 
 // checkToken returns true if the token was generated from a recent timestamp.
 func checkToken(buf []byte) bool {
 	n := uint32(time.Now().Unix())
+	aux := make([]byte, len(buf))
 
 	// Check back at most 24 hours.
 	for i := 0; i < 24*60*60; i++ {
-		mt := NewMT(n - uint32(i))
-		if bytes.Equal(buf, mt.Bytes(len(buf))) {
+		stream := NewMTCipher(n - uint32(i))
+		stream.XORKeyStream(aux, aux)
+		if bytes.Equal(buf, aux) {
 			return true
 		}
+		clear(aux)
 	}
 	return false
 }
 
 func main() {
 	seed := uint16(time.Now().Unix() & 0xffff)
-	mt := NewMT(uint32(seed))
-	plaintext := []byte("aaaaaaaaaaaaaa")
-	ciphertext := mt.encryptWithPrefix(plaintext)
+	stream := NewMTCipher(uint32(seed))
 
-	n, err := breakCipherSeed(ciphertext, plaintext)
+	plaintext := bytes.Repeat([]byte{'a'}, 14)
+	ciphertext := encryptWithPrefix(stream, plaintext)
+
+	n, err := breakMTCipher(ciphertext, plaintext)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -163,9 +186,7 @@ func main() {
 	if n == seed {
 		fmt.Println("success: recovered 16-bit seed")
 	}
-
-	mt = NewMT(uint32(time.Now().Unix()))
-	if checkToken(mt.token()) {
+	if checkToken(randomToken()) {
 		fmt.Println("token generated from timestamp")
 	}
 }

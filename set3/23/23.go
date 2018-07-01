@@ -109,12 +109,12 @@ func printColumns(a, b interface{}) {
 }
 
 func main() {
-	mt := NewMT(uint32(time.Now().Unix()))
-	clone := CloneMT(mt)
+	mt1 := NewMT(uint32(time.Now().Unix()))
+	mt2 := CloneMT(mt1)
 
 	input := bufio.NewScanner(os.Stdin)
 	printColumns("Original:", "Clone:")
 	for input.Scan() {
-		printColumns(mt.Uint32(), clone.Uint32())
+		printColumns(mt1.Uint32(), mt2.Uint32())
 	}
 }

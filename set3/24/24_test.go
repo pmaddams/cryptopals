@@ -729,7 +729,7 @@ func TestUint32n(t *testing.T) {
 	}
 }
 
-func TestRange(t *testing.T) {
+func TestMTRandomRange(t *testing.T) {
 	cases := []struct {
 		lo, hi uint32
 	}{
@@ -737,54 +737,32 @@ func TestRange(t *testing.T) {
 		{5, 10},
 		{20, 30},
 	}
-	mt := NewMT(uint32(time.Now().Unix()))
 	for _, c := range cases {
 		for i := 0; i < 100; i++ {
-			got := mt.Range(c.lo, c.hi)
+			got := MTRandomRange(c.lo, c.hi)
 			if got < c.lo || got > c.hi {
-				t.Errorf("Range(%v, %v) == %v, value out of range",
+				t.Errorf("MTRandomRange(%v, %v) == %v, value out of range",
 					c.lo, c.hi, got)
 			}
 		}
 	}
 }
 
-func TestXORKeyStream(t *testing.T) {
+func TestMTCipher(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		seed := uint32(time.Now().Unix())
-		mt1 := NewMT(seed)
-		mt2 := NewMT(seed)
+		s1 := NewMTCipher(seed)
+		s2 := NewMTCipher(seed)
 		src := make([]byte, seed%1024)
 		dst := make([]byte, seed%1024)
 
-		mt1.XORKeyStream(dst, src)
+		s1.XORKeyStream(dst, src)
 		if bytes.Equal(dst, src) {
-			t.Error("XORKeyStream encryption failed")
+			t.Error("mtCipher encryption failed")
 		}
-		mt2.XORKeyStream(dst, dst)
+		s2.XORKeyStream(dst, dst)
 		if !bytes.Equal(dst, src) {
-			t.Error("XORKeyStream decryption failed")
-		}
-	}
-}
-
-func TestBytes(t *testing.T) {
-	mt := NewMT(uint32(time.Now().Unix()))
-	n := int(mt.Uint32()) % 1024
-
-	var cases [][]byte
-	for i := 0; i < 5; i++ {
-		buf := mt.Bytes(n)
-		if len(buf) != n {
-			t.Errorf("Bytes(%v) == %v, length %v",
-				n, buf, len(buf))
-		}
-		cases = append(cases, buf)
-		for j := 0; j < i; j++ {
-			if bytes.Equal(cases[i], cases[j]) {
-				t.Errorf("Bytes created identical buffers %v and %v",
-					cases[i], cases[j])
-			}
+			t.Error("mtCipher decryption failed")
 		}
 	}
 }
