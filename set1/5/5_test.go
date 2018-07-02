@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestXORKeyStream(t *testing.T) {
+func TestXORCipher(t *testing.T) {
 	cases := []struct {
 		stream    cipher.Stream
 		src, want []byte
