@@ -25,9 +25,8 @@ type RSAPrivateKey struct {
 // RSAGenerateKey generates a private key.
 func RSAGenerateKey(bits int) (*RSAPrivateKey, error) {
 	if bits < 1024 {
-		return nil, errors.New("RSAGenerateKey: insufficient key size")
+		return nil, errors.New("RSAGenerateKey: key size too small")
 	}
-	var p, q *big.Int
 	randPrime := func() *big.Int {
 		n, err := rand.Prime(rand.Reader, bits)
 		if err != nil {
@@ -35,8 +34,9 @@ func RSAGenerateKey(bits int) (*RSAPrivateKey, error) {
 		}
 		return n
 	}
-	p = randPrime()
-	for q = randPrime(); q.Cmp(p) == 0; q = randPrime() {
+	p, q := randPrime(), randPrime()
+	for q.Cmp(p) == 0 {
+		q = randPrime()
 	}
 	n := new(big.Int).Mul(p, q)
 	e := big.NewInt(defaultExponent)
