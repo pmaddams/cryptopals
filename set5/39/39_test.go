@@ -1,30 +1,32 @@
 package main
 
 import (
-	"bytes"
+	"math/big"
 	weak "math/rand"
 	"testing"
 	"time"
 )
 
 func TestRSA(t *testing.T) {
-	priv, err := RSAGenerateKey(1024)
-	if err != nil {
-		t.Error(err)
-	}
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	want := make([]byte, 16)
+	buf := make([]byte, 16)
 	for i := 0; i < 5; i++ {
-		weak.Read(want)
-		ciphertext, err := RSAEncrypt(&priv.RSAPublicKey, want)
+		priv, err := RSAGenerateKey(3, 128)
 		if err != nil {
 			t.Error(err)
 		}
-		got, err := RSADecrypt(priv, ciphertext)
+		weak.Read(buf)
+		ciphertext, err := RSAEncrypt(&priv.RSAPublicKey, buf)
 		if err != nil {
 			t.Error(err)
 		}
-		if !bytes.Equal(want, got) {
+		plaintext, err := RSADecrypt(priv, ciphertext)
+		if err != nil {
+			t.Error(err)
+		}
+		want := new(big.Int).SetBytes(buf)
+		got := new(big.Int).SetBytes(plaintext)
+		if got.Cmp(want) != 0 {
 			t.Errorf("got %x, want %x", got, want)
 		}
 	}

@@ -27,30 +27,37 @@ type RSAPrivateKey struct {
 }
 
 // RSAGenerateKey generates a private key.
-func RSAGenerateKey(bits int) (*RSAPrivateKey, error) {
-	if bits < 1024 {
-		return nil, errors.New("RSAGenerateKey: key size too small")
+func RSAGenerateKey(exponent, bits int) (*RSAPrivateKey, error) {
+Retry:
+	p, err := rand.Prime(rand.Reader, bits)
+	if err != nil {
+		return nil, err
 	}
-	randPrime := func() *big.Int {
-		n, err := rand.Prime(rand.Reader, bits)
-		if err != nil {
-			panic(err)
-		}
-		return n
+	q, err := rand.Prime(rand.Reader, bits)
+	if err != nil {
+		return nil, err
 	}
-	p, q := randPrime(), randPrime()
-	for q.Cmp(p) == 0 {
-		q = randPrime()
+	if q.Cmp(p) == 0 {
+		goto Retry
 	}
-	n := new(big.Int).Mul(p, q)
-	e := big.NewInt(defaultExponent)
-
 	pMinusOne := new(big.Int).Sub(p, one)
 	qMinusOne := new(big.Int).Sub(q, one)
 	totient := pMinusOne.Mul(pMinusOne, qMinusOne)
-	d := new(big.Int).ModInverse(e, totient)
-
-	return &RSAPrivateKey{RSAPublicKey{n, e}, d}, nil
+	e := big.NewInt(int64(exponent))
+	d := new(big.Int)
+	if gcd := new(big.Int).GCD(d, nil, e, totient); gcd.Cmp(one) != 0 {
+		goto Retry
+	}
+	if d.Sign() < 0 {
+		d.Add(d, totient)
+	}
+	return &RSAPrivateKey{
+		RSAPublicKey{
+			n: p.Mul(p, q),
+			e: e,
+		},
+		d,
+	}, nil
 }
 
 // RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
@@ -95,7 +102,7 @@ func printRSA(in io.Reader, priv *RSAPrivateKey) error {
 
 func main() {
 	fmt.Print("generating RSA key...")
-	priv, err := RSAGenerateKey(1024)
+	priv, err := RSAGenerateKey(defaultExponent, 1024)
 	if err != nil {
 		panic(err)
 	}
