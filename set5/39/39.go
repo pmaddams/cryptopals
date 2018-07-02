@@ -28,6 +28,10 @@ type RSAPrivateKey struct {
 
 // RSAGenerateKey generates a private key.
 func RSAGenerateKey(exponent, bits int) (*RSAPrivateKey, error) {
+	e := big.NewInt(int64(exponent))
+	if exponent < 3 || !e.ProbablyPrime(0) {
+		return nil, errors.New("RSAGenerateKey: invalid exponent")
+	}
 Retry:
 	p, err := rand.Prime(rand.Reader, bits)
 	if err != nil {
@@ -43,7 +47,6 @@ Retry:
 	pMinusOne := new(big.Int).Sub(p, one)
 	qMinusOne := new(big.Int).Sub(q, one)
 	totient := pMinusOne.Mul(pMinusOne, qMinusOne)
-	e := big.NewInt(int64(exponent))
 	d := new(big.Int)
 	if gcd := new(big.Int).GCD(d, nil, e, totient); gcd.Cmp(one) != 0 {
 		goto Retry
@@ -90,9 +93,9 @@ func printRSA(in io.Reader, priv *RSAPrivateKey) error {
 			continue
 		}
 		plaintext, err := RSADecrypt(priv, ciphertext)
-		// If encryption worked, decryption should work as well.
 		if err != nil {
-			panic(err)
+			fmt.Fprintln(os.Stderr, err)
+			continue
 		}
 		fmt.Printf("ciphertext: %x\nplaintext: %s\n",
 			ciphertext, plaintext)
@@ -107,7 +110,6 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("done.")
-
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
