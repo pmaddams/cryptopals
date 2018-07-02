@@ -62,22 +62,22 @@ Retry:
 
 // RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
-	m := new(big.Int).SetBytes(buf)
-	if m.Cmp(pub.n) >= 0 {
+	if len(buf) > pub.n.BitLen()/8 {
 		return nil, errors.New("RSAEncrypt: buffer too large")
 	}
-	c := m.Exp(m, pub.e, pub.n)
-	return c.Bytes(), nil
+	z := new(big.Int).SetBytes(buf)
+	z = z.Exp(z, pub.e, pub.n)
+	return z.Bytes(), nil
 }
 
 // RSADecrypt takes a decrypted buffer and returns an encrypted buffer.
 func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
-	c := new(big.Int).SetBytes(buf)
-	if c.Cmp(priv.n) >= 0 {
+	if len(buf) > priv.n.BitLen()/8 {
 		return nil, errors.New("RSADecrypt: buffer too large")
 	}
-	m := c.Exp(c, priv.d, priv.n)
-	return m.Bytes(), nil
+	z := new(big.Int).SetBytes(buf)
+	z = z.Exp(z, priv.d, priv.n)
+	return z.Bytes(), nil
 }
 
 // printRSA reads lines of input and prints the results of RSA encryption and decryption.
