@@ -34,14 +34,14 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 // unpadAndPrint prints lines of PKCS#7 padded input with padding removed.
 func unpadAndPrint(in io.Reader, blockSize int) error {
 	input := bufio.NewReader(in)
-L:
+Loop:
 	for {
 		s, err := input.ReadString('\n')
 		switch err {
 		case nil:
 			s = s[:len(s)-1]
 		case io.EOF:
-			break L
+			break Loop
 		default:
 			return err
 		}
