@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestSecret(t *testing.T) {
+func TestDH(t *testing.T) {
 	p, ok := new(big.Int).SetString(strings.Replace(defaultPrime, "\n", "", -1), 16)
 	if !ok || !p.ProbablyPrime(0) {
 		panic("invalid prime")
@@ -24,7 +24,7 @@ func TestSecret(t *testing.T) {
 	s2 := b.Secret(&a.DHPublicKey)
 
 	if !bytes.Equal(s1, s2) {
-		t.Errorf(`Secrets not equal:
+		t.Errorf(`secrets not equal:
 p = %x
 g = %x
 a = %x
