@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"io"
 	"math/big"
+	"os"
 )
 
 const defaultExponent = 65537
@@ -69,5 +73,51 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return m.Bytes(), nil
 }
 
+// printRSA reads lines of input and prints the results of RSA encryption and decryption.
+func printRSA(in io.Reader, priv *RSAPrivateKey) error {
+	input := bufio.NewScanner(in)
+	for input.Scan() {
+		ciphertext, err := RSAEncrypt(&priv.RSAPublicKey, input.Bytes())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		plaintext, err := RSADecrypt(priv, ciphertext)
+		// If encryption worked, decryption should work as well.
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("ciphertext: %x\nplaintext: %s\n",
+			ciphertext, plaintext)
+	}
+	return input.Err()
+}
+
 func main() {
+	fmt.Print("generating RSA key...")
+	priv, err := RSAGenerateKey(1024)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("done.")
+
+	files := os.Args[1:]
+	// If no files are specified, read from standard input.
+	if len(files) == 0 {
+		if err := printRSA(os.Stdin, priv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		return
+	}
+	for _, name := range files {
+		f, err := os.Open(name)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := printRSA(f, priv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
 }

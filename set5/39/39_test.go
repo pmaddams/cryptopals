@@ -12,8 +12,8 @@ func TestRSA(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	want := make([]byte, 16)
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	want := make([]byte, 16)
 	for i := 0; i < 5; i++ {
 		weak.Read(want)
 		ciphertext, err := RSAEncrypt(&priv.RSAPublicKey, want)
