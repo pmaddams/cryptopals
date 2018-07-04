@@ -17,9 +17,9 @@ func TestCbrt(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		root := Cbrt(want)
-		got := new(big.Int).Exp(root, three, nil)
-		if want.Cmp(got) != 0 {
+		cube := new(big.Int).Exp(want, three, nil)
+		got := Cbrt(cube)
+		if got.Cmp(want) != 0 {
 			t.Errorf("got %v, want %v", got, want)
 		}
 	}
