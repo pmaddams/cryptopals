@@ -9,6 +9,31 @@ import (
 	"time"
 )
 
+func TestRSA(t *testing.T) {
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	buf := make([]byte, 16)
+	for i := 0; i < 5; i++ {
+		priv, err := RSAGenerateKey(3, 128)
+		if err != nil {
+			t.Error(err)
+		}
+		weak.Read(buf)
+		ciphertext, err := RSAEncrypt(&priv.RSAPublicKey, buf)
+		if err != nil {
+			t.Error(err)
+		}
+		plaintext, err := RSADecrypt(priv, ciphertext)
+		if err != nil {
+			t.Error(err)
+		}
+		want := new(big.Int).SetBytes(buf)
+		got := new(big.Int).SetBytes(plaintext)
+		if got.Cmp(want) != 0 {
+			t.Errorf("got %x, want %x", got, want)
+		}
+	}
+}
+
 func TestCbrt(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	max := big.NewInt(math.MaxInt64)
