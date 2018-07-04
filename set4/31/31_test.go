@@ -10,12 +10,11 @@ import (
 	"time"
 )
 
-func decodeString(s string) []byte {
-	buf, _ := hex.DecodeString(s)
-	return buf
-}
-
 func TestXORBytes(t *testing.T) {
+	decodeString := func(s string) []byte {
+		buf, _ := hex.DecodeString(s)
+		return buf
+	}
 	cases := []struct {
 		b1, b2, want []byte
 	}{
@@ -37,9 +36,9 @@ func TestXORBytes(t *testing.T) {
 	}
 	for _, c := range cases {
 		dst := make([]byte, len(c.b1))
-		if XORBytes(dst, c.b1, c.b2); !bytes.Equal(dst, c.want) {
-			t.Errorf("XORBytes(%v, %v, %v), want %v",
-				dst, c.b1, c.b2, c.want)
+		XORBytes(dst, c.b1, c.b2)
+		if !bytes.Equal(dst, c.want) {
+			t.Errorf("got %v, want %v", dst, c.want)
 		}
 	}
 }

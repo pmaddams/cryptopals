@@ -34,8 +34,7 @@ func TestPKCS7Pad(t *testing.T) {
 	for _, c := range cases {
 		got := PKCS7Pad(c.buf, c.blockSize)
 		if !bytes.Equal(got, c.want) {
-			t.Errorf("PKCS7Pad(%v, %v) == %v, want %v",
-				c.buf, c.blockSize, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -65,8 +64,7 @@ func TestPKCS7Unpad(t *testing.T) {
 	for _, c := range cases {
 		got, _ := PKCS7Unpad(c.buf, c.blockSize)
 		if !bytes.Equal(got, c.want) {
-			t.Errorf("PKCS7Unpad(%v, %v) == %v, want %v",
-				c.buf, c.blockSize, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -122,12 +120,11 @@ func TestRandomBytes(t *testing.T) {
 	}
 }
 
-func decodeString(s string) []byte {
-	buf, _ := hex.DecodeString(s)
-	return buf
-}
-
 func TestXORBytes(t *testing.T) {
+	decodeString := func(s string) []byte {
+		buf, _ := hex.DecodeString(s)
+		return buf
+	}
 	cases := []struct {
 		b1, b2, want []byte
 	}{
@@ -149,9 +146,9 @@ func TestXORBytes(t *testing.T) {
 	}
 	for _, c := range cases {
 		dst := make([]byte, len(c.b1))
-		if XORBytes(dst, c.b1, c.b2); !bytes.Equal(dst, c.want) {
-			t.Errorf("XORBytes(%v, %v, %v), want %v",
-				dst, c.b1, c.b2, c.want)
+		XORBytes(dst, c.b1, c.b2)
+		if !bytes.Equal(dst, c.want) {
+			t.Errorf("got %v, want %v", dst, c.want)
 		}
 	}
 }
@@ -188,8 +185,7 @@ func TestBlocks(t *testing.T) {
 	for _, c := range cases {
 		got := Blocks(c.buf, c.n)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Blocks(%v, %v) == %v, want %v",
-				c.buf, c.n, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }

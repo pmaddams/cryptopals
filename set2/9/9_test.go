@@ -30,8 +30,7 @@ func TestPKCS7Pad(t *testing.T) {
 	for _, c := range cases {
 		got := PKCS7Pad(c.buf, c.blockSize)
 		if !bytes.Equal(got, c.want) {
-			t.Errorf("PKCS7Pad(%v, %v) == %v, want %v",
-				c.buf, c.blockSize, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }

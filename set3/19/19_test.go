@@ -41,18 +41,16 @@ func TestSymbolFrequencies(t *testing.T) {
 	for _, c := range cases {
 		got, _ := SymbolFrequencies(strings.NewReader(c.s))
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("SymbolFrequencies(%v) == %v, want %v",
-				c.s, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
 
-func symbolFrequencies(s string) map[rune]float64 {
-	m, _ := SymbolFrequencies(strings.NewReader(s))
-	return m
-}
-
 func TestScoreBytesWithMap(t *testing.T) {
+	symbolFrequencies := func(s string) map[rune]float64 {
+		m, _ := SymbolFrequencies(strings.NewReader(s))
+		return m
+	}
 	cases := []struct {
 		s    string
 		m    map[rune]float64
@@ -72,8 +70,7 @@ func TestScoreBytesWithMap(t *testing.T) {
 	for _, c := range cases {
 		got := ScoreBytesWithMap([]byte(c.s), c.m)
 		if got != c.want {
-			t.Errorf("ScoreBytesWithMap(%v, %v) == %v, want %v",
-				c.s, c.m, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -104,8 +101,7 @@ func TestXORSingleByte(t *testing.T) {
 	for _, c := range cases {
 		XORSingleByte(dst, c.src, c.b)
 		if !bytes.Equal(dst, c.want) {
-			t.Errorf("XORSingleByte(%v, %v, %v), want %v",
-				dst, c.src, c.b, c.want)
+			t.Errorf("got %v, want %v", dst, c.want)
 		}
 	}
 }
@@ -137,8 +133,7 @@ func TestLengths(t *testing.T) {
 	for _, c := range cases {
 		got := Lengths(c.bufs)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Lengths(%v) == %v, want %v",
-				c.bufs, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -262,8 +257,7 @@ func TestTranspose(t *testing.T) {
 	for _, c := range cases {
 		got, _ := Transpose(c.bufs)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Transpose(%v) == %v, want %v",
-				c.bufs, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -289,12 +283,11 @@ func TestRandomBytes(t *testing.T) {
 	}
 }
 
-func decodeString(s string) []byte {
-	buf, _ := hex.DecodeString(s)
-	return buf
-}
-
 func TestXORBytes(t *testing.T) {
+	decodeString := func(s string) []byte {
+		buf, _ := hex.DecodeString(s)
+		return buf
+	}
 	cases := []struct {
 		b1, b2, want []byte
 	}{
@@ -316,9 +309,9 @@ func TestXORBytes(t *testing.T) {
 	}
 	for _, c := range cases {
 		dst := make([]byte, len(c.b1))
-		if XORBytes(dst, c.b1, c.b2); !bytes.Equal(dst, c.want) {
-			t.Errorf("XORBytes(%v, %v, %v), want %v",
-				dst, c.b1, c.b2, c.want)
+		XORBytes(dst, c.b1, c.b2)
+		if !bytes.Equal(dst, c.want) {
+			t.Errorf("got %v, want %v", dst, c.want)
 		}
 	}
 }

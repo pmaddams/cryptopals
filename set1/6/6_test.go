@@ -32,8 +32,7 @@ func TestHammingDistance(t *testing.T) {
 	for _, c := range cases {
 		got, _ := HammingDistance(c.b1, c.b2)
 		if got != c.want {
-			t.Errorf("HammingDistance(%v, %v) == %v, want %v",
-				c.b1, c.b2, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -62,8 +61,7 @@ func TestNormalizedDistance(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got, _ := NormalizedDistance(c.buf, c.blockSize); got != c.want {
-			t.Errorf("NormalizedDistance(%v, %v) == %v, want %v",
-				c.buf, c.blockSize, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -99,18 +97,16 @@ func TestSymbolFrequencies(t *testing.T) {
 	for _, c := range cases {
 		got, _ := SymbolFrequencies(strings.NewReader(c.s))
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("SymbolFrequencies(%v) == %v, want %v",
-				c.s, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
 
-func symbolFrequencies(s string) map[rune]float64 {
-	m, _ := SymbolFrequencies(strings.NewReader(s))
-	return m
-}
-
 func TestScoreBytesWithMap(t *testing.T) {
+	symbolFrequencies := func(s string) map[rune]float64 {
+		m, _ := SymbolFrequencies(strings.NewReader(s))
+		return m
+	}
 	cases := []struct {
 		s    string
 		m    map[rune]float64
@@ -130,8 +126,7 @@ func TestScoreBytesWithMap(t *testing.T) {
 	for _, c := range cases {
 		got := ScoreBytesWithMap([]byte(c.s), c.m)
 		if got != c.want {
-			t.Errorf("ScoreBytesWithMap(%v, %v) == %v, want %v",
-				c.s, c.m, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -162,8 +157,7 @@ func TestXORSingleByte(t *testing.T) {
 	for _, c := range cases {
 		XORSingleByte(dst, c.src, c.b)
 		if !bytes.Equal(dst, c.want) {
-			t.Errorf("XORSingleByte(%v, %v, %v), want %v",
-				dst, c.src, c.b, c.want)
+			t.Errorf("got %v, want %v", dst, c.want)
 		}
 	}
 }
@@ -195,8 +189,7 @@ func TestLengths(t *testing.T) {
 	for _, c := range cases {
 		got := Lengths(c.bufs)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Lengths(%v) == %v, want %v",
-				c.bufs, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -233,8 +226,7 @@ func TestBlocks(t *testing.T) {
 	for _, c := range cases {
 		got := Blocks(c.buf, c.n)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Blocks(%v, %v) == %v, want %v",
-				c.buf, c.n, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -280,8 +272,7 @@ func TestTranspose(t *testing.T) {
 	for _, c := range cases {
 		got, _ := Transpose(c.bufs)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Transpose(%v) == %v, want %v",
-				c.bufs, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -309,9 +300,9 @@ func TestXORCipher(t *testing.T) {
 	}
 	for _, c := range cases {
 		dst := make([]byte, len(c.src))
-		if c.stream.XORKeyStream(dst, c.src); !bytes.Equal(dst, c.want) {
-			t.Errorf("(%v).XORKeyStream(%v, %v), want %v",
-				c.stream, dst, c.src, c.want)
+		c.stream.XORKeyStream(dst, c.src)
+		if !bytes.Equal(dst, c.want) {
+			t.Errorf("got %v, want %v", dst, c.want)
 		}
 	}
 }

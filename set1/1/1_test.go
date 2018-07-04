@@ -25,8 +25,7 @@ func TestHexToB64(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got, _ := HexToB64(c.s); got != c.want {
-			t.Errorf("HexToB64(%v) == %v, want %v",
-				c.s, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }

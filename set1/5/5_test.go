@@ -29,9 +29,9 @@ func TestXORCipher(t *testing.T) {
 	}
 	for _, c := range cases {
 		dst := make([]byte, len(c.src))
-		if c.stream.XORKeyStream(dst, c.src); !bytes.Equal(dst, c.want) {
-			t.Errorf("(%v).XORKeyStream(%v, %v), want %v",
-				c.stream, dst, c.src, c.want)
+		c.stream.XORKeyStream(dst, c.src)
+		if !bytes.Equal(dst, c.want) {
+			t.Errorf("got %v, want %v", dst, c.want)
 		}
 	}
 }

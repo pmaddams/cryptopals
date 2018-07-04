@@ -38,18 +38,16 @@ func TestSymbolFrequencies(t *testing.T) {
 	for _, c := range cases {
 		got, _ := SymbolFrequencies(strings.NewReader(c.s))
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("SymbolFrequencies(%v) == %v, want %v",
-				c.s, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
 
-func symbolFrequencies(s string) map[rune]float64 {
-	m, _ := SymbolFrequencies(strings.NewReader(s))
-	return m
-}
-
 func TestScoreBytesWithMap(t *testing.T) {
+	symbolFrequencies := func(s string) map[rune]float64 {
+		m, _ := SymbolFrequencies(strings.NewReader(s))
+		return m
+	}
 	cases := []struct {
 		s    string
 		m    map[rune]float64
@@ -69,8 +67,7 @@ func TestScoreBytesWithMap(t *testing.T) {
 	for _, c := range cases {
 		got := ScoreBytesWithMap([]byte(c.s), c.m)
 		if got != c.want {
-			t.Errorf("ScoreBytesWithMap(%v, %v) == %v, want %v",
-				c.s, c.m, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -101,8 +98,7 @@ func TestXORSingleByte(t *testing.T) {
 	for _, c := range cases {
 		XORSingleByte(dst, c.src, c.b)
 		if !bytes.Equal(dst, c.want) {
-			t.Errorf("XORSingleByte(%v, %v, %v), want %v",
-				dst, c.src, c.b, c.want)
+			t.Errorf("got %v, want %v", dst, c.want)
 		}
 	}
 }

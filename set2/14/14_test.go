@@ -73,8 +73,7 @@ func TestPKCS7Pad(t *testing.T) {
 	for _, c := range cases {
 		got := PKCS7Pad(c.buf, c.blockSize)
 		if !bytes.Equal(got, c.want) {
-			t.Errorf("PKCS7Pad(%v, %v) == %v, want %v",
-				c.buf, c.blockSize, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -104,8 +103,7 @@ func TestPKCS7Unpad(t *testing.T) {
 	for _, c := range cases {
 		got, _ := PKCS7Unpad(c.buf, c.blockSize)
 		if !bytes.Equal(got, c.want) {
-			t.Errorf("PKCS7Unpad(%v, %v) == %v, want %v",
-				c.buf, c.blockSize, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -142,8 +140,7 @@ func TestBlocks(t *testing.T) {
 	for _, c := range cases {
 		got := Blocks(c.buf, c.n)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Blocks(%v, %v) == %v, want %v",
-				c.buf, c.n, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -172,8 +169,7 @@ func TestIdenticalBlocks(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got := IdenticalBlocks(c.buf, c.blockSize); got != c.want {
-			t.Errorf("IdenticalBlocks(%v, %v) == %v, want %v",
-				c.buf, c.blockSize, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
