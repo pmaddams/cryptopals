@@ -741,8 +741,7 @@ func TestMTRandomRange(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			got := MTRandomRange(c.lo, c.hi)
 			if got < c.lo || got > c.hi {
-				t.Errorf("MTRandomRange(%v, %v) == %v, value out of range",
-					c.lo, c.hi, got)
+				t.Errorf("got %v, want range [%v, %v]", got, c.lo, c.hi)
 			}
 		}
 	}

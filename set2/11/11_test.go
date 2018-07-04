@@ -21,8 +21,7 @@ func TestRandomRange(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			got := RandomRange(c.lo, c.hi)
 			if got < c.lo || got > c.hi {
-				t.Errorf("RandomRange(%v, %v) == %v, value out of range",
-					c.lo, c.hi, got)
+				t.Errorf("got %v, want range [%v, %v]", got, c.lo, c.hi)
 			}
 		}
 	}
@@ -32,35 +31,33 @@ func TestRandomBytes(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	n := weak.Intn(1024)
 
-	var cases [][]byte
+	var bufs [][]byte
 	for i := 0; i < 5; i++ {
 		buf := RandomBytes(n)
 		if len(buf) != n {
-			t.Errorf("RandomBytes(%v) == %v, length %v",
-				n, buf, len(buf))
+			t.Errorf("got length %v, want %v", len(buf), n)
 		}
-		cases = append(cases, buf)
+		bufs = append(bufs, buf)
 		for j := 0; j < i; j++ {
-			if bytes.Equal(cases[i], cases[j]) {
-				t.Errorf("RandomBytes created identical buffers %v and %v",
-					cases[i], cases[j])
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
 			}
 		}
 	}
 }
 
 func TestRandomEncrypter(t *testing.T) {
-	cases := []cipher.BlockMode{}
+	modes := []cipher.BlockMode{}
 	for i := 0; i < 10; i++ {
-		cases = append(cases, RandomEncrypter())
+		modes = append(modes, RandomEncrypter())
 	}
-	_, isECB := cases[0].(ecbEncrypter)
+	_, isECB := modes[0].(ecbEncrypter)
 	for i := 1; i < 10; i++ {
-		if _, ok := cases[i].(ecbEncrypter); ok != isECB {
+		if _, ok := modes[i].(ecbEncrypter); ok != isECB {
 			return
 		}
 	}
-	t.Error("RandomEncrypter created the same block mode 10 times")
+	t.Error("identical block modes")
 }
 
 func TestPKCS7Pad(t *testing.T) {

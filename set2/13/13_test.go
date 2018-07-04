@@ -26,8 +26,7 @@ func TestProfileFor(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got := ProfileFor(c.email); got != c.want {
-			t.Errorf("ProfileFor(%v) == %v, want %v",
-				c.email, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -52,8 +51,7 @@ func TestRoleAdmin(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got := RoleAdmin(c.query); got != c.want {
-			t.Errorf("RoleAdmin(%v) == %v, want %v",
-				c.query, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -62,18 +60,16 @@ func TestRandomBytes(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	n := weak.Intn(1024)
 
-	var cases [][]byte
+	var bufs [][]byte
 	for i := 0; i < 5; i++ {
 		buf := RandomBytes(n)
 		if len(buf) != n {
-			t.Errorf("RandomBytes(%v) == %v, length %v",
-				n, buf, len(buf))
+			t.Errorf("got length %v, want %v", len(buf), n)
 		}
-		cases = append(cases, buf)
+		bufs = append(bufs, buf)
 		for j := 0; j < i; j++ {
-			if bytes.Equal(cases[i], cases[j]) {
-				t.Errorf("RandomBytes created identical buffers %v and %v",
-					cases[i], cases[j])
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
 			}
 		}
 	}
