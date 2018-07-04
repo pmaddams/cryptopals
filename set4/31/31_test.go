@@ -47,26 +47,24 @@ func TestHMAC(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	for i := 0; i < 10; i++ {
 		key := make([]byte, 1+weak.Intn(16))
-		weak.Read(key)
-
-		h1 := NewHMAC(sha1.New, key)
-		h2 := reference.New(sha1.New, key)
-
 		buf := make([]byte, 1+weak.Intn(1024))
+		weak.Read(key)
 		weak.Read(buf)
 
-		// Test multiple consecutive writes.
-		h1.Write(buf)
-		h1.Write(buf)
-		h1.Write(buf)
+		// Test multiple writes.
+		h := reference.New(sha1.New, key)
+		h.Write(buf)
+		h.Write(buf)
+		h.Write(buf)
+		want := h.Sum([]byte{})
 
-		h2.Write(buf)
-		h2.Write(buf)
-		h2.Write(buf)
-
-		sum1, sum2 := h1.Sum([]byte{}), h2.Sum([]byte{})
-		if !bytes.Equal(sum1, sum2) {
-			t.Errorf("hmac == %x, reference == %x\n", sum1, sum2)
+		h = NewHMAC(sha1.New, key)
+		h.Write(buf)
+		h.Write(buf)
+		h.Write(buf)
+		got := h.Sum([]byte{})
+		if !bytes.Equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }

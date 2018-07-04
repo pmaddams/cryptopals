@@ -18,14 +18,14 @@ func TestMAC(t *testing.T) {
 		buf := make([]byte, 1+weak.Intn(1024))
 		weak.Read(buf)
 
+		array := sha1.Sum(append(key, buf...))
+		want := array[:]
+
 		mac.Reset()
 		mac.Write(buf)
-
-		sum1 := mac.Sum([]byte{})
-		array := sha1.Sum(append(key, buf...))
-		sum2 := array[:]
-		if !bytes.Equal(sum1, sum2) {
-			t.Errorf("mac == %x, sha1(key+message) == %x\n", sum1, sum2)
+		got := mac.Sum([]byte{})
+		if !bytes.Equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }
