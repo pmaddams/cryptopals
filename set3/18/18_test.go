@@ -26,8 +26,7 @@ func TestBytesToUint64s(t *testing.T) {
 	for _, c := range cases {
 		got := BytesToUint64s(c.buf)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("BytesToUint64s(%v) == %v, want %v",
-				c.buf, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -53,8 +52,7 @@ func TestUint64sToBytes(t *testing.T) {
 	for _, c := range cases {
 		got := Uint64sToBytes(c.nums)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Uint64sToBytes(%v) == %v, want %v",
-				c.nums, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }

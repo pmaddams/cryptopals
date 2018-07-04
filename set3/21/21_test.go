@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestUint32(t *testing.T) {
-	want := []uint32{
+	nums := []uint32{
 		3521569528,
 		1101990581,
 		1076301704,
@@ -706,10 +706,9 @@ func TestUint32(t *testing.T) {
 		460066336,
 	}
 	mt := NewMT(1131464071)
-	for i, n := range want {
-		if n != mt.Uint32() {
-			t.Errorf("Uint32: output %v incorrect", i+1)
-			return
+	for i, want := range nums {
+		if got := mt.Uint32(); got != want {
+			t.Fatalf("got %v (output #%v), want %v", got, i+1, want)
 		}
 	}
 }

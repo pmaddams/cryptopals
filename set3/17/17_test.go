@@ -93,8 +93,7 @@ func TestValidPadding(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got := ValidPadding(c.buf, c.blockSize); got != c.want {
-			t.Errorf("ValidPadding(%v, %v) == %v, want %v",
-				c.buf, c.blockSize, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }

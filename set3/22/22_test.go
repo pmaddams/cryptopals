@@ -6,7 +6,7 @@ import (
 )
 
 func TestUint32(t *testing.T) {
-	want := []uint32{
+	nums := []uint32{
 		3521569528,
 		1101990581,
 		1076301704,
@@ -709,10 +709,9 @@ func TestUint32(t *testing.T) {
 		460066336,
 	}
 	mt := NewMT(1131464071)
-	for i, n := range want {
-		if n != mt.Uint32() {
-			t.Errorf("Uint32: output %v incorrect", i+1)
-			return
+	for i, want := range nums {
+		if got := mt.Uint32(); got != want {
+			t.Fatalf("got %v (output #%v), want %v", got, i+1, want)
 		}
 	}
 }
@@ -721,8 +720,8 @@ func TestUint32n(t *testing.T) {
 	mt := NewMT(uint32(time.Now().Unix()))
 	for _, n := range []uint32{1, 5, 10} {
 		for i := 0; i < 100; i++ {
-			if m := mt.Uint32n(n); m >= n {
-				t.Errorf("Uint32n(%v) == (%v), value at or above bound", n, m)
+			if got := mt.Uint32n(n); got >= n {
+				t.Errorf("got %v, want range [0, %v)", got, n)
 			}
 		}
 	}

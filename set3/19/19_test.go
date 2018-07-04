@@ -158,8 +158,7 @@ func TestMedian(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got, _ := Median(c.nums); got != c.want {
-			t.Errorf("Median(%v) == %v, want %v",
-				c.nums, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -210,8 +209,7 @@ func TestTruncate(t *testing.T) {
 	for _, c := range cases {
 		got := Truncate(c.bufs, c.n)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("Truncate(%v, %v) == %v, want %v",
-				c.bufs, c.n, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }

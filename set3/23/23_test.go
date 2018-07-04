@@ -6,7 +6,7 @@ import (
 )
 
 func TestUint32(t *testing.T) {
-	want := []uint32{
+	nums := []uint32{
 		3521569528,
 		1101990581,
 		1076301704,
@@ -709,10 +709,9 @@ func TestUint32(t *testing.T) {
 		460066336,
 	}
 	mt := NewMT(1131464071)
-	for i, n := range want {
-		if n != mt.Uint32() {
-			t.Errorf("Uint32: output %v incorrect", i+1)
-			return
+	for i, want := range nums {
+		if got := mt.Uint32(); got != want {
+			t.Fatalf("got %v (output #%v), want %v", got, i+1, want)
 		}
 	}
 }
@@ -740,8 +739,7 @@ func TestBitMask(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got := BitMask(c.i, c.j); got != c.want {
-			t.Errorf("BitMask(%v, %v) == %v, want %v",
-				c.i, c.j, got, c.want)
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -749,9 +747,9 @@ func TestBitMask(t *testing.T) {
 func TestUntemper(t *testing.T) {
 	mt := NewMT(uint32(time.Now().Unix()))
 	for i := 0; i < 100; i++ {
-		n := mt.Uint32()
-		if m := Untemper(temper(n)); m != n {
-			t.Errorf("Untemper(%v) == %v, want %v", n, m, n)
+		want := mt.Uint32()
+		if got := Untemper(temper(want)); got != want {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }
@@ -760,8 +758,9 @@ func TestCloneMT(t *testing.T) {
 	mt := NewMT(uint32(time.Now().Unix()))
 	clone := CloneMT(mt)
 	for i := 0; i < 700; i++ {
-		if mt.Uint32() != clone.Uint32() {
-			t.Errorf("CloneMT: output %v incorrect", i+1)
+		want := mt.Uint32()
+		if got := clone.Uint32(); got != want {
+			t.Fatalf("got %v (output #%v), want %v", got, i+1, want)
 		}
 	}
 }
