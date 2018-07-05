@@ -26,7 +26,7 @@ func TestRSA(t *testing.T) {
 		}
 		want := new(big.Int).SetBytes(buf)
 		got := new(big.Int).SetBytes(plaintext)
-		if got.Cmp(want) != 0 {
+		if !equal(got, want) {
 			t.Errorf("got %x, want %x", got, want)
 		}
 	}

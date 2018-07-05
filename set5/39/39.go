@@ -74,7 +74,7 @@ func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 		return nil, errors.New("RSAEncrypt: buffer too large")
 	}
 	z := new(big.Int).SetBytes(buf)
-	z = z.Exp(z, pub.e, pub.n)
+	z.Exp(z, pub.e, pub.n)
 	return z.Bytes(), nil
 }
 
@@ -84,7 +84,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 		return nil, errors.New("RSADecrypt: buffer too large")
 	}
 	z := new(big.Int).SetBytes(buf)
-	z = z.Exp(z, priv.d, priv.n)
+	z.Exp(z, priv.d, priv.n)
 	return z.Bytes(), nil
 }
 
