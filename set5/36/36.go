@@ -246,8 +246,8 @@ func (state *srpServerState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) er
 	secret.Mul(state.clientPub, secret)
 	secret.Exp(secret, srv.priv, srv.p)
 
-	h := hmac.New(sha256.New, state.rec.salt)
 	k := sha256.Sum256(secret.Bytes())
+	h := hmac.New(sha256.New, state.rec.salt)
 	h.Write(k[:])
 	if !hmac.Equal(clientHMAC, h.Sum([]byte{})) {
 		return errors.New("SendOK: invalid hmac")
