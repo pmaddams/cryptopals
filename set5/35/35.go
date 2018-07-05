@@ -151,8 +151,8 @@ func (sender *bot) send(receiver *bot, iv, buf []byte) {
 }
 
 // equal returns true if two arbitrary-precision integers are equal.
-func equal(n, m *big.Int) bool {
-	return n.Cmp(m) == 0
+func equal(z1, z2 *big.Int) bool {
+	return z1.Cmp(z2) == 0
 }
 
 // simulateMITM simulates a man-in-the-middle attack.

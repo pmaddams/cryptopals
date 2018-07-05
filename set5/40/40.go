@@ -28,6 +28,11 @@ type RSAPrivateKey struct {
 	d *big.Int
 }
 
+// equal returns true if two arbitrary-precision integers are equal.
+func equal(z1, z2 *big.Int) bool {
+	return z1.Cmp(z2) == 0
+}
+
 // RSAGenerateKey generates a private key.
 func RSAGenerateKey(exponent, bits int) (*RSAPrivateKey, error) {
 	e := big.NewInt(int64(exponent))
@@ -43,14 +48,14 @@ Retry:
 	if err != nil {
 		return nil, err
 	}
-	if q.Cmp(p) == 0 {
+	if equal(p, q) {
 		goto Retry
 	}
 	pMinusOne := new(big.Int).Sub(p, one)
 	qMinusOne := new(big.Int).Sub(q, one)
 	totient := pMinusOne.Mul(pMinusOne, qMinusOne)
 	d := new(big.Int)
-	if gcd := new(big.Int).GCD(d, nil, e, totient); gcd.Cmp(one) != 0 {
+	if gcd := new(big.Int).GCD(d, nil, e, totient); !equal(gcd, one) {
 		goto Retry
 	}
 	if d.Sign() < 0 {
@@ -105,7 +110,7 @@ func rsaBroadcaster(s string) func() (*RSAPublicKey, []byte) {
 func Cbrt(z *big.Int) *big.Int {
 	prev := new(big.Int)
 	guess := new(big.Int).Set(z)
-	for prev.Cmp(guess) != 0 {
+	for !equal(prev, guess) {
 		prev.Set(guess)
 		guess.Mul(guess, guess)
 		guess.Div(z, guess)
@@ -130,7 +135,7 @@ func crtDecrypt(broadcast func() (*RSAPublicKey, []byte)) []byte {
 		pub, buf := broadcast()
 		for j := 0; j < i; j++ {
 			// Make sure the moduli are different.
-			if pub.n.Cmp(pubs[j].n) == 0 {
+			if equal(pub.n, pubs[j].n) {
 				goto Retry
 			}
 		}
