@@ -142,27 +142,28 @@ func crtDecrypt(broadcast func() (*RSAPublicKey, []byte)) []byte {
 	c3 := new(big.Int).SetBytes(bufs[2])
 
 	n1, n2, n3 := pubs[0].n, pubs[1].n, pubs[2].n
-	n23 := new(big.Int).Mul(n2, n3)
-	n13 := new(big.Int).Mul(n1, n3)
-	n12 := new(big.Int).Mul(n1, n2)
-	n123 := new(big.Int).Mul(n1, n23)
+	z := new(big.Int)
 
+	n23 := z.Mul(n2, n3)
 	fst := new(big.Int).ModInverse(n23, n1)
 	fst.Mul(fst, n23)
 	fst.Mul(fst, c1)
 
+	n13 := z.Mul(n1, n3)
 	snd := new(big.Int).ModInverse(n13, n2)
 	snd.Mul(snd, n13)
 	snd.Mul(snd, c2)
 
+	n12 := z.Mul(n1, n2)
 	thd := new(big.Int).ModInverse(n12, n3)
 	thd.Mul(thd, n12)
 	thd.Mul(thd, c3)
 
-	fst.Add(fst, snd.Add(snd, thd))
-	fst.Mod(fst, n123)
+	n123 := z.Mul(n12, n3)
+	cube := fst.Add(fst, snd.Add(snd, thd))
+	cube.Mod(cube, n123)
 
-	return Cbrt(fst).Bytes()
+	return Cbrt(cube).Bytes()
 }
 
 // printCRT reads lines of input, encrypts them, and prints the decrypted plaintext.
