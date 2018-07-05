@@ -88,7 +88,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return z.Bytes(), nil
 }
 
-// rsaRecoveryOracle returns an RSA unpadded message recovery oracle function.
+// rsaRecoveryOracle returns an RSA public key and unpadded message recovery oracle.
 func rsaRecoveryOracle() (*RSAPublicKey, func([]byte) ([]byte, error), error) {
 	priv, err := RSAGenerateKey(defaultExponent, 1024)
 	if err != nil {
@@ -100,7 +100,7 @@ func rsaRecoveryOracle() (*RSAPublicKey, func([]byte) ([]byte, error), error) {
 		if _, ok := cache.Load(sum); ok {
 			return nil, errors.New("duplicate message")
 		}
-		cache.Store(sum, time.Now())
+		cache.Store(sum, time.Now().Unix())
 		res, err := RSADecrypt(priv, buf)
 		if err != nil {
 			return nil, err
