@@ -104,10 +104,11 @@ func (x *PwdBreaker) Password(name string) (string, error) {
 		h1.Reset()
 		h1.Write(salt)
 		h1.Write([]byte(password))
+
 		secret := new(big.Int).SetBytes(h1.Sum([]byte{}))
-		secret = secret.Exp(x.g, secret, x.p)
-		secret = secret.Mul(x.clientPub, secret)
-		secret = secret.Mod(secret, x.p)
+		secret.Exp(x.g, secret, x.p)
+		secret.Mul(x.clientPub, secret)
+		secret.Mod(secret, x.p)
 
 		h1.Reset()
 		h1.Write(secret.Bytes())
@@ -310,7 +311,7 @@ func (state *pwdClientState) sendHMACAndReceiveOK(c net.Conn, clt *PwdClient) er
 	x := new(big.Int).SetBytes(h.Sum([]byte{}))
 
 	secret := new(big.Int).Add(clt.priv, x)
-	secret = secret.Exp(state.serverPub, secret, clt.p)
+	secret.Exp(state.serverPub, secret, clt.p)
 
 	h.Reset()
 	h.Write(secret.Bytes())

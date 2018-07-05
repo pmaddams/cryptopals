@@ -96,7 +96,7 @@ func (srv *SRPServer) CreateUser(email, password string) {
 	h.Write(salt)
 	h.Write([]byte(password))
 	x := new(big.Int).SetBytes(h.Sum([]byte{}))
-	v := new(big.Int).Exp(srv.g, x, srv.p)
+	v := x.Exp(srv.g, x, srv.p)
 
 	// Don't store the password.
 	srv.db[email] = record{v, salt}
@@ -214,8 +214,9 @@ func (state *srpServerState) receiveLoginAndSendResponse(c net.Conn, srv *SRPSer
 	if state.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
 		return errors.New("receiveLoginAndSendResponse: invalid public key")
 	}
-	sessionPub := new(big.Int).Mul(big.NewInt(3), state.rec.v)
-	sessionPub = sessionPub.Add(sessionPub, srv.pub)
+	sessionPub := big.NewInt(3)
+	sessionPub.Mul(sessionPub, state.rec.v)
+	sessionPub.Add(sessionPub, srv.pub)
 
 	h := sha256.New()
 	h.Write(state.clientPub.Bytes())
@@ -240,8 +241,8 @@ func (state *srpServerState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) er
 		return err
 	}
 	secret := new(big.Int).Exp(state.rec.v, state.u, srv.p)
-	secret = secret.Mul(state.clientPub, secret)
-	secret = secret.Exp(secret, srv.priv, srv.p)
+	secret.Mul(state.clientPub, secret)
+	secret.Exp(secret, srv.priv, srv.p)
 
 	k := sha256.Sum256(secret.Bytes())
 	h := hmac.New(sha256.New, state.rec.salt)
