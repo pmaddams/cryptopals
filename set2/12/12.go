@@ -80,7 +80,7 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return dup(buf)[:len(buf)-int(b)], nil
 }
 
-// ecbEncryptionOracle returns an ECB encryption oracle function.
+// ecbEncryptionOracle returns an ECB encryption oracle.
 func ecbEncryptionOracle() func([]byte) []byte {
 	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {

@@ -103,7 +103,7 @@ func decryptedValidPadding(iv, buf []byte, c cipher.Block) bool {
 	return ValidPadding(tmp, mode.BlockSize())
 }
 
-// cbcPaddingOracle returns a CBC padding oracle function.
+// cbcPaddingOracle returns a CBC padding oracle.
 func cbcPaddingOracle(c cipher.Block) func([]byte, []byte) error {
 	return func(iv, buf []byte) error {
 		if !decryptedValidPadding(iv, buf, c) {

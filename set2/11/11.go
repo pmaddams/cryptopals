@@ -83,7 +83,7 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
 }
 
-// ecbModeOracle returns an ECB/CBC mode oracle function.
+// ecbModeOracle returns an ECB/CBC mode oracle.
 func ecbModeOracle(mode cipher.BlockMode) func([]byte) []byte {
 	prefix := RandomBytes(RandomRange(5, 10))
 	suffix := RandomBytes(RandomRange(5, 10))
