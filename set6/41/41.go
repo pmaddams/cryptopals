@@ -76,6 +76,11 @@ Retry:
 	}, nil
 }
 
+// Public returns a public key.
+func (priv *RSAPrivateKey) Public() *RSAPublicKey {
+	return &priv.RSAPublicKey
+}
+
 // RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	if len(buf) > pub.n.BitLen()/8 {
@@ -181,7 +186,7 @@ func main() {
 	}
 	fmt.Println("done.")
 	oracle := unpaddedRSAOracle(priv)
-	x := newUnpaddedRSABreaker(&priv.RSAPublicKey, oracle)
+	x := newUnpaddedRSABreaker(priv.Public(), oracle)
 
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.

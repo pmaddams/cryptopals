@@ -68,6 +68,11 @@ Retry:
 	}, nil
 }
 
+// Public returns a public key.
+func (priv *RSAPrivateKey) Public() *RSAPublicKey {
+	return &priv.RSAPublicKey
+}
+
 // RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	if len(buf) > pub.n.BitLen()/8 {
@@ -92,7 +97,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 func printRSA(in io.Reader, priv *RSAPrivateKey) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
-		ciphertext, err := RSAEncrypt(&priv.RSAPublicKey, input.Bytes())
+		ciphertext, err := RSAEncrypt(priv.Public(), input.Bytes())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue

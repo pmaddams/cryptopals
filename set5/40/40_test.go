@@ -18,7 +18,7 @@ func TestRSA(t *testing.T) {
 			t.Error(err)
 		}
 		weak.Read(buf)
-		ciphertext, err := RSAEncrypt(&priv.RSAPublicKey, buf)
+		ciphertext, err := RSAEncrypt(priv.Public(), buf)
 		if err != nil {
 			t.Error(err)
 		}

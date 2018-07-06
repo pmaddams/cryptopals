@@ -70,6 +70,11 @@ Retry:
 	}, nil
 }
 
+// Public returns a public key.
+func (priv *RSAPrivateKey) Public() *RSAPublicKey {
+	return &priv.RSAPublicKey
+}
+
 // RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	if len(buf) > pub.n.BitLen()/8 {
@@ -97,7 +102,7 @@ func rsaBroadcaster(s string) func() (*RSAPublicKey, []byte) {
 		if err != nil {
 			panic(err)
 		}
-		pub := &priv.RSAPublicKey
+		pub := priv.Public()
 		buf, err := RSAEncrypt(pub, []byte(s))
 		if err != nil {
 			panic(err)
