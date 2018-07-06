@@ -8,12 +8,19 @@ import (
 )
 
 func TestRSA(t *testing.T) {
+	const (
+		exponent = 3
+		bits     = 256
+	)
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
 	for i := 0; i < 5; i++ {
-		priv, err := RSAGenerateKey(3, 128)
+		priv, err := RSAGenerateKey(exponent, bits)
 		if err != nil {
 			t.Error(err)
+		}
+		if n := priv.n.BitLen(); n != bits {
+			t.Errorf("got bit size %v, want %v", n, bits)
 		}
 		weak.Read(buf)
 		ciphertext, err := RSAEncrypt(priv.Public(), buf)

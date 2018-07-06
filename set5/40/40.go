@@ -40,11 +40,11 @@ func RSAGenerateKey(exponent, bits int) (*RSAPrivateKey, error) {
 		return nil, errors.New("RSAGenerateKey: invalid exponent")
 	}
 Retry:
-	p, err := rand.Prime(rand.Reader, bits)
+	p, err := rand.Prime(rand.Reader, bits/2)
 	if err != nil {
 		return nil, err
 	}
-	q, err := rand.Prime(rand.Reader, bits)
+	q, err := rand.Prime(rand.Reader, bits/2)
 	if err != nil {
 		return nil, err
 	}
@@ -77,20 +77,20 @@ func (priv *RSAPrivateKey) Public() *RSAPublicKey {
 
 // RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
-	if len(buf) > pub.n.BitLen()/8 {
+	z := new(big.Int).SetBytes(buf)
+	if z.Cmp(pub.n) > 0 {
 		return nil, errors.New("RSAEncrypt: buffer too large")
 	}
-	z := new(big.Int).SetBytes(buf)
 	z.Exp(z, pub.e, pub.n)
 	return z.Bytes(), nil
 }
 
 // RSADecrypt takes a decrypted buffer and returns an encrypted buffer.
 func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
-	if len(buf) > priv.n.BitLen()/8 {
+	z := new(big.Int).SetBytes(buf)
+	if z.Cmp(priv.n) > 0 {
 		return nil, errors.New("RSADecrypt: buffer too large")
 	}
-	z := new(big.Int).SetBytes(buf)
 	z.Exp(z, priv.d, priv.n)
 	return z.Bytes(), nil
 }
@@ -98,7 +98,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 // rsaBroadcaster returns an RSA broadcast function.
 func rsaBroadcaster(s string) func() (*RSAPublicKey, []byte) {
 	return func() (*RSAPublicKey, []byte) {
-		priv, err := RSAGenerateKey(3, 8*(len(s)+1))
+		priv, err := RSAGenerateKey(3, 8*(len(s)+2))
 		if err != nil {
 			panic(err)
 		}

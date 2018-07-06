@@ -13,7 +13,10 @@ import (
 	"time"
 )
 
-const defaultExponent = 65537
+const (
+	defaultExponent = 65537
+	defaultBits     = 2048
+)
 
 var (
 	one = big.NewInt(1)
@@ -46,11 +49,11 @@ func RSAGenerateKey(exponent, bits int) (*RSAPrivateKey, error) {
 		return nil, errors.New("RSAGenerateKey: invalid exponent")
 	}
 Retry:
-	p, err := rand.Prime(rand.Reader, bits)
+	p, err := rand.Prime(rand.Reader, bits/2)
 	if err != nil {
 		return nil, err
 	}
-	q, err := rand.Prime(rand.Reader, bits)
+	q, err := rand.Prime(rand.Reader, bits/2)
 	if err != nil {
 		return nil, err
 	}
@@ -83,20 +86,20 @@ func (priv *RSAPrivateKey) Public() *RSAPublicKey {
 
 // RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
-	if len(buf) > pub.n.BitLen()/8 {
+	z := new(big.Int).SetBytes(buf)
+	if z.Cmp(pub.n) > 0 {
 		return nil, errors.New("RSAEncrypt: buffer too large")
 	}
-	z := new(big.Int).SetBytes(buf)
 	z.Exp(z, pub.e, pub.n)
 	return z.Bytes(), nil
 }
 
 // RSADecrypt takes a decrypted buffer and returns an encrypted buffer.
 func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
-	if len(buf) > priv.n.BitLen()/8 {
+	z := new(big.Int).SetBytes(buf)
+	if z.Cmp(priv.n) > 0 {
 		return nil, errors.New("RSADecrypt: buffer too large")
 	}
-	z := new(big.Int).SetBytes(buf)
 	z.Exp(z, priv.d, priv.n)
 	return z.Bytes(), nil
 }
@@ -180,7 +183,7 @@ func printUnpaddedRSA(in io.Reader, x *unpaddedRSABreaker) error {
 
 func main() {
 	fmt.Print("generating RSA key...")
-	priv, err := RSAGenerateKey(defaultExponent, 1024)
+	priv, err := RSAGenerateKey(defaultExponent, defaultBits)
 	if err != nil {
 		panic(err)
 	}
