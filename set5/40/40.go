@@ -171,7 +171,7 @@ func crtDecrypt(broadcast func() (*RSAPublicKey, []byte)) []byte {
 	return Cbrt(cube).Bytes()
 }
 
-// printCRT reads lines of input, encrypts them, and prints the decrypted plaintext.
+// printCRT reads lines of text, encrypts them, and prints the decrypted plaintext.
 func printCRT(in io.Reader) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {

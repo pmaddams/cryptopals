@@ -88,7 +88,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return z.Bytes(), nil
 }
 
-// printRSA reads lines of input and prints the results of RSA encryption and decryption.
+// printRSA reads lines of text and prints the results of RSA encryption and decryption.
 func printRSA(in io.Reader, priv *RSAPrivateKey) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
