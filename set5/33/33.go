@@ -45,6 +45,11 @@ func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
 	return &DHPrivateKey{DHPublicKey{p, g, pub}, priv}
 }
 
+// Public returns a public key.
+func (priv *DHPrivateKey) Public() *DHPublicKey {
+	return &priv.DHPublicKey
+}
+
 // Secret takes a public key and returns a shared secret.
 func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
 	return new(big.Int).Exp(pub.pub, priv.priv, priv.p).Bytes()
@@ -61,8 +66,8 @@ func main() {
 	}
 	alice, bob := DHGenerateKey(p, g), DHGenerateKey(p, g)
 
-	s1 := alice.Secret(&bob.DHPublicKey)
-	s2 := bob.Secret(&alice.DHPublicKey)
+	s1 := alice.Secret(bob.Public())
+	s2 := bob.Secret(alice.Public())
 
 	if !bytes.Equal(s1, s2) {
 		fmt.Fprintln(os.Stderr, "key exchange failed")

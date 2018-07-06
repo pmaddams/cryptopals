@@ -52,6 +52,11 @@ func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
 	return &DHPrivateKey{DHPublicKey{p, g, pub}, priv}
 }
 
+// Public returns a public key.
+func (priv *DHPrivateKey) Public() *DHPublicKey {
+	return &priv.DHPublicKey
+}
+
 // Secret takes a public key and returns a shared secret.
 func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
 	return new(big.Int).Exp(pub.pub, priv.priv, priv.p).Bytes()
@@ -160,11 +165,11 @@ func simulateMITM(p, g *big.Int) {
 	alice, bob, mallory := newBot(), newBot(), newBot()
 	alice.DHPrivateKey = DHGenerateKey(p, g)
 
-	alice.connect(mallory, &alice.DHPublicKey)
-	mallory.connect(bob, &alice.DHPublicKey)
+	alice.connect(mallory, alice.Public())
+	mallory.connect(bob, alice.Public())
 
-	bob.accept(mallory, &bob.DHPublicKey)
-	mallory.accept(alice, &bob.DHPublicKey)
+	bob.accept(mallory, bob.Public())
+	mallory.accept(alice, bob.Public())
 
 	var secret *big.Int
 	if equal(g, one) {

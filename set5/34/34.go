@@ -47,6 +47,11 @@ func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
 	return &DHPrivateKey{DHPublicKey{p, g, pub}, priv}
 }
 
+// Public returns a public key.
+func (priv *DHPrivateKey) Public() *DHPublicKey {
+	return &priv.DHPublicKey
+}
+
 // Secret takes a public key and returns a shared secret.
 func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
 	return new(big.Int).Exp(pub.pub, priv.priv, priv.p).Bytes()
@@ -157,10 +162,10 @@ func main() {
 	alice, bob, mallory := newBot(), newBot(), newBot()
 	alice.DHPrivateKey = DHGenerateKey(p, g)
 
-	alice.connect(mallory, &alice.DHPublicKey)
+	alice.connect(mallory, alice.Public())
 	mallory.connect(bob, &DHPublicKey{p, g, p})
 
-	bob.accept(mallory, &bob.DHPublicKey)
+	bob.accept(mallory, bob.Public())
 	mallory.accept(alice, &DHPublicKey{p, g, p})
 
 	array := sha1.Sum([]byte{})

@@ -20,8 +20,8 @@ func TestDH(t *testing.T) {
 	}
 	a, b := DHGenerateKey(p, g), DHGenerateKey(p, g)
 
-	s1 := a.Secret(&b.DHPublicKey)
-	s2 := b.Secret(&a.DHPublicKey)
+	s1 := a.Secret(b.Public())
+	s2 := b.Secret(a.Public())
 
 	if !bytes.Equal(s1, s2) {
 		t.Errorf(`secrets not equal:
