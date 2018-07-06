@@ -177,8 +177,7 @@ func simulateMITM(p, g *big.Int) {
 	} else if equal(g, p) {
 		secret = zero
 	} else if pMinusOne := new(big.Int).Sub(p, one); equal(g, pMinusOne) {
-		if equal(alice.pub, one) ||
-			equal(bob.pub, one) {
+		if equal(alice.pub, one) || equal(bob.pub, one) {
 			secret = one
 		} else {
 			secret = pMinusOne
