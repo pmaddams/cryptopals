@@ -14,6 +14,8 @@ const defaultExponent = 65537
 
 var one = big.NewInt(1)
 
+var errDuplicateMessage = errors.New("duplicate message")
+
 // RSAPublicKey represents the public part of an RSA key pair.
 type RSAPublicKey struct {
 	n *big.Int
@@ -88,17 +90,13 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return z.Bytes(), nil
 }
 
-// rsaRecoveryOracle returns an RSA public key and unpadded message recovery oracle.
-func rsaRecoveryOracle() (*RSAPublicKey, func([]byte) ([]byte, error), error) {
-	priv, err := RSAGenerateKey(defaultExponent, 1024)
-	if err != nil {
-		return nil, nil, err
-	}
+// unpaddedRSAOracle takes an RSA private key returns an unpadded message recovery oracle.
+func unpaddedRSAOracle(priv *RSAPrivateKey) func([]byte) ([]byte, error) {
 	var cache sync.Map
-	oracle := func(buf []byte) ([]byte, error) {
+	return func(buf []byte) ([]byte, error) {
 		sum := fmt.Sprintf("%x", sha256.Sum256(buf))
 		if _, ok := cache.Load(sum); ok {
-			return nil, errors.New("duplicate message")
+			return nil, errDuplicateMessage
 		}
 		cache.Store(sum, time.Now().Unix())
 		res, err := RSADecrypt(priv, buf)
@@ -107,7 +105,47 @@ func rsaRecoveryOracle() (*RSAPublicKey, func([]byte) ([]byte, error), error) {
 		}
 		return res, nil
 	}
-	return &priv.RSAPublicKey, oracle, nil
+}
+
+type unpaddedRSABreaker struct {
+	*RSAPublicKey
+	oracle func([]byte) ([]byte, error)
+}
+
+func newUnpaddedRSABreaker(pub *RSAPublicKey, oracle func([]byte) ([]byte, error)) *unpaddedRSABreaker {
+	return &unpaddedRSABreaker{pub, oracle}
+}
+
+func (x *unpaddedRSABreaker) breakOracle(s string) (string, error) {
+	ciphertext, err := RSAEncrypt(x.RSAPublicKey, []byte(s))
+	if err != nil {
+		return "", err
+	}
+/*
+	if plaintext, err := x.oracle(ciphertext); err != nil {
+		if err != nil {
+			return nil, err
+		} else {
+			return nil, errors.New("breakOracle: not a duplicate message")
+		}
+	}
+	if _, err := x.oracle(ciphertext); err != errDuplicateMessage {
+		if err != nil {
+			return nil, err
+		} else {
+			return nil, errors.New("breakOracle: not a duplicate message")
+		}
+	}
+	c := new(big.Int).SetBytes(ciphertext)
+	s := new(big.Int).Div(x.n)
+	cPrime := new(big.Int).Exp(s, x.e, x.n)
+	plaintextPrime, err := x.oracle(cPrime.Bytes())
+	pPrime := new(big.Int).SetBytes(plaintextPrime)
+	sInv := new(big.Int).ModInverse(s, x.n)
+	p := new(big.Int).Mul(pPrime, sInv)
+
+	return p.Bytes(), nil
+*/
 }
 
 func main() {
