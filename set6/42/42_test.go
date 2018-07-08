@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/sha256"
 	"math/big"
@@ -37,6 +38,40 @@ func TestRSA(t *testing.T) {
 		got := new(big.Int).SetBytes(plaintext)
 		if !equal(got, want) {
 			t.Errorf("got %x, want %x", got, want)
+		}
+	}
+}
+
+func TestPKCS1v15Pad(t *testing.T) {
+	cases := []struct {
+		size int
+		want []byte
+	}{
+		{
+			3 + 19 + 32,
+			[]byte{0x00, 0x01, 0x00},
+		},
+		{
+			4 + 19 + 32,
+			[]byte{0x00, 0x01, 0xff, 0x00},
+		},
+		{
+			5 + 19 + 32,
+			[]byte{0x00, 0x01, 0xff, 0xff, 0x00},
+		},
+	}
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	buf := make([]byte, 16)
+	weak.Read(buf)
+	array := sha256.Sum256(buf)
+	for _, c := range cases {
+		buf, err := PKCS1v15Pad(crypto.SHA256, array[:], c.size)
+		if err != nil {
+			t.Error(err)
+		}
+		got := buf[:len(c.want)]
+		if !bytes.Equal(got, c.want) {
+			t.Errorf("got %x, want %x", got, c.want)
 		}
 	}
 }
