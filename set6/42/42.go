@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"math/big"
 )
@@ -121,6 +122,9 @@ func PKCS1v15Pad(h crypto.Hash, sum []byte, size int) ([]byte, error) {
 	if len(sum) != h.Size() {
 		return nil, errors.New("PKCS1v15Pad: invalid checksum")
 	}
+	if size < 3+len(der)+len(sum) {
+		return nil, errors.New("PKCS1v15Pad: insufficient modulus")
+	}
 	buf := make([]byte, size)
 	buf[1] = 0x01
 	for i := 2; i < size-1-len(der)-len(sum); i++ {
@@ -160,11 +164,25 @@ func RSAVerify(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(b1, b2) {
+	if !bytes.Equal(b1, append([]byte{0}, b2...)) {
 		return errors.New("RSAVerify: invalid signature")
 	}
 	return nil
 }
 
 func main() {
+	array := sha256.Sum256([]byte("hello world"))
+	sum := array[:]
+	priv, err := RSAGenerateKey(3, 1024)
+	if err != nil {
+		panic(err)
+	}
+	pub := priv.Public()
+	sig, err := RSASign(priv, crypto.SHA256, sum)
+	if err != nil {
+		panic(err)
+	}
+	if err := RSAVerify(pub, crypto.SHA256, sum, sig); err != nil {
+		panic(err)
+	}
 }
