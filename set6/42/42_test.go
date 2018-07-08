@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto"
+	"crypto/sha256"
 	"math/big"
 	weak "math/rand"
 	"testing"
@@ -35,6 +37,33 @@ func TestRSA(t *testing.T) {
 		got := new(big.Int).SetBytes(plaintext)
 		if !equal(got, want) {
 			t.Errorf("got %x, want %x", got, want)
+		}
+	}
+}
+
+func TestRSASignVerify(t *testing.T) {
+	const (
+		exponent = 3
+		bits     = 1024
+	)
+	priv, err := RSAGenerateKey(exponent, bits)
+	if err != nil {
+		t.Error(err)
+	}
+	h := sha256.New()
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	buf := make([]byte, 16)
+	for i := 0; i < 5; i++ {
+		weak.Read(buf)
+		h.Reset()
+		h.Write(buf)
+		sum := h.Sum([]byte{})
+		sig, err := RSASign(priv, crypto.SHA256, sum)
+		if err != nil {
+			t.Error(err)
+		}
+		if err := RSAVerify(priv.Public(), crypto.SHA256, sum, sig); err != nil {
+			t.Error(err)
 		}
 	}
 }

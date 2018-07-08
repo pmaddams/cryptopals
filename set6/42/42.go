@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/rand"
-	"crypto/sha256"
 	"errors"
 	"math/big"
 )
@@ -171,18 +170,4 @@ func RSAVerify(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) error {
 }
 
 func main() {
-	array := sha256.Sum256([]byte("hello world"))
-	sum := array[:]
-	priv, err := RSAGenerateKey(3, 1024)
-	if err != nil {
-		panic(err)
-	}
-	pub := priv.Public()
-	sig, err := RSASign(priv, crypto.SHA256, sum)
-	if err != nil {
-		panic(err)
-	}
-	if err := RSAVerify(pub, crypto.SHA256, sum, sig); err != nil {
-		panic(err)
-	}
 }
