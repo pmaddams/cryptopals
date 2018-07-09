@@ -5,7 +5,6 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/sha256"
-	"hash"
 	"math"
 	"math/big"
 	weak "math/rand"
@@ -88,21 +87,17 @@ func TestRSASignVerify(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var (
-		h  hash.Hash
-		id crypto.Hash
-	)
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
+	var id crypto.Hash
 	for i := 0; i < 5; i++ {
 		weak.Read(buf)
 		if weak.Intn(2) == 0 {
-			h = sha256.New224()
 			id = crypto.SHA224
 		} else {
-			h = sha256.New()
 			id = crypto.SHA256
 		}
+		h := id.New()
 		h.Write(buf)
 		sum := h.Sum([]byte{})
 		sig, err := RSASign(priv, id, sum)
@@ -124,21 +119,17 @@ func TestRSAVerifyWeak(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var (
-		h  hash.Hash
-		id crypto.Hash
-	)
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
+	var id crypto.Hash
 	for i := 0; i < 5; i++ {
 		weak.Read(buf)
 		if weak.Intn(2) == 0 {
-			h = sha256.New224()
 			id = crypto.SHA224
 		} else {
-			h = sha256.New()
 			id = crypto.SHA256
 		}
+		h := id.New()
 		h.Write(buf)
 		sum := h.Sum([]byte{})
 		sig, err := RSASign(priv, id, sum)

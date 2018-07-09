@@ -200,20 +200,7 @@ func RSAVerifyWeak(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) err
 	}
 	buf = buf[len(der):]
 
-	var n int
-	switch h {
-	case crypto.SHA224:
-		n = 224 / 8
-	case crypto.SHA256:
-		n = 256 / 8
-	case crypto.SHA384:
-		n = 384 / 8
-	case crypto.SHA512:
-		n = 512 / 8
-	default:
-		return errInvalidSignature
-	}
-	if len(buf) < n || !bytes.Equal(buf[:n], sum) {
+	if n := h.Size(); len(buf) < n || !bytes.Equal(buf[:n], sum) {
 		return errInvalidSignature
 	}
 	return nil
@@ -236,6 +223,10 @@ func Cbrt(z *big.Int) *big.Int {
 		guess.Div(guess, two)
 	}
 	return guess
+}
+
+func ForgeSignature(buf []byte, pub *RSAPublicKey, h crypto.Hash) ([]byte, []byte, error) {
+	return nil, nil, nil
 }
 
 func main() {
