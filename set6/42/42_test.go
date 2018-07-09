@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/sha256"
+	"hash"
 	"math/big"
 	weak "math/rand"
 	"testing"
@@ -79,25 +80,70 @@ func TestPKCS1v15Pad(t *testing.T) {
 func TestRSASignVerify(t *testing.T) {
 	const (
 		exponent = 3
-		bits     = 1024
+		bits     = 512
 	)
 	priv, err := RSAGenerateKey(exponent, bits)
 	if err != nil {
 		t.Error(err)
 	}
-	h := sha256.New()
+	var (
+		h  hash.Hash
+		id crypto.Hash
+	)
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
 	for i := 0; i < 5; i++ {
 		weak.Read(buf)
-		h.Reset()
+		if weak.Intn(2) == 0 {
+			h = sha256.New224()
+			id = crypto.SHA224
+		} else {
+			h = sha256.New()
+			id = crypto.SHA256
+		}
 		h.Write(buf)
 		sum := h.Sum([]byte{})
-		sig, err := RSASign(priv, crypto.SHA256, sum)
+		sig, err := RSASign(priv, id, sum)
 		if err != nil {
 			t.Error(err)
 		}
-		if err := RSAVerify(priv.Public(), crypto.SHA256, sum, sig); err != nil {
+		if err := RSAVerify(priv.Public(), id, sum, sig); err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestRSAVerifyWeak(t *testing.T) {
+	const (
+		exponent = 3
+		bits     = 512
+	)
+	priv, err := RSAGenerateKey(exponent, bits)
+	if err != nil {
+		t.Error(err)
+	}
+	var (
+		h  hash.Hash
+		id crypto.Hash
+	)
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	buf := make([]byte, 16)
+	for i := 0; i < 5; i++ {
+		weak.Read(buf)
+		if weak.Intn(2) == 0 {
+			h = sha256.New224()
+			id = crypto.SHA224
+		} else {
+			h = sha256.New()
+			id = crypto.SHA256
+		}
+		h.Write(buf)
+		sum := h.Sum([]byte{})
+		sig, err := RSASign(priv, id, sum)
+		if err != nil {
+			t.Error(err)
+		}
+		if err := RSAVerifyWeak(priv.Public(), id, sum, sig); err != nil {
 			t.Error(err)
 		}
 	}

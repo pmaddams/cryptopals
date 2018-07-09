@@ -163,8 +163,54 @@ func RSAVerify(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(b1, append([]byte{0}, b2...)) {
+	b2 = append([]byte{0}, b2...)
+	if !bytes.Equal(b1, b2) {
 		return errors.New("RSAVerify: invalid signature")
+	}
+	return nil
+}
+
+// RSAVerifyWeak returns an error if a checksum does not match its signature.
+// It is vulnerable to forgery because it parses the signature incorrectly.
+func RSAVerifyWeak(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) error {
+	errInvalidSignature := errors.New("RSAVerifyWeak: invalid signature")
+	buf, err := RSAEncrypt(pub, sig)
+	if err != nil {
+		return err
+	}
+	if len(buf) == 0 || buf[0] != 0x01 {
+		return errInvalidSignature
+	}
+	buf = buf[1:]
+	for len(buf) > 0 && buf[0] == 0xff {
+		buf = buf[1:]
+	}
+	if len(buf) == 0 || buf[0] != 0x00 {
+		return errInvalidSignature
+	}
+	buf = buf[1:]
+
+	der, err := DigestInfo(h)
+	if len(buf) < len(der) || !bytes.Equal(buf[:len(der)], der) {
+		return errInvalidSignature
+	}
+	buf = buf[len(der):]
+
+	var n int
+	switch h {
+	case crypto.SHA224:
+		n = 224 / 8
+	case crypto.SHA256:
+		n = 256 / 8
+	case crypto.SHA384:
+		n = 384 / 8
+	case crypto.SHA512:
+		n = 512 / 8
+	default:
+		return errInvalidSignature
+	}
+	if len(buf) < n || !bytes.Equal(buf[:n], sum) {
+		return errInvalidSignature
 	}
 	return nil
 }
