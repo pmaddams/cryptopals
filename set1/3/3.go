@@ -31,11 +31,11 @@ func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
 
 // ScoreBytesWithMap takes a buffer and map of symbol frequencies, and returns a score.
 func ScoreBytesWithMap(buf []byte, m map[rune]float64) float64 {
-	var res float64
+	var f float64
 	for _, r := range []rune(string(buf)) {
-		res += m[r]
+		f += m[r]
 	}
-	return res
+	return f
 }
 
 // XORSingleByte produces the XOR combination of a buffer with a single byte.
@@ -51,8 +51,8 @@ func breakSingleXOR(buf []byte) byte {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
 	var (
-		best float64
 		b    byte
+		best float64
 	)
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i <= 0xff; i++ {

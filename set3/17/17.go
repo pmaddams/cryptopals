@@ -74,11 +74,11 @@ func ValidPadding(buf []byte, blockSize int) bool {
 
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(n int) []byte {
-	res := make([]byte, n)
-	if _, err := rand.Read(res); err != nil {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	return res
+	return buf
 }
 
 // encryptedRandomLine returns an encrypted random line and corresponding
@@ -189,30 +189,30 @@ func (x *cbcBreaker) breakBlock(iv, buf []byte) ([]byte, error) {
 
 // Blocks divides a buffer into blocks.
 func Blocks(buf []byte, n int) [][]byte {
-	var res [][]byte
+	var bufs [][]byte
 	for len(buf) >= n {
 		// Return pointers, not copies.
-		res = append(res, buf[:n])
+		bufs = append(bufs, buf[:n])
 		buf = buf[n:]
 	}
-	return res
+	return bufs
 }
 
 // breakOracle breaks the padding oracle and returns the plaintext.
 func (x *cbcBreaker) breakOracle() ([]byte, error) {
 	blocks := Blocks(x.ciphertext, x.blockSize)
-	res, err := x.breakBlock(x.iv, blocks[0])
+	buf, err := x.breakBlock(x.iv, blocks[0])
 	if err != nil {
 		return nil, err
 	}
 	for i := 1; i < len(blocks); i++ {
-		buf, err := x.breakBlock(blocks[i-1], blocks[i])
+		block, err := x.breakBlock(blocks[i-1], blocks[i])
 		if err != nil {
 			return nil, err
 		}
-		res = append(res, buf...)
+		buf = append(buf, block...)
 	}
-	res, err = PKCS7Unpad(res, x.blockSize)
+	res, err := PKCS7Unpad(buf, x.blockSize)
 	if err != nil {
 		return nil, err
 	}

@@ -43,11 +43,11 @@ func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
 
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(n int) []byte {
-	res := make([]byte, n)
-	if _, err := rand.Read(res); err != nil {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	return res
+	return buf
 }
 
 // dup returns a copy of a buffer.
@@ -131,13 +131,13 @@ func (x *ecbBreaker) detectParameters() error {
 
 // Blocks divides a buffer into blocks.
 func Blocks(buf []byte, n int) [][]byte {
-	var res [][]byte
+	var bufs [][]byte
 	for len(buf) >= n {
 		// Return pointers, not copies.
-		res = append(res, buf[:n])
+		bufs = append(bufs, buf[:n])
 		buf = buf[n:]
 	}
-	return res
+	return bufs
 }
 
 // IdenticalBlocks returns true if any block in the buffer appears more than once.

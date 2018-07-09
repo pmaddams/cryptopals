@@ -38,11 +38,11 @@ func RandomRange(lo, hi int) int {
 
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(n int) []byte {
-	res := make([]byte, n)
-	if _, err := rand.Read(res); err != nil {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	return res
+	return buf
 }
 
 // insecureCompare compares two buffers one byte at a time,
@@ -130,8 +130,8 @@ func breakServer(url string, buf []byte, name string, size int) []byte {
 	res := make([]byte, size)
 	loop := func(i int) byte {
 		var (
-			best int64
 			b    byte
+			best int64
 		)
 		for j := 0; j <= 0xff; j++ {
 			res[i] = byte(j)

@@ -37,11 +37,11 @@ func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
 
 // ScoreBytesWithMap takes a buffer and map of symbol frequencies, and returns a score.
 func ScoreBytesWithMap(buf []byte, m map[rune]float64) float64 {
-	var res float64
+	var f float64
 	for _, r := range []rune(string(buf)) {
-		res += m[r]
+		f += m[r]
 	}
-	return res
+	return f
 }
 
 // XORSingleByte produces the XOR combination of a buffer with a single byte.
@@ -57,8 +57,8 @@ func breakSingleXOR(buf []byte) byte {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
 	var (
-		best float64
 		b    byte
+		best float64
 	)
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i <= 0xff; i++ {
@@ -73,11 +73,11 @@ func breakSingleXOR(buf []byte) byte {
 
 // Lengths returns a slice of integer buffer lengths.
 func Lengths(bufs [][]byte) []int {
-	var res []int
+	var nums []int
 	for _, buf := range bufs {
-		res = append(res, len(buf))
+		nums = append(nums, len(buf))
 	}
-	return res
+	return nums
 }
 
 // Median returns the median value of a slice of integers.
@@ -149,11 +149,11 @@ func breakIdenticalCTR(bufs [][]byte) ([]byte, error) {
 
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(n int) []byte {
-	res := make([]byte, n)
-	if _, err := rand.Read(res); err != nil {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	return res
+	return buf
 }
 
 // decodeAndEncrypt reads lines of base64-encoded text and encrypts them with an identical CTR keystream.

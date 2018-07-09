@@ -74,11 +74,11 @@ func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
 
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(n int) []byte {
-	res := make([]byte, n)
-	if _, err := rand.Read(res); err != nil {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	return res
+	return buf
 }
 
 // dup returns a copy of a buffer.

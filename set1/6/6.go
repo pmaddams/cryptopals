@@ -23,11 +23,11 @@ func HammingDistance(b1, b2 []byte) (int, error) {
 	if len(b1) != len(b2) {
 		return 0, errors.New("HammingDistance: buffer lengths must be equal")
 	}
-	var res int
+	var n int
 	for i := range b1 {
-		res += bits.OnesCount8(b1[i] ^ b2[i])
+		n += bits.OnesCount8(b1[i] ^ b2[i])
 	}
-	return res, nil
+	return n, nil
 }
 
 // NormalizedDistance returns the normalized edit distance between pairs of blocks.
@@ -36,19 +36,17 @@ func NormalizedDistance(buf []byte, blockSize int) (float64, error) {
 	if len(buf) < 2*blockSize {
 		return 0, errors.New("NormalizedDistance: need at least 2 blocks")
 	}
-	// Keep the number of pairs to normalize the result, along with the block size.
+	var f float64
 	numPairs := len(buf)/blockSize - 1
-
-	var res float64
 	for len(buf) >= 2*blockSize {
 		distance, err := HammingDistance(buf[:blockSize], buf[blockSize:2*blockSize])
 		if err != nil {
 			return 0, err
 		}
 		buf = buf[blockSize:]
-		res += float64(distance) / float64(numPairs) / float64(blockSize)
+		f += float64(distance) / float64(blockSize) / float64(numPairs)
 	}
-	return res, nil
+	return f, nil
 }
 
 // findKeySize returns the probable key size of a buffer encrypted with repeating XOR.
@@ -58,23 +56,21 @@ func findKeySize(buf []byte) (int, error) {
 		lower = 2
 		upper = 64
 	)
-	// Set best to an impossibly high value.
+	var n int
 	best := float64(8 * len(buf))
-	var res int
-
 	for blockSize := lower; blockSize <= upper; blockSize++ {
 		// If the block size is too large, stop.
 		if distance, err := NormalizedDistance(buf, blockSize); err != nil {
-			if res < lower {
+			if n < lower {
 				return 0, errors.New("keySize: nothing found")
 			}
 			break
 		} else if distance < best {
 			best = distance
-			res = blockSize
+			n = blockSize
 		}
 	}
-	return res, nil
+	return n, nil
 }
 
 // SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
@@ -93,11 +89,11 @@ func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
 
 // ScoreBytesWithMap takes a buffer and map of symbol frequencies, and returns a score.
 func ScoreBytesWithMap(buf []byte, m map[rune]float64) float64 {
-	var res float64
+	var f float64
 	for _, r := range []rune(string(buf)) {
-		res += m[r]
+		f += m[r]
 	}
-	return res
+	return f
 }
 
 // XORSingleByte produces the XOR combination of a buffer with a single byte.
@@ -113,8 +109,8 @@ func breakSingleXOR(buf []byte) byte {
 	// Don't stomp on the original data.
 	tmp := make([]byte, len(buf))
 	var (
-		best float64
 		b    byte
+		best float64
 	)
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i <= 0xff; i++ {
@@ -129,22 +125,22 @@ func breakSingleXOR(buf []byte) byte {
 
 // Blocks divides a buffer into blocks.
 func Blocks(buf []byte, n int) [][]byte {
-	var res [][]byte
+	var bufs [][]byte
 	for len(buf) >= n {
 		// Return pointers, not copies.
-		res = append(res, buf[:n])
+		bufs = append(bufs, buf[:n])
 		buf = buf[n:]
 	}
-	return res
+	return bufs
 }
 
 // Lengths returns a slice of integer buffer lengths.
 func Lengths(bufs [][]byte) []int {
-	var res []int
+	var nums []int
 	for _, buf := range bufs {
-		res = append(res, len(buf))
+		nums = append(nums, len(buf))
 	}
-	return res
+	return nums
 }
 
 // Transpose takes a slice of equal-length buffers and returns

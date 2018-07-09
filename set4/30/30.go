@@ -29,12 +29,12 @@ func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
 	} else {
 		zeros = blockSize - rem
 	}
-	res := append([]byte{0x80}, bytes.Repeat([]byte{0}, zeros)...)
+	buf := append([]byte{0x80}, bytes.Repeat([]byte{0}, zeros)...)
 
 	// Write the bit count as an unsigned 64-bit integer.
-	endian.PutUint64(res[len(res)-8:], uint64(n)<<3)
+	endian.PutUint64(buf[len(buf)-8:], uint64(n)<<3)
 
-	return res
+	return buf
 }
 
 // setUnexported sets a possibly unexported value.
@@ -96,11 +96,11 @@ func RandomRange(lo, hi int) int {
 
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(n int) []byte {
-	res := make([]byte, n)
-	if _, err := rand.Read(res); err != nil {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	return res
+	return buf
 }
 
 func main() {

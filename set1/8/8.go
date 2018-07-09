@@ -11,13 +11,13 @@ import (
 
 // Blocks divides a buffer into blocks.
 func Blocks(buf []byte, n int) [][]byte {
-	var res [][]byte
+	var bufs [][]byte
 	for len(buf) >= n {
 		// Return pointers, not copies.
-		res = append(res, buf[:n])
+		bufs = append(bufs, buf[:n])
 		buf = buf[n:]
 	}
-	return res
+	return bufs
 }
 
 // IdenticalBlocks returns true if any block in the buffer appears more than once.

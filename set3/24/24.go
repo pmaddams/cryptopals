@@ -109,10 +109,10 @@ func MTRandomRange(lo, hi uint32) uint32 {
 
 // MTRandomBytes returns a pseudo-random buffer of the desired length.
 func MTRandomBytes(n int) []byte {
-	res := make([]byte, n)
+	buf := make([]byte, n)
 	stream := NewMTCipher(uint32(time.Now().Unix()))
-	stream.XORKeyStream(res, res)
-	return res
+	stream.XORKeyStream(buf, buf)
+	return buf
 }
 
 // encryptWithPrefix returns an encrypted buffer prefixed with 5-10 random bytes.
@@ -157,16 +157,16 @@ func clear(buf []byte) {
 // checkToken returns true if the token was generated from a recent timestamp.
 func checkToken(buf []byte) bool {
 	n := uint32(time.Now().Unix())
-	aux := make([]byte, len(buf))
+	tmp := make([]byte, len(buf))
 
 	// Check back at most 24 hours.
 	for i := 0; i < 24*60*60; i++ {
 		stream := NewMTCipher(n - uint32(i))
-		stream.XORKeyStream(aux, aux)
-		if bytes.Equal(buf, aux) {
+		stream.XORKeyStream(tmp, tmp)
+		if bytes.Equal(buf, tmp) {
 			return true
 		}
-		clear(aux)
+		clear(tmp)
 	}
 	return false
 }

@@ -47,11 +47,11 @@ func RandomRange(lo, hi int) int {
 
 // RandomBytes returns a random buffer of the desired length.
 func RandomBytes(n int) []byte {
-	res := make([]byte, n)
-	if _, err := rand.Read(res); err != nil {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	return res
+	return buf
 }
 
 // readAndPrintMAC reads input and prints the MAC and SHA-1(key + message).
