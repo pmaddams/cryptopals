@@ -3,10 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
-	weak "math/rand"
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestUserData(t *testing.T) {
@@ -34,16 +32,9 @@ func TestUserData(t *testing.T) {
 }
 
 func TestRandomBytes(t *testing.T) {
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	n := weak.Intn(1024)
-
 	var bufs [][]byte
 	for i := 0; i < 5; i++ {
-		buf := RandomBytes(n)
-		if len(buf) != n {
-			t.Errorf("got length %v, want %v", len(buf), n)
-		}
-		bufs = append(bufs, buf)
+		bufs = append(bufs, RandomBytes(16))
 		for j := 0; j < i; j++ {
 			if bytes.Equal(bufs[i], bufs[j]) {
 				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
