@@ -92,10 +92,10 @@ func ecbEncryptionOracle() func([]byte) []byte {
 		panic(err)
 	}
 	return func(buf []byte) []byte {
-		buf = append(buf, decoded...)
-		buf = PKCS7Pad(buf, mode.BlockSize())
-		mode.CryptBlocks(buf, buf)
-		return buf
+		res := append(dup(buf), decoded...)
+		res = PKCS7Pad(res, mode.BlockSize())
+		mode.CryptBlocks(res, res)
+		return res
 	}
 }
 

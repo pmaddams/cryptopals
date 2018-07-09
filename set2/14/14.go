@@ -105,10 +105,10 @@ func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
 		panic(err)
 	}
 	return func(buf []byte) []byte {
-		buf = append(prefix, append(buf, decoded...)...)
-		buf = PKCS7Pad(buf, mode.BlockSize())
-		mode.CryptBlocks(buf, buf)
-		return buf
+		res := append(prefix, append(dup(buf), decoded...)...)
+		res = PKCS7Pad(res, mode.BlockSize())
+		mode.CryptBlocks(res, res)
+		return res
 	}
 }
 
