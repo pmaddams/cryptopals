@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"crypto"
+	"crypto/rand"
 	"crypto/sha256"
 	"hash"
+	"math"
 	"math/big"
 	weak "math/rand"
 	"testing"
@@ -145,6 +147,22 @@ func TestRSAVerifyWeak(t *testing.T) {
 		}
 		if err := RSAVerifyWeak(priv.Public(), id, sum, sig); err != nil {
 			t.Error(err)
+		}
+	}
+}
+
+func TestCbrt(t *testing.T) {
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	max := big.NewInt(math.MaxInt64)
+	for i := 0; i < 5; i++ {
+		want, err := rand.Int(weak, max)
+		if err != nil {
+			t.Error(err)
+		}
+		cube := new(big.Int).Exp(want, three, nil)
+		got := Cbrt(cube)
+		if !equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }

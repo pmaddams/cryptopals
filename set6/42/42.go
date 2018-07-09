@@ -13,7 +13,11 @@ const (
 	defaultBits     = 2048
 )
 
-var one = big.NewInt(1)
+var (
+	one   = big.NewInt(1)
+	two   = big.NewInt(2)
+	three = big.NewInt(3)
+)
 
 // RSAPublicKey represents the public part of an RSA key pair.
 type RSAPublicKey struct {
@@ -213,6 +217,25 @@ func RSAVerifyWeak(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) err
 		return errInvalidSignature
 	}
 	return nil
+}
+
+// Cbrt returns the cube root of the given integer using successive approximations.
+func Cbrt(z *big.Int) *big.Int {
+	prev := new(big.Int)
+	guess := new(big.Int).Set(z)
+	for !equal(prev, guess) {
+		prev.Set(guess)
+		guess.Mul(guess, guess)
+		guess.Div(z, guess)
+		guess.Add(guess, prev)
+		guess.Add(guess, prev)
+		guess.Div(guess, three)
+
+		// Average the new and previous guesses to prevent oscillation.
+		guess.Add(guess, prev)
+		guess.Div(guess, two)
+	}
+	return guess
 }
 
 func main() {
