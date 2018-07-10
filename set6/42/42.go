@@ -7,13 +7,12 @@ import (
 	_ "crypto/sha256"
 	_ "crypto/sha512"
 	"errors"
+	"fmt"
 	"math/big"
+	"os"
 )
 
-const (
-	defaultExponent = 65537
-	defaultBits     = 2048
-)
+const defaultBits = 2048
 
 var (
 	one   = big.NewInt(1)
@@ -279,16 +278,20 @@ func forgeSignature(buf []byte, pub *RSAPublicKey, id crypto.Hash) ([]byte, []by
 }
 
 func main() {
-	priv, err := RSAGenerateKey(defaultExponent, defaultBits)
+	priv, err := RSAGenerateKey(3, defaultBits)
 	pub := priv.Public()
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-	sig, sum, err := forgeSignature([]byte("hi mom"), pub, crypto.SHA256)
+	sum, sig, err := forgeSignature([]byte("hi mom"), pub, crypto.SHA256)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
 	if err := RSAVerifyWeak(pub, crypto.SHA256, sum, sig); err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
+	fmt.Println("success")
 }
