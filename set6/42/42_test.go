@@ -44,7 +44,7 @@ func TestRSA(t *testing.T) {
 	}
 }
 
-func TestPKCS1v15Pad(t *testing.T) {
+func TestPKCS1v15SignaturePad(t *testing.T) {
 	cases := []struct {
 		size int
 		want []byte
@@ -67,7 +67,7 @@ func TestPKCS1v15Pad(t *testing.T) {
 	weak.Read(buf)
 	array := sha256.Sum256(buf)
 	for _, c := range cases {
-		buf, err := PKCS1v15Pad(crypto.SHA256, array[:], c.size)
+		buf, err := PKCS1v15SignaturePad(crypto.SHA256, array[:], c.size)
 		if err != nil {
 			t.Error(err)
 		}

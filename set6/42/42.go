@@ -136,8 +136,8 @@ func DigestInfo(h crypto.Hash) ([]byte, error) {
 	return buf, nil
 }
 
-// PKCS1v15Pad returns a buffer containing a checksum with PKCS #1 v1.5 padding.
-func PKCS1v15Pad(h crypto.Hash, sum []byte, size int) ([]byte, error) {
+// PKCS1v15SignaturePad returns a checksum with PKCS #1 v1.5 signature padding added.
+func PKCS1v15SignaturePad(h crypto.Hash, sum []byte, size int) ([]byte, error) {
 	der, err := DigestInfo(h)
 	if err != nil {
 		return nil, err
@@ -159,14 +159,43 @@ func PKCS1v15Pad(h crypto.Hash, sum []byte, size int) ([]byte, error) {
 	return buf, nil
 }
 
-// RSASign returns a checksum signed with a private key.
-func RSASign(priv *RSAPrivateKey, h crypto.Hash, sum []byte) ([]byte, error) {
-	buf, err := PKCS1v15Pad(h, sum, size(priv.n))
+// PKCS1v15SignatureUnpad returns a checksum with PKCS #1 v1.5 signature padding removed.
+func PKCS1v15SignatureUnpad(h crypto.Hash, buf []byte) ([]byte, error) {
+	errInvalidPadding := errors.New("PKCS1v15Unpad: invalid padding")
+	if len(buf) == 0 || buf[0] != 0x00 {
+		return nil, errInvalidPadding
+	}
+	buf = buf[1:]
+	if len(buf) == 0 || buf[0] != 0x01 {
+		return nil, errInvalidPadding
+	}
+	buf = buf[1:]
+	for len(buf) > 0 && buf[0] == 0xff {
+		buf = buf[1:]
+	}
+	if len(buf) == 0 || buf[0] != 0x00 {
+		return nil, errInvalidPadding
+	}
+	buf = buf[1:]
+	der, err := DigestInfo(h)
 	if err != nil {
 		return nil, err
 	}
-	buf, err = RSADecrypt(priv, buf)
+	if len(buf) < len(der) || !bytes.Equal(buf[:len(der)], der) {
+		return nil, errInvalidPadding
+	}
+	buf = buf[len(der):]
+
+	return buf, nil
+}
+
+// RSASign returns a checksum signed with a private key.
+func RSASign(priv *RSAPrivateKey, h crypto.Hash, sum []byte) ([]byte, error) {
+	buf, err := PKCS1v15SignaturePad(h, sum, size(priv.n))
 	if err != nil {
+		return nil, err
+	}
+	if buf, err = RSADecrypt(priv, buf); err != nil {
 		return nil, err
 	}
 	return buf, nil
@@ -174,7 +203,7 @@ func RSASign(priv *RSAPrivateKey, h crypto.Hash, sum []byte) ([]byte, error) {
 
 // RSAVerify returns an error if a checksum does not match its signature.
 func RSAVerify(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) error {
-	b1, err := PKCS1v15Pad(h, sum, size(pub.n))
+	b1, err := PKCS1v15SignaturePad(h, sum, size(pub.n))
 	if err != nil {
 		return err
 	}
@@ -191,33 +220,15 @@ func RSAVerify(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) error {
 // RSAVerifyWeak returns an error if a checksum does not match its signature.
 // It is vulnerable to forgery because it parses the signature incorrectly.
 func RSAVerifyWeak(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) error {
-	errInvalidSignature := errors.New("RSAVerifyWeak: invalid signature")
 	buf, err := RSAEncrypt(pub, sig)
 	if err != nil {
 		return err
 	}
-	if len(buf) == 0 || buf[0] != 0x00 {
-		return errInvalidSignature
+	if buf, err = PKCS1v15SignatureUnpad(h, buf); err != nil {
+		return err
 	}
-	buf = buf[1:]
-	if len(buf) == 0 || buf[0] != 0x01 {
-		return errInvalidSignature
-	}
-	buf = buf[1:]
-	for len(buf) > 0 && buf[0] == 0xff {
-		buf = buf[1:]
-	}
-	if len(buf) == 0 || buf[0] != 0x00 {
-		return errInvalidSignature
-	}
-	buf = buf[1:]
-	der, err := DigestInfo(h)
-	if len(buf) < len(der) || !bytes.Equal(buf[:len(der)], der) {
-		return errInvalidSignature
-	}
-	buf = buf[len(der):]
-	if n := h.Size(); len(buf) < n || !bytes.Equal(buf[:n], sum) {
-		return errInvalidSignature
+	if len(buf) < len(sum) || !bytes.Equal(buf[:len(sum)], sum) {
+		return errors.New("RSAVerifyWeak: invalid signature")
 	}
 	return nil
 }
