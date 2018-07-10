@@ -79,6 +79,17 @@ func (priv *RSAPrivateKey) Public() *RSAPublicKey {
 	return &priv.RSAPublicKey
 }
 
+// size returns the size of an arbitrary-precision integer in bytes.
+func size(z *big.Int) int {
+	return (z.BitLen() + 7) / 8
+}
+
+// copyRight copies a source buffer to the right side of a destination buffer.
+func copyRight(dst, src []byte) {
+	dst = dst[len(dst)-len(src):]
+	copy(dst, src)
+}
+
 // RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	z := new(big.Int).SetBytes(buf)
@@ -86,7 +97,11 @@ func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 		return nil, errors.New("RSAEncrypt: buffer too large")
 	}
 	z.Exp(z, pub.e, pub.n)
-	return z.Bytes(), nil
+
+	res := make([]byte, size(pub.n))
+	copyRight(res, z.Bytes())
+
+	return res, nil
 }
 
 // RSADecrypt takes a decrypted buffer and returns an encrypted buffer.
@@ -96,7 +111,11 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 		return nil, errors.New("RSADecrypt: buffer too large")
 	}
 	z.Exp(z, priv.d, priv.n)
-	return z.Bytes(), nil
+
+	res := make([]byte, size(priv.n))
+	copyRight(res, z.Bytes())
+
+	return res, nil
 }
 
 // DigestInfo returns precomputed ASN.1 DER structures for cryptographic hash functions.
@@ -140,11 +159,6 @@ func PKCS1v15Pad(h crypto.Hash, sum []byte, size int) ([]byte, error) {
 	return buf, nil
 }
 
-// size returns the size of an arbitrary-precision integer in bytes.
-func size(z *big.Int) int {
-	return (z.BitLen() + 7) / 8
-}
-
 // RSASign returns a checksum signed with a private key.
 func RSASign(priv *RSAPrivateKey, h crypto.Hash, sum []byte) ([]byte, error) {
 	buf, err := PKCS1v15Pad(h, sum, size(priv.n))
@@ -168,7 +182,6 @@ func RSAVerify(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) error {
 	if err != nil {
 		return err
 	}
-	b2 = append([]byte{0}, b2...)
 	if !bytes.Equal(b1, b2) {
 		return errors.New("RSAVerify: invalid signature")
 	}
@@ -183,6 +196,10 @@ func RSAVerifyWeak(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) err
 	if err != nil {
 		return err
 	}
+	if len(buf) == 0 || buf[0] != 0x00 {
+		return errInvalidSignature
+	}
+	buf = buf[1:]
 	if len(buf) == 0 || buf[0] != 0x01 {
 		return errInvalidSignature
 	}
@@ -194,13 +211,11 @@ func RSAVerifyWeak(pub *RSAPublicKey, h crypto.Hash, sum []byte, sig []byte) err
 		return errInvalidSignature
 	}
 	buf = buf[1:]
-
 	der, err := DigestInfo(h)
 	if len(buf) < len(der) || !bytes.Equal(buf[:len(der)], der) {
 		return errInvalidSignature
 	}
 	buf = buf[len(der):]
-
 	if n := h.Size(); len(buf) < n || !bytes.Equal(buf[:n], sum) {
 		return errInvalidSignature
 	}

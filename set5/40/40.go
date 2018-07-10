@@ -75,6 +75,17 @@ func (priv *RSAPrivateKey) Public() *RSAPublicKey {
 	return &priv.RSAPublicKey
 }
 
+// size returns the size of an arbitrary-precision integer in bytes.
+func size(z *big.Int) int {
+	return (z.BitLen() + 7) / 8
+}
+
+// copyRight copies a source buffer to the right side of a destination buffer.
+func copyRight(dst, src []byte) {
+	dst = dst[len(dst)-len(src):]
+	copy(dst, src)
+}
+
 // RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	z := new(big.Int).SetBytes(buf)
@@ -82,7 +93,11 @@ func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 		return nil, errors.New("RSAEncrypt: buffer too large")
 	}
 	z.Exp(z, pub.e, pub.n)
-	return z.Bytes(), nil
+
+	res := make([]byte, size(pub.n))
+	copyRight(res, z.Bytes())
+
+	return res, nil
 }
 
 // RSADecrypt takes a decrypted buffer and returns an encrypted buffer.
@@ -92,7 +107,11 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 		return nil, errors.New("RSADecrypt: buffer too large")
 	}
 	z.Exp(z, priv.d, priv.n)
-	return z.Bytes(), nil
+
+	res := make([]byte, size(priv.n))
+	copyRight(res, z.Bytes())
+
+	return res, nil
 }
 
 // rsaBroadcaster returns an RSA broadcast function.
