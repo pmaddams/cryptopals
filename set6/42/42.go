@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"math/big"
 )
@@ -225,9 +226,46 @@ func Cbrt(z *big.Int) *big.Int {
 	return guess
 }
 
-func ForgeSignature(buf []byte, pub *RSAPublicKey, h crypto.Hash) ([]byte, []byte, error) {
-	return nil, nil, nil
+func forgeSignature(buf []byte, pub *RSAPublicKey, id crypto.Hash) ([]byte, []byte, error) {
+	der, err := DigestInfo(id)
+	if err != nil {
+		return nil, nil, err
+	}
+	n := size(pub.n)
+	if n < 3+len(der)+id.Size() {
+		return nil, nil, errors.New("forgeSignature: insufficient modulus")
+	}
+	h := id.New()
+	h.Write(buf)
+	sum := h.Sum([]byte{})
+
+	tmp := make([]byte, size(pub.n))
+	tmp[1] = 0x01
+	copy(tmp[3:], der)
+	copy(tmp[3+len(der):], sum)
+	for i := 3 + len(der) + len(sum); i < len(tmp); i++ {
+		tmp[i] = 0xff
+	}
+	sig := Cbrt(new(big.Int).SetBytes(tmp)).Bytes()
+
+	return sum, sig, nil
+}
+
+func init() {
+	crypto.RegisterHash(crypto.SHA256, sha256.New)
 }
 
 func main() {
+	priv, err := RSAGenerateKey(defaultExponent, defaultBits)
+	pub := priv.Public()
+	if err != nil {
+		panic(err)
+	}
+	sig, sum, err := forgeSignature([]byte("hi mom"), pub, crypto.SHA256)
+	if err != nil {
+		panic(err)
+	}
+	if err := RSAVerifyWeak(pub, crypto.SHA256, sum, sig); err != nil {
+		panic(err)
+	}
 }
