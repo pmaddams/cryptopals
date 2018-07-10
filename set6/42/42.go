@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/rand"
-	"crypto/sha256"
+	_ "crypto/sha256"
+	_ "crypto/sha512"
 	"errors"
 	"math/big"
 )
@@ -275,10 +276,6 @@ func forgeSignature(buf []byte, pub *RSAPublicKey, id crypto.Hash) ([]byte, []by
 	sig := Cbrt(new(big.Int).SetBytes(tmp)).Bytes()
 
 	return sum, sig, nil
-}
-
-func init() {
-	crypto.RegisterHash(crypto.SHA256, sha256.New)
 }
 
 func main() {
