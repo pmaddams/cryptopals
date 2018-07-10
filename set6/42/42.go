@@ -252,6 +252,7 @@ func Cbrt(z *big.Int) *big.Int {
 	return guess
 }
 
+// forgeSignature creates a fake signature for arbitrary data using RSA public exponent 3.
 func forgeSignature(buf []byte, pub *RSAPublicKey, id crypto.Hash) ([]byte, []byte, error) {
 	der, err := DigestInfo(id)
 	if err != nil {
