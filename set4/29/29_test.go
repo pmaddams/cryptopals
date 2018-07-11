@@ -9,8 +9,9 @@ import (
 	"time"
 )
 
+func init() { weak.Seed(time.Now().UnixNano()) }
+
 func TestBitPadding(t *testing.T) {
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	for i := 0; i < 10; i++ {
 		n := weak.Intn(1024)
 		blockSize := 8 * (1 + weak.Intn(16))
@@ -44,7 +45,6 @@ func TestBitPadding(t *testing.T) {
 }
 
 func TestPrefixedSHA1(t *testing.T) {
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	for i := 0; i < 10; i++ {
 		h := sha1.New()
 		b1 := make([]byte, weak.Intn(1024))

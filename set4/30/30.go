@@ -17,6 +17,8 @@ import (
 	"golang.org/x/crypto/md4"
 )
 
+func init() { weak.Seed(time.Now().UnixNano()) }
+
 // BitPadding returns bit padding for the given buffer length.
 func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
 	if n < 0 || blockSize < 8 {
@@ -90,7 +92,6 @@ func RandomRange(lo, hi int) int {
 	if lo < 0 || lo > hi {
 		panic("RandomRange: invalid range")
 	}
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	return lo + weak.Intn(hi-lo+1)
 }
 

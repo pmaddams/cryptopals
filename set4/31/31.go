@@ -18,6 +18,8 @@ import (
 	"time"
 )
 
+func init() { weak.Seed(time.Now().UnixNano()) }
+
 const delay = 5 * time.Millisecond
 
 const (
@@ -101,7 +103,6 @@ func RandomRange(lo, hi int) int {
 	if lo < 0 || lo > hi {
 		panic("RandomRange: invalid range")
 	}
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	return lo + weak.Intn(hi-lo+1)
 }
 

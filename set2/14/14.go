@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+func init() { weak.Seed(time.Now().UnixNano()) }
+
 const secret = `Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg
 aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq
 dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
@@ -49,7 +51,6 @@ func RandomRange(lo, hi int) int {
 	if lo < 0 || lo > hi {
 		panic("RandomRange: invalid range")
 	}
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	return lo + weak.Intn(hi-lo+1)
 }
 

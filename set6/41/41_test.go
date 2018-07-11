@@ -7,12 +7,13 @@ import (
 	"time"
 )
 
+func init() { weak.Seed(time.Now().UnixNano()) }
+
 func TestRSA(t *testing.T) {
 	const (
 		exponent = 3
 		bits     = 256
 	)
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
 	for i := 0; i < 5; i++ {
 		priv, err := RSAGenerateKey(exponent, bits)

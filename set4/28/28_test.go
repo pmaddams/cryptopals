@@ -8,8 +8,9 @@ import (
 	"time"
 )
 
+func init() { weak.Seed(time.Now().UnixNano()) }
+
 func TestMAC(t *testing.T) {
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	key := make([]byte, 1+weak.Intn(16))
 	weak.Read(key)
 

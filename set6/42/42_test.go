@@ -12,12 +12,13 @@ import (
 	"time"
 )
 
+func init() { weak.Seed(time.Now().UnixNano()) }
+
 func TestRSA(t *testing.T) {
 	const (
 		exponent = 3
 		bits     = 256
 	)
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
 	for i := 0; i < 5; i++ {
 		priv, err := RSAGenerateKey(exponent, bits)
@@ -45,7 +46,6 @@ func TestRSA(t *testing.T) {
 }
 
 func TestPKCS1v15SignaturePadUnpad(t *testing.T) {
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
 	var id crypto.Hash
 	for i := 0; i < 5; i++ {
@@ -82,7 +82,6 @@ func TestRSASignVerify(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
 	var id crypto.Hash
 	for i := 0; i < 5; i++ {
@@ -114,7 +113,6 @@ func TestRSAVerifyWeak(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
 	var id crypto.Hash
 	for i := 0; i < 5; i++ {
