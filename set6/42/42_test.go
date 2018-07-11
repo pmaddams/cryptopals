@@ -5,7 +5,6 @@ import (
 	"crypto"
 	"crypto/rand"
 	_ "crypto/sha256"
-	_ "crypto/sha512"
 	"math"
 	"math/big"
 	weak "math/rand"
@@ -48,17 +47,18 @@ func TestRSA(t *testing.T) {
 func TestPKCS1v15SignaturePadUnpad(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
-	for _, id := range []crypto.Hash{
-		crypto.SHA224,
-		crypto.SHA256,
-		crypto.SHA384,
-		crypto.SHA512,
-	} {
+	var id crypto.Hash
+	for i := 0; i < 5; i++ {
 		weak.Read(buf)
+		if weak.Intn(2) == 0 {
+			id = crypto.SHA224
+		} else {
+			id = crypto.SHA256
+		}
 		h := id.New()
 		h.Write(buf)
 		want := h.Sum([]byte{})
-		size := 1024 + weak.Intn(1024)
+		size := 512 + weak.Intn(512)
 		tmp, err := PKCS1v15SignaturePad(id, want, size)
 		if err != nil {
 			t.Error(err)
@@ -76,7 +76,7 @@ func TestPKCS1v15SignaturePadUnpad(t *testing.T) {
 func TestRSASignVerify(t *testing.T) {
 	const (
 		exponent = 3
-		bits     = 768
+		bits     = 512
 	)
 	priv, err := RSAGenerateKey(exponent, bits)
 	if err != nil {
@@ -84,13 +84,14 @@ func TestRSASignVerify(t *testing.T) {
 	}
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
-	weak.Read(buf)
-	for _, id := range []crypto.Hash{
-		crypto.SHA224,
-		crypto.SHA256,
-		crypto.SHA384,
-		crypto.SHA512,
-	} {
+	var id crypto.Hash
+	for i := 0; i < 5; i++ {
+		weak.Read(buf)
+		if weak.Intn(2) == 0 {
+			id = crypto.SHA224
+		} else {
+			id = crypto.SHA256
+		}
 		h := id.New()
 		h.Write(buf)
 		sum := h.Sum([]byte{})
@@ -107,7 +108,7 @@ func TestRSASignVerify(t *testing.T) {
 func TestRSAVerifyWeak(t *testing.T) {
 	const (
 		exponent = 3
-		bits     = 768
+		bits     = 512
 	)
 	priv, err := RSAGenerateKey(exponent, bits)
 	if err != nil {
@@ -115,13 +116,14 @@ func TestRSAVerifyWeak(t *testing.T) {
 	}
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, 16)
-	weak.Read(buf)
-	for _, id := range []crypto.Hash{
-		crypto.SHA224,
-		crypto.SHA256,
-		crypto.SHA384,
-		crypto.SHA512,
-	} {
+	var id crypto.Hash
+	for i := 0; i < 5; i++ {
+		weak.Read(buf)
+		if weak.Intn(2) == 0 {
+			id = crypto.SHA224
+		} else {
+			id = crypto.SHA256
+		}
 		h := id.New()
 		h.Write(buf)
 		sum := h.Sum([]byte{})
