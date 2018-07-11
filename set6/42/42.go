@@ -189,7 +189,7 @@ func PKCS1v15SignatureUnpad(h crypto.Hash, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-// RSASign returns a checksum signed with a private key.
+// RSASign returns a PKCS #1 v1.5 signature for a checksum.
 func RSASign(priv *RSAPrivateKey, h crypto.Hash, sum []byte) ([]byte, error) {
 	buf, err := PKCS1v15SignaturePad(h, sum, size(priv.n))
 	if err != nil {
