@@ -37,25 +37,25 @@ const (
 
 // DHPublicKey represents the public part of a Diffie-Hellman key pair.
 type DHPublicKey struct {
-	p   *big.Int
-	g   *big.Int
-	pub *big.Int
+	p *big.Int
+	g *big.Int
+	y *big.Int
 }
 
 // DHPrivateKey represents a Diffie-Hellman key pair.
 type DHPrivateKey struct {
 	DHPublicKey
-	priv *big.Int
+	x *big.Int
 }
 
 // DHGenerateKey generates a private key.
 func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	priv, err := rand.Int(rand.Reader, p)
+	x, err := rand.Int(rand.Reader, p)
 	if err != nil {
 		panic(err)
 	}
-	pub := new(big.Int).Exp(g, priv, p)
-	return &DHPrivateKey{DHPublicKey{p, g, pub}, priv}
+	y := new(big.Int).Exp(g, x, p)
+	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
 }
 
 // Public returns a public key.
@@ -65,7 +65,7 @@ func (priv *DHPrivateKey) Public() *DHPublicKey {
 
 // Secret takes a public key and returns a shared secret.
 func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
-	return new(big.Int).Exp(pub.pub, priv.priv, priv.p).Bytes()
+	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
 }
 
 // PwdBreaker represents a man-in-the-middle attacking a remote password protocol.
@@ -81,9 +81,9 @@ func NewPwdBreaker(p, g *big.Int) *PwdBreaker {
 	return &PwdBreaker{
 		DHPrivateKey: &DHPrivateKey{
 			DHPublicKey{
-				p:   p,
-				g:   g,
-				pub: g,
+				p: p,
+				g: g,
+				y: g,
 			},
 			big.NewInt(1),
 		},
@@ -247,7 +247,7 @@ func (state *pwdBreakerState) receiveLoginAndSendResponse(c net.Conn, x *PwdBrea
 		return errors.New("receiveLoginAndSendResponse: invalid public key")
 	}
 	if _, err := fmt.Fprintf(c, "salt: 00\npublic key: %s\n",
-		hex.EncodeToString(x.pub.Bytes())); err != nil {
+		hex.EncodeToString(x.y.Bytes())); err != nil {
 		return err
 	}
 	return nil
@@ -291,7 +291,7 @@ func pwdClientHandshake(c net.Conn, clt *PwdClient) error {
 func (state *pwdClientState) sendLoginAndReceiveResponse(c net.Conn, clt *PwdClient) error {
 	var err error
 	if _, err = fmt.Fprintf(c, "email: %s\npublic key: %s\n",
-		clt.email, hex.EncodeToString(clt.pub.Bytes())); err != nil {
+		clt.email, hex.EncodeToString(clt.y.Bytes())); err != nil {
 		return err
 	}
 	var salt, serverPub string
@@ -315,7 +315,7 @@ func (state *pwdClientState) sendHMACAndReceiveOK(c net.Conn, clt *PwdClient) er
 	h.Write([]byte(clt.password))
 	x := new(big.Int).SetBytes(h.Sum([]byte{}))
 
-	secret := new(big.Int).Add(clt.priv, x)
+	secret := new(big.Int).Add(clt.x, x)
 	secret.Exp(state.serverPub, secret, clt.p)
 
 	h.Reset()

@@ -31,6 +31,6 @@ b = %x
 B = %x
 (B^a)%%p = %x
 (A^b)%%p = %x`,
-			p, g, a.priv, a.pub, b.priv, b.pub, s1, s2)
+			p, g, a.x, a.y, b.x, b.y, s1, s2)
 	}
 }

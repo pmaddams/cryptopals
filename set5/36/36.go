@@ -33,25 +33,25 @@ const addr = "localhost:4000"
 
 // DHPublicKey represents the public part of a Diffie-Hellman key pair.
 type DHPublicKey struct {
-	p   *big.Int
-	g   *big.Int
-	pub *big.Int
+	p *big.Int
+	g *big.Int
+	y *big.Int
 }
 
 // DHPrivateKey represents a Diffie-Hellman key pair.
 type DHPrivateKey struct {
 	DHPublicKey
-	priv *big.Int
+	x *big.Int
 }
 
 // DHGenerateKey generates a private key.
 func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	priv, err := rand.Int(rand.Reader, p)
+	x, err := rand.Int(rand.Reader, p)
 	if err != nil {
 		panic(err)
 	}
-	pub := new(big.Int).Exp(g, priv, p)
-	return &DHPrivateKey{DHPublicKey{p, g, pub}, priv}
+	y := new(big.Int).Exp(g, x, p)
+	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
 }
 
 // Public returns a public key.
@@ -61,7 +61,7 @@ func (priv *DHPrivateKey) Public() *DHPublicKey {
 
 // Secret takes a public key and returns a shared secret.
 func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
-	return new(big.Int).Exp(pub.pub, priv.priv, priv.p).Bytes()
+	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
 }
 
 // record represents a database record of a user's login information.
@@ -223,7 +223,7 @@ func (state *srpServerState) receiveLoginAndSendResponse(c net.Conn, srv *SRPSer
 	}
 	sessionPub := big.NewInt(3)
 	sessionPub.Mul(sessionPub, state.rec.v)
-	sessionPub.Add(sessionPub, srv.pub)
+	sessionPub.Add(sessionPub, srv.y)
 
 	h := sha256.New()
 	h.Write(state.clientPub.Bytes())
@@ -249,7 +249,7 @@ func (state *srpServerState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) er
 	}
 	secret := new(big.Int).Exp(state.rec.v, state.u, srv.p)
 	secret.Mul(state.clientPub, secret)
-	secret.Exp(secret, srv.priv, srv.p)
+	secret.Exp(secret, srv.x, srv.p)
 
 	k := sha256.Sum256(secret.Bytes())
 	h := hmac.New(sha256.New, state.rec.salt)
@@ -284,7 +284,7 @@ func srpClientHandshake(c net.Conn, clt *SRPClient) error {
 func (state *srpClientState) sendLoginAndReceiveResponse(c net.Conn, clt *SRPClient) error {
 	var err error
 	if _, err = fmt.Fprintf(c, "email: %s\npublic key: %s\n",
-		clt.email, hex.EncodeToString(clt.pub.Bytes())); err != nil {
+		clt.email, hex.EncodeToString(clt.y.Bytes())); err != nil {
 		return err
 	}
 	var salt, sessionPub string
@@ -304,7 +304,7 @@ func (state *srpClientState) sendLoginAndReceiveResponse(c net.Conn, clt *SRPCli
 // sendHMACAndReceiveOK sends an HMAC and receives back an OK message.
 func (state *srpClientState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClient) error {
 	h := sha256.New()
-	h.Write(clt.pub.Bytes())
+	h.Write(clt.y.Bytes())
 	h.Write(state.sessionPub.Bytes())
 	u := new(big.Int).SetBytes(h.Sum([]byte{}))
 
@@ -317,7 +317,7 @@ func (state *srpClientState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClient) er
 	fst.Mul(big.NewInt(3), fst)
 	fst.Sub(state.sessionPub, fst)
 	snd := new(big.Int).Mul(u, x)
-	snd.Add(clt.priv, snd)
+	snd.Add(clt.x, snd)
 	secret := fst.Exp(fst, snd, clt.p)
 
 	h.Reset()
