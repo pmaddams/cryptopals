@@ -60,12 +60,10 @@ func RandomEncrypter() cipher.BlockMode {
 	if err != nil {
 		panic(err)
 	}
-	switch RandomRange(0, 1) {
-	case 0:
+	if weak.Intn(2) == 0 {
 		return NewECBEncrypter(c)
-	default:
-		return cipher.NewCBCEncrypter(c, RandomBytes(c.BlockSize()))
 	}
+	return cipher.NewCBCEncrypter(c, RandomBytes(c.BlockSize()))
 }
 
 // dup returns a copy of a buffer.

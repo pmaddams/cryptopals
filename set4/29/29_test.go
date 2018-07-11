@@ -16,10 +16,9 @@ func TestBitPadding(t *testing.T) {
 		n := weak.Intn(1024)
 		blockSize := 8 * (1 + weak.Intn(16))
 		var endian binary.ByteOrder
-		switch weak.Intn(2) {
-		case 0:
+		if weak.Intn(2) == 0 {
 			endian = binary.LittleEndian
-		default:
+		} else {
 			endian = binary.BigEndian
 		}
 		pad := BitPadding(n, blockSize, endian)
