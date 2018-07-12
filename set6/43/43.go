@@ -123,7 +123,7 @@ func hexToBigInt(s string) (*big.Int, error) {
 	s = strings.Replace(s, "\n", "", -1)
 	z, ok := new(big.Int).SetString(s, 16)
 	if !ok {
-		return nil, errors.New("hexToInt: invalid string")
+		return nil, errors.New("hexToBigInt: invalid string")
 	}
 	return z, nil
 }
