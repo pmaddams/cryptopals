@@ -9,8 +9,8 @@ import (
 	"os"
 )
 
-// HexToB64 converts a hex-encoded string to base64.
-func HexToB64(s string) (string, error) {
+// HexToBase64 converts a hex-encoded string to base64.
+func HexToBase64(s string) (string, error) {
 	buf, err := hex.DecodeString(s)
 	if err != nil {
 		return "", err
@@ -22,7 +22,7 @@ func HexToB64(s string) (string, error) {
 func convertAndPrint(in io.Reader) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
-		s, err := HexToB64(input.Text())
+		s, err := HexToBase64(input.Text())
 		if err != nil {
 			return err
 		}
