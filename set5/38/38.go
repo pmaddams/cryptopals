@@ -55,6 +55,7 @@ func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
 		panic(err)
 	}
 	y := new(big.Int).Exp(g, x, p)
+
 	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
 }
 
