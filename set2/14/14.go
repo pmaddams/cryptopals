@@ -81,14 +81,15 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 
 // PKCS7Unpad returns a buffer with PKCS#7 padding removed.
 func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
 	if len(buf) < blockSize {
-		return nil, errors.New("PKCS7Unpad: invalid padding")
+		return nil, errInvalidPadding
 	}
 	// Examine the value of the last byte.
 	b := buf[len(buf)-1]
 	if int(b) == 0 || int(b) > blockSize ||
 		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
-		return nil, errors.New("PKCS7Unpad: invalid padding")
+		return nil, errInvalidPadding
 	}
 	return dup(buf)[:len(buf)-int(b)], nil
 }
