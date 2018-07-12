@@ -2,20 +2,22 @@ package main
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 )
 
 const (
-	defaultP = `800000000000000089e1855218a0e7dac38136ffafa72eda7
+	dsaDefaultP = `800000000000000089e1855218a0e7dac38136ffafa72eda7
 859f2171e25e65eac698c1702578b07dc2a1076da241c76c6
 2d374d8389ea5aeffd3226a0530cc565f3bf6b50929139ebe
 ac04f48c3c84afb796d61e5a4f9a8fda812ab59494232c7d2
 b4deb50aa18ee9e132bfa85ac4374d7f9091abc3d015efc87
 1a584471bb1`
-	defaultQ = `f4f47f05794b256174bba6e9b396a7707e563c5b`
-	defaultG = `5958c9d3898b224b12672c0b98e06c60df923cb8bc999d119
+	dsaDefaultQ = `f4f47f05794b256174bba6e9b396a7707e563c5b`
+	dsaDefaultG = `5958c9d3898b224b12672c0b98e06c60df923cb8bc999d119
 458fef538b8fa4046c8db53039db620c094c9fa077ef389b5
 322a559946a71903f990f1f7e0e025e2d7f7cf494aff1a047
 0f5b64c36b625a097f1651fe775323556fe00b3608c887892
@@ -49,12 +51,9 @@ func equal(z1, z2 *big.Int) bool {
 
 // DSAGenerateKey generates a private key.
 func DSAGenerateKey(p, q, g *big.Int) *DSAPrivateKey {
-	x := new(big.Int)
-	for equal(x, zero) {
-		var err error
-		if x, err = rand.Int(rand.Reader, q); err != nil {
-			panic(err)
-		}
+	x, err := rand.Int(rand.Reader, p)
+	if err != nil {
+		panic(err)
 	}
 	y := new(big.Int).Exp(g, x, p)
 
@@ -65,7 +64,7 @@ func DSAGenerateKey(p, q, g *big.Int) *DSAPrivateKey {
 func DSASign(priv *DSAPrivateKey, sum []byte) (*big.Int, *big.Int) {
 Retry:
 	k := new(big.Int)
-	for k.Cmp(one) < 0 {
+	for k.Cmp(one) <= 0 {
 		var err error
 		if k, err = rand.Int(rand.Reader, priv.q); err != nil {
 			panic(err)
@@ -89,10 +88,10 @@ Retry:
 
 // DSAVerify returns false if a checksum does not match its signature.
 func DSAVerify(pub *DSAPublicKey, sum []byte, r, s *big.Int) bool {
-	if r.Cmp(zero) <= 0 || r.Cmp(pub.q) >= 0 {
+	if r.Sign() <= 0 || r.Cmp(pub.q) >= 0 {
 		return false
 	}
-	if s.Cmp(zero) <= 0 || s.Cmp(pub.q) >= 0 {
+	if s.Sign() <= 0 || s.Cmp(pub.q) >= 0 {
 		return false
 	}
 	w := new(big.Int).ModInverse(s, pub.q)
@@ -113,18 +112,30 @@ func DSAVerify(pub *DSAPublicKey, sum []byte, r, s *big.Int) bool {
 	return equal(v, r)
 }
 
+// hexToBigInt converts a hex-encoded string to an arbitrary-precision integer.
+func hexToBigInt(s string) (*big.Int, error) {
+	z, ok := new(big.Int).SetString(strings.Replace(s, "\n", "", -1), 16)
+	if !ok {
+		return nil, errors.New("hexToInt: invalid string")
+	}
+	return z, nil
+}
+
 func main() {
-	p, ok := new(big.Int).SetString(strings.Replace(defaultP, "\n", "", -1), 16)
-	if !ok {
-		panic("invalid p")
+	p, err := hexToBigInt(dsaDefaultP)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-	q, ok := new(big.Int).SetString(defaultQ, 16)
-	if !ok {
-		panic("invalid q")
+	q, err := hexToBigInt(dsaDefaultQ)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-	g, ok := new(big.Int).SetString(strings.Replace(defaultG, "\n", "", -1), 16)
-	if !ok {
-		panic("invalid g")
+	g, err := hexToBigInt(dsaDefaultG)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
 	priv := DSAGenerateKey(p, q, g)
 	fmt.Println(priv)
