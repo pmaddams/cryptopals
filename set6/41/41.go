@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	defaultExponent = 65537
-	defaultBits     = 2048
+	rsaDefaultE    = 65537
+	rsaDefaultBits = 2048
 )
 
 var (
@@ -202,7 +202,7 @@ func printUnpaddedRSA(in io.Reader, x *unpaddedRSABreaker) error {
 
 func main() {
 	fmt.Print("generating RSA key...")
-	priv, err := RSAGenerateKey(defaultExponent, defaultBits)
+	priv, err := RSAGenerateKey(rsaDefaultE, rsaDefaultBits)
 	if err != nil {
 		panic(err)
 	}

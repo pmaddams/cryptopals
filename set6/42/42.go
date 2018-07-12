@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-const defaultBits = 2048
+const rsaDefaultBits = 2048
 
 var (
 	one   = big.NewInt(1)
@@ -278,12 +278,11 @@ func forgeSignature(buf []byte, pub *RSAPublicKey, id crypto.Hash) ([]byte, []by
 }
 
 func main() {
-	priv, err := RSAGenerateKey(3, defaultBits)
-	pub := priv.Public()
+	priv, err := RSAGenerateKey(3, rsaDefaultBits)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		panic(err)
 	}
+	pub := priv.Public()
 	sum, sig, err := forgeSignature([]byte("hi mom"), pub, crypto.SHA256)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
