@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"strings"
 )
 
@@ -60,6 +59,11 @@ func DSAGenerateKey(p, q, g *big.Int) *DSAPrivateKey {
 	return &DSAPrivateKey{DSAPublicKey{p, q, g, y}, x}
 }
 
+// Public returns a public key.
+func (priv *DSAPrivateKey) Public() *DSAPublicKey {
+	return &priv.DSAPublicKey
+}
+
 // DSASign returns a DSA signature for a checksum.
 func DSASign(priv *DSAPrivateKey, sum []byte) (*big.Int, *big.Int) {
 Retry:
@@ -70,15 +74,17 @@ Retry:
 			panic(err)
 		}
 	}
-	r := new(big.Int).Exp(priv.g, k, priv.q)
+	r := new(big.Int).Exp(priv.g, k, priv.p)
+	r.Mod(r, priv.q)
 	if equal(r, zero) {
 		goto Retry
 	}
 	z1 := new(big.Int).SetBytes(sum)
 	z2 := new(big.Int).Mul(priv.x, r)
 	z1.Add(z1, z2)
-	s := z2.ModInverse(k, priv.q)
-	s.Mul(s, z1)
+	z2.ModInverse(k, priv.q)
+
+	s := z1.Mul(z1, z2)
 	s.Mod(s, priv.q)
 	if equal(s, zero) {
 		goto Retry
@@ -99,13 +105,13 @@ func DSAVerify(pub *DSAPublicKey, sum []byte, r, s *big.Int) bool {
 	u1 := new(big.Int).SetBytes(sum)
 	u1.Mul(u1, w)
 	u1.Mod(u1, pub.q)
+	u1.Exp(pub.g, u1, pub.p)
 
 	u2 := new(big.Int).Mul(r, w)
 	u2.Mod(u2, pub.q)
+	u2.Exp(pub.y, u2, pub.p)
 
-	z1 := new(big.Int).Exp(pub.g, u1, pub.p)
-	z2 := new(big.Int).Exp(pub.y, u2, pub.p)
-	v := z1.Mul(z1, z2)
+	v := u1.Mul(u1, u2)
 	v.Mod(v, pub.p)
 	v.Mod(v, pub.q)
 
@@ -114,7 +120,8 @@ func DSAVerify(pub *DSAPublicKey, sum []byte, r, s *big.Int) bool {
 
 // hexToBigInt converts a hex-encoded string to an arbitrary-precision integer.
 func hexToBigInt(s string) (*big.Int, error) {
-	z, ok := new(big.Int).SetString(strings.Replace(s, "\n", "", -1), 16)
+	s = strings.Replace(s, "\n", "", -1)
+	z, ok := new(big.Int).SetString(s, 16)
 	if !ok {
 		return nil, errors.New("hexToInt: invalid string")
 	}
@@ -124,18 +131,15 @@ func hexToBigInt(s string) (*big.Int, error) {
 func main() {
 	p, err := hexToBigInt(dsaDefaultP)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		panic(err)
 	}
 	q, err := hexToBigInt(dsaDefaultQ)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		panic(err)
 	}
 	g, err := hexToBigInt(dsaDefaultG)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+		panic(err)
 	}
 	priv := DSAGenerateKey(p, q, g)
 	fmt.Println(priv)
