@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-// HexToB64 converts a hexadecimal string to base64.
+// HexToB64 converts a hex-encoded string to base64.
 func HexToB64(s string) (string, error) {
 	buf, err := hex.DecodeString(s)
 	if err != nil {
