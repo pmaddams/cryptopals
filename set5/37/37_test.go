@@ -2,19 +2,17 @@ package main
 
 import (
 	"bytes"
-	"math/big"
-	"strings"
 	"testing"
 )
 
 func TestDH(t *testing.T) {
-	p, ok := new(big.Int).SetString(strings.Replace(defaultPrime, "\n", "", -1), 16)
-	if !ok || !p.ProbablyPrime(0) {
-		panic("invalid prime")
+	p, err := hexToBigInt(dhDefaultP)
+	if err != nil {
+		panic(err)
 	}
-	g, ok := new(big.Int).SetString(defaultGenerator, 16)
-	if !ok {
-		panic("invalid generator")
+	g, err := hexToBigInt(dhDefaultG)
+	if err != nil {
+		panic(err)
 	}
 	a, b := DHGenerateKey(p, g), DHGenerateKey(p, g)
 

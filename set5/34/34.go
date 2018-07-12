@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultPrime = `ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024
+	dhDefaultP = `ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024
 e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd
 3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec
 6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f
@@ -21,7 +21,7 @@ e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd
 c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552
 bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff
 fffffffffffff`
-	defaultGenerator = `2`
+	dhDefaultG = `2`
 )
 
 // DHPublicKey represents the public part of a Diffie-Hellman key pair.
@@ -44,6 +44,7 @@ func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
 		panic(err)
 	}
 	y := new(big.Int).Exp(g, x, p)
+
 	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
 }
 
@@ -150,14 +151,24 @@ func (sender *bot) send(receiver *bot, iv, buf []byte) {
 	receiver.buf.Write(buf)
 }
 
-func main() {
-	p, ok := new(big.Int).SetString(strings.Replace(defaultPrime, "\n", "", -1), 16)
-	if !ok || !p.ProbablyPrime(0) {
-		panic("invalid prime")
-	}
-	g, ok := new(big.Int).SetString(defaultGenerator, 16)
+// hexToBigInt converts a hex-encoded string to an arbitrary-precision integer.
+func hexToBigInt(s string) (*big.Int, error) {
+	s = strings.Replace(s, "\n", "", -1)
+	z, ok := new(big.Int).SetString(s, 16)
 	if !ok {
-		panic("invalid generator")
+		return nil, errors.New("hexToInt: invalid string")
+	}
+	return z, nil
+}
+
+func main() {
+	p, err := hexToBigInt(dhDefaultP)
+	if err != nil {
+		panic(err)
+	}
+	g, err := hexToBigInt(dhDefaultG)
+	if err != nil {
+		panic(err)
 	}
 	alice, bob, mallory := newBot(), newBot(), newBot()
 	alice.DHPrivateKey = DHGenerateKey(p, g)
