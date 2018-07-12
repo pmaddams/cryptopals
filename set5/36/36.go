@@ -361,8 +361,8 @@ func (c *srpConn) SetDeadline(t time.Time) error      { return c.inner.SetDeadli
 func (c *srpConn) SetReadDeadline(t time.Time) error  { return c.inner.SetReadDeadline(t) }
 func (c *srpConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteDeadline(t) }
 
-// runProtocol runs the Secure Remote Password protocol interactively.
-func runProtocol(network, addr string, p, g *big.Int) error {
+// runSRP runs the Secure Remote Password protocol interactively.
+func runSRP(network, addr string, p, g *big.Int) error {
 	var dbEmail, dbPassword string
 	fmt.Print("database email: ")
 	if _, err := fmt.Scanln(&dbEmail); err != nil {
@@ -438,7 +438,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := runProtocol("tcp", addr, p, g); err != nil {
+	if err := runSRP("tcp", addr, p, g); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }

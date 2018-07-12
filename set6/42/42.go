@@ -117,8 +117,8 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return res, nil
 }
 
-// DigestInfo returns precomputed ASN.1 DER structures for cryptographic hash functions.
-func DigestInfo(h crypto.Hash) ([]byte, error) {
+// digestInfo returns precomputed ASN.1 DER structures for cryptographic hash functions.
+func digestInfo(h crypto.Hash) ([]byte, error) {
 	var buf []byte
 	switch h {
 	case crypto.SHA224:
@@ -130,14 +130,14 @@ func DigestInfo(h crypto.Hash) ([]byte, error) {
 	case crypto.SHA512:
 		buf = []byte{0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40}
 	default:
-		return nil, errors.New("DigestInfo: invalid hash function")
+		return nil, errors.New("digestInfo: invalid hash function")
 	}
 	return buf, nil
 }
 
 // PKCS1v15SignaturePad returns a checksum with PKCS #1 v1.5 signature padding added.
 func PKCS1v15SignaturePad(h crypto.Hash, sum []byte, size int) ([]byte, error) {
-	der, err := DigestInfo(h)
+	der, err := digestInfo(h)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +176,7 @@ func PKCS1v15SignatureUnpad(h crypto.Hash, buf []byte) ([]byte, error) {
 		return nil, errInvalidPadding
 	}
 	buf = buf[1:]
-	der, err := DigestInfo(h)
+	der, err := digestInfo(h)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func Cbrt(z *big.Int) *big.Int {
 
 // forgeSignature creates a fake signature for arbitrary data using RSA public exponent 3.
 func forgeSignature(buf []byte, pub *RSAPublicKey, id crypto.Hash) ([]byte, []byte, error) {
-	der, err := DigestInfo(id)
+	der, err := digestInfo(id)
 	if err != nil {
 		return nil, nil, err
 	}
