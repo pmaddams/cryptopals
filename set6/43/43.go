@@ -180,9 +180,7 @@ bb283e6633451e535c45513b2d33c99ea17`, 16)
 	h.Write([]byte("For those that envy a MC it can be hazardous to your health\n"))
 	h.Write([]byte("So be friendly, a matter of life and death, just like a etch-a-sketch\n"))
 	sum := h.Sum([]byte{})
-	if !DSAVerify(pub, sum, r, s) {
-		panic("sanity check failed")
-	}
+
 	k := new(big.Int)
 	for i := 0; i < 65536; i++ {
 		k.SetInt64(int64(i))
@@ -193,5 +191,4 @@ bb283e6633451e535c45513b2d33c99ea17`, 16)
 			return
 		}
 	}
-	fmt.Println("failure")
 }
