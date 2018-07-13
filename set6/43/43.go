@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha1"
 	"errors"
 	"fmt"
 	"math/big"
@@ -50,7 +51,7 @@ func equal(z1, z2 *big.Int) bool {
 
 // DSAGenerateKey generates a private key.
 func DSAGenerateKey(p, q, g *big.Int) *DSAPrivateKey {
-	x, err := rand.Int(rand.Reader, p)
+	x, err := rand.Int(rand.Reader, q)
 	if err != nil {
 		panic(err)
 	}
@@ -64,7 +65,7 @@ func (priv *DSAPrivateKey) Public() *DSAPublicKey {
 	return &priv.DSAPublicKey
 }
 
-// DSASign returns a DSA signature for a checksum.
+// DSASign returns a signature for a checksum.
 func DSASign(priv *DSAPrivateKey, sum []byte) (*big.Int, *big.Int) {
 Retry:
 	k := new(big.Int)
@@ -118,8 +119,17 @@ func DSAVerify(pub *DSAPublicKey, sum []byte, r, s *big.Int) bool {
 	return equal(v, r)
 }
 
+// breakDSA returns the private key used to sign a checksum.
 func breakDSA(pub *DSAPublicKey, sum []byte, r, s, k *big.Int) *DSAPrivateKey {
-	return nil
+	z1 := new(big.Int).Mul(s, k)
+	z2 := new(big.Int).SetBytes(sum)
+	z1.Sub(z1, z2)
+	z2.ModInverse(r, pub.q)
+
+	x := z1.Mul(z1, z2)
+	x.Mod(x, pub.q)
+
+	return &DSAPrivateKey{*pub, x}
 }
 
 // hexToBigInt converts a hex-encoded string to an arbitrary-precision integer.
@@ -133,17 +143,6 @@ func hexToBigInt(s string) (*big.Int, error) {
 }
 
 func main() {
-	const (
-		y = `84ad4719d044495496a3201c8ff484feb45b962e7302e56a392aee4
-abab3e4bdebf2955b4736012f21a08084056b19bcd7fee56048e004
-e44984e2f411788efdc837a0d2e5abb7b555039fd243ac01f0fb2ed
-1dec568280ce678e931868d23eb095fde9d3779191b8c0299d6e07b
-bb283e6633451e535c45513b2d33c99ea17`
-		msg = `For those that envy a MC it can be hazardous to your health
-So be friendly, a matter of life and death, just like a etch-a-sketch`
-		r = `548099063082341131477253921760299949438196259240`
-		s = `857042759984254168557880549501802188789837994940`
-	)
 	p, err := hexToBigInt(dsaDefaultP)
 	if err != nil {
 		panic(err)
@@ -156,4 +155,40 @@ So be friendly, a matter of life and death, just like a etch-a-sketch`
 	if err != nil {
 		panic(err)
 	}
+	y, err := hexToBigInt(`84ad4719d044495496a3201c8ff484feb45b962e7302e56a392aee4
+abab3e4bdebf2955b4736012f21a08084056b19bcd7fee56048e004
+e44984e2f411788efdc837a0d2e5abb7b555039fd243ac01f0fb2ed
+1dec568280ce678e931868d23eb095fde9d3779191b8c0299d6e07b
+bb283e6633451e535c45513b2d33c99ea17`)
+	if err != nil {
+		panic(err)
+	}
+	pub := &DSAPublicKey{p, q, g, y}
+
+	r, ok := new(big.Int).SetString("548099063082341131477253921760299949438196259240", 10)
+	if !ok {
+		panic("invalid r")
+	}
+	s, ok := new(big.Int).SetString("857042759984254168557880549501802188789837994940", 10)
+	if !ok {
+		panic("invalid s")
+	}
+	h := sha1.New()
+	h.Write([]byte("For those that envy a MC it can be hazardous to your health\n"))
+	h.Write([]byte("So be friendly, a matter of life and death, just like a etch-a-sketch\n"))
+	sum := h.Sum([]byte{})
+	if !DSAVerify(pub, sum, r, s) {
+		panic("sanity check failed")
+	}
+	k := new(big.Int)
+	for i := 0; i < 65536; i++ {
+		k.SetInt64(int64(i))
+		priv := breakDSA(pub, sum, r, s, k)
+		newY := k.Exp(priv.g, priv.x, priv.p)
+		if equal(y, newY) {
+			fmt.Println("success")
+			return
+		}
+	}
+	fmt.Println("failure")
 }
