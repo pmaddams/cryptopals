@@ -10,15 +10,15 @@ import (
 )
 
 func TestDSA(t *testing.T) {
-	p, err := hexToBigInt(dsaDefaultP)
+	p, err := parseBigInt(dsaDefaultP, 16)
 	if err != nil {
 		panic(err)
 	}
-	q, err := hexToBigInt(dsaDefaultQ)
+	q, err := parseBigInt(dsaDefaultQ, 16)
 	if err != nil {
 		panic(err)
 	}
-	g, err := hexToBigInt(dsaDefaultG)
+	g, err := parseBigInt(dsaDefaultG, 16)
 	if err != nil {
 		panic(err)
 	}

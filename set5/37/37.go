@@ -389,22 +389,25 @@ func breakSRP(network, addr string, p, g *big.Int) error {
 	return nil
 }
 
-// hexToBigInt converts a hex-encoded string to an arbitrary-precision integer.
-func hexToBigInt(s string) (*big.Int, error) {
+// parseBigInt converts a string to an arbitrary-precision integer.
+func parseBigInt(s string, base int) (*big.Int, error) {
+	if base < 0 || base > 16 {
+		return nil, errors.New("parseBigInt: invalid base")
+	}
 	s = strings.Replace(s, "\n", "", -1)
-	z, ok := new(big.Int).SetString(s, 16)
+	z, ok := new(big.Int).SetString(s, base)
 	if !ok {
-		return nil, errors.New("hexToBigInt: invalid string")
+		return nil, errors.New("parseBigInt: invalid string")
 	}
 	return z, nil
 }
 
 func main() {
-	p, err := hexToBigInt(dhDefaultP)
+	p, err := parseBigInt(dhDefaultP, 16)
 	if err != nil {
 		panic(err)
 	}
-	g, err := hexToBigInt(dhDefaultG)
+	g, err := parseBigInt(dhDefaultG, 16)
 	if err != nil {
 		panic(err)
 	}

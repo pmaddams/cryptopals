@@ -6,11 +6,11 @@ import (
 )
 
 func TestDH(t *testing.T) {
-	p, err := hexToBigInt(dhDefaultP)
+	p, err := parseBigInt(dhDefaultP, 16)
 	if err != nil {
 		panic(err)
 	}
-	g, err := hexToBigInt(dhDefaultG)
+	g, err := parseBigInt(dhDefaultG, 16)
 	if err != nil {
 		panic(err)
 	}
