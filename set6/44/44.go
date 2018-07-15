@@ -1,16 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"io"
 	"math/big"
 	"strings"
 )
 
+// message represents a message signed with DSA.
 type message struct {
 	s   *big.Int
 	r   *big.Int
@@ -30,35 +30,48 @@ func parseBigInt(s string, base int) (*big.Int, error) {
 	return z, nil
 }
 
-func readMessage(in io.Reader) (*message, error) {
+// scanAfterPrefix reads a line and returns the string after a prefix.
+func scanAfterPrefix(input *bufio.Scanner, prefix string) (string, error) {
+	input.Scan()
+	if err := input.Err(); err != nil {
+		return "", err
+	}
+	if !strings.HasPrefix(input.Text(), prefix) {
+		return "", errors.New("scanAfterPrefix: invalid input")
+	}
+	return input.Text()[len(prefix):], nil
+}
+
+// scanMessage reads lines matching the message format and returns the message.
+func scanMessage(input *bufio.Scanner) (*message, error) {
 	msg := new(message)
 	var (
 		s   string
 		err error
 	)
-	if _, err = fmt.Fscanln(in, &s); err != nil {
+	if s, err = scanAfterPrefix(input, "msg: "); err != nil {
 		return nil, err
 	}
 	array := sha1.Sum([]byte(s))
-	if _, err = fmt.Fscanln(in, &s); err != nil {
+	if s, err = scanAfterPrefix(input, "s: "); err != nil {
 		return nil, err
 	}
 	if msg.s, err = parseBigInt(s, 10); err != nil {
 		return nil, err
 	}
-	if _, err = fmt.Fscanln(in, &s); err != nil {
+	if s, err = scanAfterPrefix(input, "r: "); err != nil {
 		return nil, err
 	}
 	if msg.r, err = parseBigInt(s, 10); err != nil {
 		return nil, err
 	}
-	if _, err = fmt.Fscanln(in, &s); err != nil {
+	if s, err = scanAfterPrefix(input, "m: "); err != nil {
 		return nil, err
 	}
 	if msg.sum, err = hex.DecodeString(s); err != nil {
 		return nil, err
 	} else if !bytes.Equal(msg.sum, array[:]) {
-		return nil, errors.New("readMessage: invalid checksum")
+		return nil, errors.New("scanMessage: invalid checksum")
 	}
 	return msg, nil
 }
