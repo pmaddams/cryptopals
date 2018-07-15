@@ -114,8 +114,8 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return res, nil
 }
 
-// rsaBroadcaster returns an RSA broadcast function.
-func rsaBroadcaster(s string) func() (*RSAPublicKey, []byte) {
+// rsaBroadcast returns an RSA broadcast function.
+func rsaBroadcast(s string) func() (*RSAPublicKey, []byte) {
 	return func() (*RSAPublicKey, []byte) {
 		priv, err := RSAGenerateKey(3, 8*(len(s)+2))
 		if err != nil {
@@ -149,9 +149,8 @@ func Cbrt(z *big.Int) *big.Int {
 	return guess
 }
 
-// crtDecrypt takes an RSA broadcast function and returns the plaintext
-// using three different public keys and the Chinese remainder theorem.
-func crtDecrypt(broadcast func() (*RSAPublicKey, []byte)) []byte {
+// breakRSABroadcast takes an RSA broadcast function and returns the decrypted plaintext.
+func breakRSABroadcast(broadcast func() (*RSAPublicKey, []byte)) []byte {
 	pubs := []*RSAPublicKey{}
 	bufs := [][]byte{}
 	for i := 0; i < 3; i++ {
@@ -195,12 +194,12 @@ func crtDecrypt(broadcast func() (*RSAPublicKey, []byte)) []byte {
 	return Cbrt(cube).Bytes()
 }
 
-// printCRT reads lines of text, encrypts them, and prints the decrypted plaintext.
-func printCRT(in io.Reader) error {
+// printRSABroadcast reads lines of text, encrypts them, and prints the decrypted plaintext.
+func printRSABroadcast(in io.Reader) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
-		broadcast := rsaBroadcaster(input.Text())
-		buf := crtDecrypt(broadcast)
+		broadcast := rsaBroadcast(input.Text())
+		buf := breakRSABroadcast(broadcast)
 		fmt.Println(string(buf))
 	}
 	return input.Err()
@@ -210,7 +209,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := printCRT(os.Stdin); err != nil {
+		if err := printRSABroadcast(os.Stdin); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -221,7 +220,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := printCRT(f); err != nil {
+		if err := printRSABroadcast(f); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
