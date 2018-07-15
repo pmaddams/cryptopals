@@ -132,8 +132,8 @@ func equal(z1, z2 *big.Int) bool {
 	return z1.Cmp(z2) == 0
 }
 
-// dsaPossibleK returns a possible k value for a pair of messages.
-func dsaPossibleK(pair []*message, pub *dsa.PublicKey) *big.Int {
+// possibleK returns a possible k value for a pair of messages.
+func possibleK(pair []*message, pub *dsa.PublicKey) *big.Int {
 	z1 := new(big.Int).Sub(pair[0].m, pair[1].m)
 	z2 := new(big.Int).Sub(pair[0].s, pair[1].s)
 	z2.ModInverse(z2, pub.Q)
@@ -144,8 +144,8 @@ func dsaPossibleK(pair []*message, pub *dsa.PublicKey) *big.Int {
 	return k
 }
 
-// dsaValidateKey returns true if a DSA private key is valid.
-func dsaValidateKey(priv *dsa.PrivateKey) bool {
+// validateKey returns true if a DSA private key is valid.
+func validateKey(priv *dsa.PrivateKey) bool {
 	return equal(priv.Y, new(big.Int).Exp(priv.G, priv.X, priv.P))
 }
 
@@ -162,7 +162,7 @@ func maybeBreakDSA(pub *dsa.PublicKey, msg *message, k *big.Int) *dsa.PrivateKey
 		PublicKey: *pub,
 		X:         x,
 	}
-	if !dsaValidateKey(priv) {
+	if !validateKey(priv) {
 		return nil
 	}
 	return priv
@@ -206,7 +206,7 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 		return
 	}
 	for pair := range generatePairs(msgs) {
-		k := dsaPossibleK(pair, pub)
+		k := possibleK(pair, pub)
 		priv := maybeBreakDSA(pub, pair[0], k)
 		if priv != nil {
 			fmt.Println("success")
