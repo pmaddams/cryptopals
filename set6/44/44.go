@@ -17,6 +17,18 @@ type message struct {
 	sum []byte
 }
 
+// scanAfterPrefix reads a line and returns the string after a prefix.
+func scanAfterPrefix(input *bufio.Scanner, prefix string) (string, error) {
+	input.Scan()
+	if err := input.Err(); err != nil {
+		return "", err
+	}
+	if !strings.HasPrefix(input.Text(), prefix) {
+		return "", errors.New("scanAfterPrefix: invalid input")
+	}
+	return input.Text()[len(prefix):], nil
+}
+
 // parseBigInt converts a string to an arbitrary-precision integer.
 func parseBigInt(s string, base int) (*big.Int, error) {
 	if base < 0 || base > 16 {
@@ -28,18 +40,6 @@ func parseBigInt(s string, base int) (*big.Int, error) {
 		return nil, errors.New("parseBigInt: invalid string")
 	}
 	return z, nil
-}
-
-// scanAfterPrefix reads a line and returns the string after a prefix.
-func scanAfterPrefix(input *bufio.Scanner, prefix string) (string, error) {
-	input.Scan()
-	if err := input.Err(); err != nil {
-		return "", err
-	}
-	if !strings.HasPrefix(input.Text(), prefix) {
-		return "", errors.New("scanAfterPrefix: invalid input")
-	}
-	return input.Text()[len(prefix):], nil
 }
 
 // scanMessage reads lines matching the message format and returns the message.
