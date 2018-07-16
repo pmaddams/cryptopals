@@ -113,13 +113,19 @@ func readMessages(in io.Reader) ([]*message, error) {
 	return msgs, input.Err()
 }
 
+// messagePair represents a pair of messages.
+type messagePair struct {
+	fst *message
+	snd *message
+}
+
 // messagePairs returns a channel that yields all pairs of messages.
-func messagePairs(msgs []*message) <-chan []*message {
-	ch := make(chan []*message)
+func messagePairs(msgs []*message) <-chan messagePair {
+	ch := make(chan messagePair)
 	go func() {
 		for i := 0; i < len(msgs)-1; i++ {
 			for j := i + 1; j < len(msgs); j++ {
-				ch <- append([]*message{msgs[i]}, msgs[j])
+				ch <- messagePair{msgs[i], msgs[j]}
 			}
 		}
 		close(ch)
@@ -133,9 +139,9 @@ func equal(z1, z2 *big.Int) bool {
 }
 
 // possibleK returns a possible k value for a pair of messages.
-func possibleK(pair []*message, pub *dsa.PublicKey) *big.Int {
-	z1 := new(big.Int).Sub(pair[0].m, pair[1].m)
-	z2 := new(big.Int).Sub(pair[0].s, pair[1].s)
+func possibleK(pair messagePair, pub *dsa.PublicKey) *big.Int {
+	z1 := new(big.Int).Sub(pair.fst.m, pair.snd.m)
+	z2 := new(big.Int).Sub(pair.fst.s, pair.snd.s)
 	z2.ModInverse(z2, pub.Q)
 
 	k := z1.Mul(z1, z2)
@@ -207,7 +213,7 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 	}
 	for pair := range messagePairs(msgs) {
 		k := possibleK(pair, pub)
-		priv := maybeBreakDSA(pub, pair[0], k)
+		priv := maybeBreakDSA(pub, pair.fst, k)
 		if priv != nil {
 			fmt.Println("success")
 			return
