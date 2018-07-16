@@ -193,6 +193,9 @@ func main() {
 f674a61f1d89a1fff27171ebc1b93d4dc57bceb7ae2430
 f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 2971c3de5084cce04a2e147821`, 16)
+	if err != nil {
+		panic(err)
+	}
 	pub := &dsa.PublicKey{
 		Parameters: dsa.Parameters{
 			P: p,
