@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/rand"
 	"fmt"
 	"math"
@@ -13,46 +12,6 @@ import (
 
 func init() { weak.Seed(time.Now().UnixNano()) }
 
-func TestDH(t *testing.T) {
-	p, err := ParseBigInt(dhDefaultP, 16)
-	if err != nil {
-		panic(err)
-	}
-	g, err := ParseBigInt(dhDefaultG, 16)
-	if err != nil {
-		panic(err)
-	}
-	a, b := DHGenerateKey(p, g), DHGenerateKey(p, g)
-
-	s1 := a.Secret(b.Public())
-	s2 := b.Secret(a.Public())
-
-	if !bytes.Equal(s1, s2) {
-		t.Errorf(`secrets not equal:
-p = %x
-g = %x
-a = %x
-A = %x
-b = %x
-B = %x
-(B^a)%%p = %x
-(A^b)%%p = %x`,
-			p, g, a.x, a.y, b.x, b.y, s1, s2)
-	}
-}
-
-func TestRandomBytes(t *testing.T) {
-	var bufs [][]byte
-	for i := 0; i < 5; i++ {
-		bufs = append(bufs, RandomBytes(16))
-		for j := 0; j < i; j++ {
-			if bytes.Equal(bufs[i], bufs[j]) {
-				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
-			}
-		}
-	}
-}
-
 func insertNewlines(s string) string {
 	var runes []rune
 	for _, r := range s {
@@ -62,10 +21,6 @@ func insertNewlines(s string) string {
 		}
 	}
 	return string(runes)
-}
-
-func equal(z1, z2 *big.Int) bool {
-	return z1.Cmp(z2) == 0
 }
 
 func TestParseBigInt(t *testing.T) {

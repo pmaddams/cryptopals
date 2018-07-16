@@ -57,25 +57,25 @@ func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
 	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
 }
 
-// parseBigInt converts a string to an arbitrary-precision integer.
-func parseBigInt(s string, base int) (*big.Int, error) {
+// ParseBigInt converts a string to an arbitrary-precision integer.
+func ParseBigInt(s string, base int) (*big.Int, error) {
 	if base < 0 || base > 16 {
-		return nil, errors.New("parseBigInt: invalid base")
+		return nil, errors.New("ParseBigInt: invalid base")
 	}
 	s = strings.Replace(s, "\n", "", -1)
 	z, ok := new(big.Int).SetString(s, base)
 	if !ok {
-		return nil, errors.New("parseBigInt: invalid string")
+		return nil, errors.New("ParseBigInt: invalid string")
 	}
 	return z, nil
 }
 
 func main() {
-	p, err := parseBigInt(dhDefaultP, 16)
+	p, err := ParseBigInt(dhDefaultP, 16)
 	if err != nil {
 		panic(err)
 	}
-	g, err := parseBigInt(dhDefaultG, 16)
+	g, err := ParseBigInt(dhDefaultG, 16)
 	if err != nil {
 		panic(err)
 	}

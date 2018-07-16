@@ -48,15 +48,15 @@ func scanAfterPrefix(input *bufio.Scanner, prefix string) (string, error) {
 	return input.Text()[len(prefix):], input.Err()
 }
 
-// parseBigInt converts a string to an arbitrary-precision integer.
-func parseBigInt(s string, base int) (*big.Int, error) {
+// ParseBigInt converts a string to an arbitrary-precision integer.
+func ParseBigInt(s string, base int) (*big.Int, error) {
 	if base < 0 || base > 16 {
-		return nil, errors.New("parseBigInt: invalid base")
+		return nil, errors.New("ParseBigInt: invalid base")
 	}
 	s = strings.Replace(s, "\n", "", -1)
 	z, ok := new(big.Int).SetString(s, base)
 	if !ok {
-		return nil, errors.New("parseBigInt: invalid string")
+		return nil, errors.New("ParseBigInt: invalid string")
 	}
 	return z, nil
 }
@@ -75,13 +75,13 @@ func scanMessage(input *bufio.Scanner) (*message, error) {
 	if s, err = scanAfterPrefix(input, "s: "); err != nil {
 		return nil, err
 	}
-	if msg.s, err = parseBigInt(s, 10); err != nil {
+	if msg.s, err = ParseBigInt(s, 10); err != nil {
 		return nil, err
 	}
 	if s, err = scanAfterPrefix(input, "r: "); err != nil {
 		return nil, err
 	}
-	if msg.r, err = parseBigInt(s, 10); err != nil {
+	if msg.r, err = ParseBigInt(s, 10); err != nil {
 		return nil, err
 	}
 	if s, err = scanAfterPrefix(input, "m: "); err != nil {
@@ -169,19 +169,19 @@ func maybeBreakDSA(pub *dsa.PublicKey, msg *message, k *big.Int) *dsa.PrivateKey
 }
 
 func main() {
-	p, err := parseBigInt(dsaDefaultP, 16)
+	p, err := ParseBigInt(dsaDefaultP, 16)
 	if err != nil {
 		panic(err)
 	}
-	q, err := parseBigInt(dsaDefaultQ, 16)
+	q, err := ParseBigInt(dsaDefaultQ, 16)
 	if err != nil {
 		panic(err)
 	}
-	g, err := parseBigInt(dsaDefaultG, 16)
+	g, err := ParseBigInt(dsaDefaultG, 16)
 	if err != nil {
 		panic(err)
 	}
-	y, err := parseBigInt(`2d026f4bf30195ede3a088da85e398ef869611d0f68f07
+	y, err := ParseBigInt(`2d026f4bf30195ede3a088da85e398ef869611d0f68f07
 13d51c9c1a3a26c95105d915e2d8cdf26d056b86b8a7b8
 5519b1c23cc3ecdc6062650462e3063bd179c2a6581519
 f674a61f1d89a1fff27171ebc1b93d4dc57bceb7ae2430
