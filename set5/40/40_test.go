@@ -48,7 +48,7 @@ func TestCbrt(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		want, err := rand.Int(weak, max)
 		if err != nil {
-			t.Error(err)
+			panic(err)
 		}
 		cube := new(big.Int).Exp(want, three, nil)
 		got := Cbrt(cube)

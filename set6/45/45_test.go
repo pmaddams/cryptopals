@@ -38,7 +38,7 @@ func TestParseBigInt(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		want, err := rand.Int(weak, max)
 		if err != nil {
-			t.Error(err)
+			panic(err)
 		}
 		for _, c := range cases {
 			s := insertNewlines(fmt.Sprintf(c.format, want))
