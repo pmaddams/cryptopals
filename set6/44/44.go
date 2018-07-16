@@ -113,8 +113,8 @@ func readMessages(in io.Reader) ([]*message, error) {
 	return msgs, input.Err()
 }
 
-// generatePairs returns a channel that yields all pairs of messages.
-func generatePairs(msgs []*message) <-chan []*message {
+// messagePairs returns a channel that yields all pairs of messages.
+func messagePairs(msgs []*message) <-chan []*message {
 	ch := make(chan []*message)
 	go func() {
 		for i := 0; i < len(msgs)-1; i++ {
@@ -205,7 +205,7 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	for pair := range generatePairs(msgs) {
+	for pair := range messagePairs(msgs) {
 		k := possibleK(pair, pub)
 		priv := maybeBreakDSA(pub, pair[0], k)
 		if priv != nil {
