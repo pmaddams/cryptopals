@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +13,10 @@ import (
 
 const rsaDefaultE = 65537
 
-var one = big.NewInt(1)
+var (
+	one = big.NewInt(1)
+	two = big.NewInt(2)
+)
 
 // RSAPublicKey represents the public part of an RSA key pair.
 type RSAPublicKey struct {
@@ -138,11 +143,58 @@ func newParityOracleBreaker(pub *RSAPublicKey, oracle func([]byte) (bool, error)
 	return &parityOracleBreaker{pub, oracle}
 }
 
-func (x *parityOracleBreaker) breakOracle() {
+// breakOracle breaks the parity oracle and returns the plaintext.
+func (x *parityOracleBreaker) breakOracle(ciphertext []byte) ([]byte, error) {
+	c := new(big.Int).SetBytes(ciphertext)
+	buf, err := RSAEncrypt(x.RSAPublicKey, []byte{2})
+	if err != nil {
+		return nil, err
+	}
+	encryptedTwo := new(big.Int).SetBytes(buf)
+	lower := big.NewInt(0)
+	upper := new(big.Int).Set(x.n)
+	for z := new(big.Int); !equal(lower, upper); {
+		z.Add(lower, upper)
+		z.Div(z, two)
+		if equal(z, lower) {
+			break
+		}
+		c.Mul(c, encryptedTwo)
+		c.Mod(c, x.n)
+		even, err := x.oracle(c.Bytes())
+		if err != nil {
+			return nil, err
+		}
+		if even {
+			upper.Set(z)
+			upper.Add(upper, one)
+		} else {
+			lower.Set(z)
+		}
+		fmt.Println(string(upper.Bytes()))
+	}
+	return upper.Bytes(), nil
 }
 
+// printHollywoodStyle reads lines of base64-encoded input, encrypts them, and prints them "Hollywood style".
 func printHollywoodStyle(in io.Reader, x *parityOracleBreaker) error {
-	return nil
+	input := bufio.NewScanner(in)
+	for input.Scan() {
+		buf, err := base64.StdEncoding.DecodeString(input.Text())
+		if err != nil {
+			return err
+		}
+		ciphertext, err := RSAEncrypt(x.RSAPublicKey, buf)
+		if err != nil {
+			return err
+		}
+		plaintext, err := x.breakOracle(ciphertext)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(plaintext))
+	}
+	return input.Err()
 }
 
 func main() {
