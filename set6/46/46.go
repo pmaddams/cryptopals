@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"unicode"
 )
 
 const rsaDefaultE = 65537
@@ -143,6 +144,16 @@ func newParityOracleBreaker(pub *RSAPublicKey, oracle func([]byte) (bool, error)
 	return &parityOracleBreaker{pub, oracle}
 }
 
+// printRunes prints printable runes in a buffer.
+func printRunes(buf []byte) {
+	for _, r := range string(buf) {
+		if unicode.IsPrint(r) {
+			fmt.Print(string(r))
+		}
+	}
+	fmt.Println()
+}
+
 // breakOracle breaks the parity oracle and returns the plaintext.
 func (x *parityOracleBreaker) breakOracle(ciphertext []byte) ([]byte, error) {
 	c := new(big.Int).SetBytes(ciphertext)
@@ -164,7 +175,7 @@ func (x *parityOracleBreaker) breakOracle(ciphertext []byte) ([]byte, error) {
 		} else {
 			lo.Add(p, one)
 		}
-		fmt.Println(string(p.Bytes()))
+		printRunes(p.Bytes())
 	}
 	return p.Bytes(), nil
 }
@@ -185,7 +196,7 @@ func printHollywoodStyle(in io.Reader, x *parityOracleBreaker) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(plaintext))
+		printRunes(plaintext)
 	}
 	return input.Err()
 }
