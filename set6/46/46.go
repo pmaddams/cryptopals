@@ -146,34 +146,27 @@ func newParityOracleBreaker(pub *RSAPublicKey, oracle func([]byte) (bool, error)
 // breakOracle breaks the parity oracle and returns the plaintext.
 func (x *parityOracleBreaker) breakOracle(ciphertext []byte) ([]byte, error) {
 	c := new(big.Int).SetBytes(ciphertext)
-	buf, err := RSAEncrypt(x.RSAPublicKey, []byte{2})
-	if err != nil {
-		return nil, err
-	}
-	encryptedTwo := new(big.Int).SetBytes(buf)
-	lower := big.NewInt(0)
-	upper := new(big.Int).Set(x.n)
-	for z := new(big.Int); !equal(lower, upper); {
-		z.Add(lower, upper)
-		z.Div(z, two)
-		if equal(z, lower) {
-			break
-		}
+	p := new(big.Int)
+	encryptedTwo := new(big.Int).Exp(two, x.e, x.n)
+
+	lo, hi := big.NewInt(0), new(big.Int).Sub(x.n, one)
+	for !equal(lo, hi) {
 		c.Mul(c, encryptedTwo)
 		c.Mod(c, x.n)
 		even, err := x.oracle(c.Bytes())
 		if err != nil {
 			return nil, err
 		}
+		p.Add(lo, hi)
+		p.Div(p, two)
 		if even {
-			upper.Set(z)
-			upper.Add(upper, one)
+			hi.Set(p)
 		} else {
-			lower.Set(z)
+			lo.Add(p, one)
 		}
-		fmt.Println(string(upper.Bytes()))
+		fmt.Println(string(p.Bytes()))
 	}
-	return upper.Bytes(), nil
+	return p.Bytes(), nil
 }
 
 // printHollywoodStyle reads lines of base64-encoded input, encrypts them, and prints them "Hollywood style".
