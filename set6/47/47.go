@@ -1,9 +1,13 @@
 package main
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
+	"fmt"
 	"math/big"
 )
+
+var _ = fmt.Sprintf("")
 
 var (
 	one   = big.NewInt(1)
@@ -50,10 +54,38 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 		oracle:    oracle,
 		b:         b,
 		c:         new(big.Int).SetBytes(ciphertext),
-		s:         new(big.Int),
 		m:         []interval{interval{lo, hi}},
 	}
 }
 
+func (x *rsaBreaker) findFirstS() {
+	x.s = new(big.Int).Mul(x.b, three)
+	x.s.Div(x.N, x.s)
+	e := big.NewInt(int64(x.E))
+
+	cPrime := new(big.Int)
+	for {
+		cPrime.Exp(x.s, e, x.N)
+		cPrime.Mul(cPrime, x.c)
+		cPrime.Mod(cPrime, x.N)
+		if err := x.oracle(cPrime.Bytes()); err != nil {
+			break
+		}
+		x.s.Add(x.s, one)
+	}
+}
+
 func main() {
+	priv, err := rsa.GenerateKey(rand.Reader, 256)
+	if err != nil {
+		panic(err)
+	}
+	oracle := rsaPaddingOracle(priv)
+	pub := &priv.PublicKey
+	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, pub, []byte("hello world"))
+	if err != nil {
+		panic(err)
+	}
+	x := newRSABreaker(pub, oracle, ciphertext)
+	x.findFirstS()
 }
