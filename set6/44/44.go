@@ -150,11 +150,6 @@ func possibleK(pair messagePair, pub *dsa.PublicKey) *big.Int {
 	return k
 }
 
-// validateKey returns true if a DSA private key is valid.
-func validateKey(priv *dsa.PrivateKey) bool {
-	return equal(priv.Y, new(big.Int).Exp(priv.G, priv.X, priv.P))
-}
-
 // maybeBreakDSA returns either nil or the private key used to sign a checksum.
 func maybeBreakDSA(pub *dsa.PublicKey, msg *message, k *big.Int) *dsa.PrivateKey {
 	z1 := new(big.Int).Mul(msg.s, k)
@@ -164,14 +159,14 @@ func maybeBreakDSA(pub *dsa.PublicKey, msg *message, k *big.Int) *dsa.PrivateKey
 	x := z1.Mul(z1, z2)
 	x.Mod(x, pub.Q)
 
-	priv := &dsa.PrivateKey{
+	y := z2.Exp(pub.G, x, pub.P)
+	if !equal(y, pub.Y) {
+		return nil
+	}
+	return &dsa.PrivateKey{
 		PublicKey: *pub,
 		X:         x,
 	}
-	if !validateKey(priv) {
-		return nil
-	}
-	return priv
 }
 
 func main() {
