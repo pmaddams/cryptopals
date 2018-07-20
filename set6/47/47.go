@@ -75,6 +75,17 @@ func (x *rsaBreaker) findFirstS() {
 	}
 }
 
+func (x *rsaBreaker) rValues(m interval) <-chan *big.Int {
+	ch := make(chan *big.Int)
+	go func() {
+		close(ch)
+	}()
+	return ch
+}
+
+func (x *rsaBreaker) generateIntervals() {
+}
+
 func main() {
 	priv, err := rsa.GenerateKey(rand.Reader, 256)
 	if err != nil {
