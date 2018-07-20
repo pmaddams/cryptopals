@@ -59,11 +59,11 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 	}
 }
 
-func (x *rsaBreaker) findFirstS() {
+func (x *rsaBreaker) searchFirst() {
 	x.s = new(big.Int).Mul(x.b, three)
 	x.s.Div(x.N, x.s)
-	e := big.NewInt(int64(x.E))
 
+	e := big.NewInt(int64(x.E))
 	cPrime := new(big.Int)
 	for {
 		cPrime.Exp(x.s, e, x.N)
@@ -74,6 +74,36 @@ func (x *rsaBreaker) findFirstS() {
 		}
 		x.s.Add(x.s, one)
 	}
+}
+
+func (x *rsaBreaker) searchNext() {
+	switch len(x.ivals) {
+	case 0:
+		panic("searchNext: no search space")
+	case 1:
+		x.searchOne()
+	default:
+		x.searchMany()
+	}
+}
+
+func (x *rsaBreaker) searchMany() {
+	x.s.Add(x.s, one)
+
+	e := big.NewInt(int64(x.E))
+	cPrime := new(big.Int)
+	for {
+		cPrime.Exp(x.s, e, x.N)
+		cPrime.Mul(cPrime, x.c)
+		cPrime.Mod(cPrime, x.N)
+		if err := x.oracle(cPrime.Bytes()); err != nil {
+			break
+		}
+		x.s.Add(x.s, one)
+	}
+}
+
+func (x *rsaBreaker) searchOne() {
 }
 
 // equal returns true if two arbitrary-precision integers are equal.
@@ -146,5 +176,5 @@ func main() {
 		panic(err)
 	}
 	x := newRSABreaker(pub, oracle, ciphertext)
-	x.findFirstS()
+	x.searchFirst()
 }
