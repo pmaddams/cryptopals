@@ -104,6 +104,24 @@ func (x *rsaBreaker) searchMany() {
 }
 
 func (x *rsaBreaker) searchOne() {
+	rValues := func(hi *big.Int) <-chan *big.Int {
+		ch := make(chan *big.Int)
+		go func() {
+			r := new(big.Int).Mul(hi, x.s)
+			z := new(big.Int).Mul(two, x.b)
+			r.Sub(r, z)
+			r.Mul(two, r)
+			r.DivMod(r, x.N, z)
+			if !equal(z, zero) {
+				r.Add(r, one) // Ceiling division?
+			}
+			for {
+				ch <- new(big.Int).Set(r)
+				r.Add(r, one)
+			}
+		}
+		return ch
+	}
 }
 
 // equal returns true if two arbitrary-precision integers are equal.
@@ -121,7 +139,7 @@ func (x *rsaBreaker) generateIntervals() {
 			r.Add(r, one)
 			r.DivMod(r, x.N, z)
 			if !equal(z, zero) {
-				r.Add(r, one) // Ceiling division or not?
+				r.Add(r, one) // Ceiling division?
 			}
 			rmax := new(big.Int).Mul(m.hi, x.s)
 			z.Mul(x.b, two)
