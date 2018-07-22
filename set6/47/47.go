@@ -103,60 +103,66 @@ func (x *rsaBreaker) searchMany() {
 	}
 }
 
-func (x *rsaBreaker) searchOne() {
-	rValues := func(hi *big.Int) <-chan *big.Int {
-		ch := make(chan *big.Int)
-		go func() {
-			r := new(big.Int).Mul(hi, x.s)
-			z := new(big.Int).Mul(two, x.b)
-			r.Sub(r, z)
-			r.Mul(two, r)
-			r.DivMod(r, x.N, z)
-			if !equal(z, zero) {
-				r.Add(r, one) // Ceiling division?
-			}
-			for {
-				ch <- new(big.Int).Set(r)
-				r.Add(r, one)
-			}
-		}
-		return ch
-	}
-}
-
 // equal returns true if two arbitrary-precision integers are equal.
 func equal(z1, z2 *big.Int) bool {
 	return z1.Cmp(z2) == 0
 }
 
-func (x *rsaBreaker) generateIntervals() {
-	rValues := func(m interval) <-chan *big.Int {
-		ch := make(chan *big.Int)
-		go func() {
-			r := new(big.Int).Mul(m.lo, x.s)
-			z := new(big.Int).Mul(three, x.b)
-			r.Sub(r, z)
-			r.Add(r, one)
-			r.DivMod(r, x.N, z)
-			if !equal(z, zero) {
-				r.Add(r, one) // Ceiling division?
+// Values returns a channel that yields successive values in [lo, hi].
+// If hi is nil, the channel yields an infinite stream of values.
+func Values(lo, hi *big.Int) <-chan *big.Int {
+	ch := make(chan *big.Int)
+	go func() {
+		z := new(big.Int).Set(lo)
+		for {
+			if hi != nil && z.Cmp(hi) > 0 {
+				break
 			}
-			rmax := new(big.Int).Mul(m.hi, x.s)
-			z.Mul(x.b, two)
-			rmax.Sub(rmax, z)
-			rmax.Div(rmax, x.N)
-			for !equal(r, rmax) {
-				ch <- new(big.Int).Set(r)
-				r.Add(r, one)
-			}
-			close(ch)
-		}()
-		return ch
+			ch <- new(big.Int).Set(z)
+			z.Add(z, one)
+		}
+		close(ch)
+	}()
+	return ch
+}
+
+func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
+	lo := new(big.Int).Mul(hi, x.s)
+	z := new(big.Int).Mul(two, x.b)
+	lo.Sub(lo, z)
+	lo.Mul(two, lo)
+	lo.DivMod(lo, x.N, z)
+	if !equal(z, zero) {
+		lo.Add(lo, one) // Ceiling division?
 	}
+	return Values(lo, nil)
+}
+
+func (x *rsaBreaker) searchOne() {
+}
+
+func (x *rsaBreaker) intervalValues(m interval) <-chan *big.Int {
+	lo := new(big.Int).Mul(m.lo, x.s)
+	z := new(big.Int).Mul(three, x.b)
+	lo.Sub(lo, z)
+	lo.Add(lo, one)
+	lo.DivMod(lo, x.N, z)
+	if !equal(z, zero) {
+		lo.Add(lo, one) // Ceiling division?
+	}
+	hi := new(big.Int).Mul(m.hi, x.s)
+	z.Mul(x.b, two)
+	hi.Sub(hi, z)
+	hi.Div(hi, x.N)
+
+	return Values(lo, hi)
+}
+
+func (x *rsaBreaker) generateIntervals() {
 	ivals := []interval{}
 	z := new(big.Int)
 	for _, m := range x.ivals {
-		for r := range rValues(m) {
+		for r := range x.intervalValues(m) {
 			lo := new(big.Int).Mul(two, x.b)
 			z.Mul(r, x.N)
 			lo.Add(lo, z)
