@@ -139,9 +139,35 @@ func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
 }
 
 func (x *rsaBreaker) searchOne() {
+	m := x.ivals[0]
+	e := big.NewInt(int64(x.E))
+	cPrime, z1, z2 := new(big.Int), new(big.Int), new(big.Int)
+	for r := range x.searchOneRValues(m.hi) {
+		lo := new(big.Int).Mul(two, x.b)
+		z1.Add(r, x.N)
+		lo.Add(lo, z1)
+		lo.DivMod(lo, m.hi, z2)
+		if !equal(z2, zero) {
+			lo.Add(lo, one) // Ceiling division?
+		}
+		hi := new(big.Int).Mul(three, x.b)
+		hi.Add(hi, z1)
+		hi.DivMod(hi, m.lo, z2)
+		if !equal(z2, zero) {
+			hi.Add(hi, one) // Ceiling division?
+		}
+		for x.s = range Values(lo, hi) {
+			cPrime.Exp(x.s, e, x.N)
+			cPrime.Mul(cPrime, x.c)
+			cPrime.Mod(cPrime, x.N)
+			if err := x.oracle(cPrime.Bytes()); err != nil {
+				break
+			}
+		}
+	}
 }
 
-func (x *rsaBreaker) intervalValues(m interval) <-chan *big.Int {
+func (x *rsaBreaker) intervalRValues(m interval) <-chan *big.Int {
 	lo := new(big.Int).Mul(m.lo, x.s)
 	z := new(big.Int).Mul(three, x.b)
 	lo.Sub(lo, z)
@@ -162,7 +188,7 @@ func (x *rsaBreaker) generateIntervals() {
 	ivals := []interval{}
 	z := new(big.Int)
 	for _, m := range x.ivals {
-		for r := range x.intervalValues(m) {
+		for r := range x.intervalRValues(m) {
 			lo := new(big.Int).Mul(two, x.b)
 			z.Mul(r, x.N)
 			lo.Add(lo, z)
