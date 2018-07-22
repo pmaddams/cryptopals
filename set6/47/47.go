@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
+	"io"
 	"math/big"
+	"os"
 )
-
-var _ = fmt.Sprintf("")
 
 var (
 	zero  = big.NewInt(0)
@@ -76,17 +77,6 @@ func (x *rsaBreaker) searchFirst() {
 	}
 }
 
-func (x *rsaBreaker) searchNext() {
-	switch len(x.ivals) {
-	case 0:
-		panic("searchNext: no search space")
-	case 1:
-		x.searchOne()
-	default:
-		x.searchMany()
-	}
-}
-
 func (x *rsaBreaker) searchMany() {
 	x.s.Add(x.s, one)
 
@@ -124,47 +114,6 @@ func Values(lo, hi *big.Int) <-chan *big.Int {
 		close(ch)
 	}()
 	return ch
-}
-
-func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
-	lo := new(big.Int).Mul(hi, x.s)
-	z := new(big.Int).Mul(two, x.b)
-	lo.Sub(lo, z)
-	lo.Mul(two, lo)
-	lo.DivMod(lo, x.N, z)
-	if !equal(z, zero) {
-		lo.Add(lo, one) // Ceiling division?
-	}
-	return Values(lo, nil)
-}
-
-func (x *rsaBreaker) searchOne() {
-	m := x.ivals[0]
-	e := big.NewInt(int64(x.E))
-	cPrime, z1, z2 := new(big.Int), new(big.Int), new(big.Int)
-	for r := range x.searchOneRValues(m.hi) {
-		lo := new(big.Int).Mul(two, x.b)
-		z1.Add(r, x.N)
-		lo.Add(lo, z1)
-		lo.DivMod(lo, m.hi, z2)
-		if !equal(z2, zero) {
-			lo.Add(lo, one) // Ceiling division?
-		}
-		hi := new(big.Int).Mul(three, x.b)
-		hi.Add(hi, z1)
-		hi.DivMod(hi, m.lo, z2)
-		if !equal(z2, zero) {
-			hi.Add(hi, one) // Ceiling division?
-		}
-		for x.s = range Values(lo, hi) {
-			cPrime.Exp(x.s, e, x.N)
-			cPrime.Mul(cPrime, x.c)
-			cPrime.Mod(cPrime, x.N)
-			if err := x.oracle(cPrime.Bytes()); err != nil {
-				break
-			}
-		}
-	}
 }
 
 func (x *rsaBreaker) intervalRValues(m interval) <-chan *big.Int {
@@ -214,17 +163,111 @@ func (x *rsaBreaker) generateIntervals() {
 	x.ivals = ivals
 }
 
+func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
+	lo := new(big.Int).Mul(hi, x.s)
+	z := new(big.Int).Mul(two, x.b)
+	lo.Sub(lo, z)
+	lo.Mul(two, lo)
+	lo.DivMod(lo, x.N, z)
+	if !equal(z, zero) {
+		lo.Add(lo, one) // Ceiling division?
+	}
+	return Values(lo, nil)
+}
+
+func (x *rsaBreaker) searchOne() {
+	m := x.ivals[0]
+	e := big.NewInt(int64(x.E))
+	cPrime, z1, z2 := new(big.Int), new(big.Int), new(big.Int)
+	for r := range x.searchOneRValues(m.hi) {
+		lo := new(big.Int).Mul(two, x.b)
+		z1.Add(r, x.N)
+		lo.Add(lo, z1)
+		lo.DivMod(lo, m.hi, z2)
+		if !equal(z2, zero) {
+			lo.Add(lo, one) // Ceiling division?
+		}
+		hi := new(big.Int).Mul(three, x.b)
+		hi.Add(hi, z1)
+		hi.DivMod(hi, m.lo, z2)
+		if !equal(z2, zero) {
+			hi.Add(hi, one) // Ceiling division?
+		}
+		for x.s = range Values(lo, hi) {
+			cPrime.Exp(x.s, e, x.N)
+			cPrime.Mul(cPrime, x.c)
+			cPrime.Mod(cPrime, x.N)
+			if err := x.oracle(cPrime.Bytes()); err != nil {
+				break
+			}
+		}
+	}
+}
+
+func (x *rsaBreaker) searchNext() {
+	switch len(x.ivals) {
+	case 0:
+		panic("searchNext: no search space")
+	case 1:
+		x.searchOne()
+	default:
+		x.searchMany()
+	}
+}
+
+func (x *rsaBreaker) breakOracle() []byte {
+	x.searchFirst()
+	for {
+		if len(x.ivals) == 1 {
+			m := x.ivals[0]
+			if equal(m.lo, m.hi) {
+				return m.lo.Bytes()
+			}
+		}
+		x.searchNext()
+	}
+}
+
+func breakAndPrint(in io.Reader, pub *rsa.PublicKey, oracle func([]byte) error) error {
+	input := bufio.NewScanner(in)
+	for input.Scan() {
+		ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, pub, input.Bytes())
+		if err != nil {
+			return err
+		}
+		x := newRSABreaker(pub, oracle, ciphertext)
+		plaintext := x.breakOracle()
+
+		fmt.Println(string(plaintext))
+	}
+	return input.Err()
+}
+
 func main() {
 	priv, err := rsa.GenerateKey(rand.Reader, 256)
 	if err != nil {
 		panic(err)
 	}
-	oracle := rsaPaddingOracle(priv)
 	pub := &priv.PublicKey
-	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, pub, []byte("hello world"))
-	if err != nil {
-		panic(err)
+	oracle := rsaPaddingOracle(priv)
+
+	files := os.Args[1:]
+	// If no files are specified, read from standard input.
+	if len(files) == 0 {
+		if err := breakAndPrint(os.Stdin, pub, oracle); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		return
 	}
-	x := newRSABreaker(pub, oracle, ciphertext)
-	x.searchFirst()
+	for _, name := range files {
+		f, err := os.Open(name)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := breakAndPrint(f, pub, oracle); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
 }
