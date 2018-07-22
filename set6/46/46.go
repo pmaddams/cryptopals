@@ -133,15 +133,15 @@ func parityOracle(priv *RSAPrivateKey) func([]byte) (bool, error) {
 	}
 }
 
-// parityOracleBreaker contains data necessary to attack the parity oracle.
-type parityOracleBreaker struct {
+// parityBreaker contains data necessary to attack the parity oracle.
+type parityBreaker struct {
 	*RSAPublicKey
 	oracle func([]byte) (bool, error)
 }
 
 // newParityOracleBreaker takes a public key and parity oracle, and returns a breaker.
-func newParityOracleBreaker(pub *RSAPublicKey, oracle func([]byte) (bool, error)) *parityOracleBreaker {
-	return &parityOracleBreaker{pub, oracle}
+func newParityOracleBreaker(pub *RSAPublicKey, oracle func([]byte) (bool, error)) *parityBreaker {
+	return &parityBreaker{pub, oracle}
 }
 
 // printRunes prints printable runes in a buffer.
@@ -155,7 +155,7 @@ func printRunes(buf []byte) {
 }
 
 // breakOracle breaks the parity oracle and returns the plaintext.
-func (x *parityOracleBreaker) breakOracle(ciphertext []byte) ([]byte, error) {
+func (x *parityBreaker) breakOracle(ciphertext []byte) ([]byte, error) {
 	c := new(big.Int).SetBytes(ciphertext)
 	p := new(big.Int)
 	encryptedTwo := new(big.Int).Exp(two, x.e, x.n)
@@ -180,8 +180,8 @@ func (x *parityOracleBreaker) breakOracle(ciphertext []byte) ([]byte, error) {
 	return p.Bytes(), nil
 }
 
-// printHollywoodStyle reads lines of base64-encoded input, encrypts them, and prints them "Hollywood style".
-func printHollywoodStyle(in io.Reader, x *parityOracleBreaker) error {
+// breakHollywoodStyle reads lines of base64-encoded input, encrypts them, and prints them "Hollywood style".
+func breakHollywoodStyle(in io.Reader, x *parityBreaker) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		buf, err := base64.StdEncoding.DecodeString(input.Text())
@@ -214,7 +214,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := printHollywoodStyle(os.Stdin, x); err != nil {
+		if err := breakHollywoodStyle(os.Stdin, x); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -225,7 +225,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := printHollywoodStyle(f, x); err != nil {
+		if err := breakHollywoodStyle(f, x); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
