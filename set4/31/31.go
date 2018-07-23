@@ -187,12 +187,12 @@ func upload(url string, buf []byte, name, sig string) (*http.Response, error) {
 }
 
 // timedUpload sends a request and returns the time it takes to receive a response.
-func timedUpload(url string, buf []byte, name, sig string) int64 {
+func timedUpload(url string, buf []byte, name, sig string) (int64, error) {
 	start := time.Now()
 	if _, err := upload(url, buf, name, sig); err != nil {
-		panic(err)
+		return 0, err
 	}
-	return time.Since(start).Nanoseconds()
+	return time.Since(start).Nanoseconds(), nil
 }
 
 // breakServer returns a valid HMAC for uploading an arbitrary file.
@@ -206,7 +206,9 @@ func breakServer(url string, buf []byte, name string, size int) []byte {
 		for j := 0; j <= 0xff; j++ {
 			res[i] = byte(j)
 			sig := hex.EncodeToString(res)
-			if t := timedUpload(url, buf, name, sig); t > best {
+			if t, err := timedUpload(url, buf, name, sig); err != nil {
+				log.Fatal(err)
+			} else if t > best {
 				best = t
 				b = byte(j)
 			}

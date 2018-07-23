@@ -373,7 +373,7 @@ func breakPassword(network, addr string, p, g *big.Int, dict string) error {
 			log.Fatal(err)
 		}
 		if _, err := c.Read([]byte{}); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		fmt.Print("cracking password...")
 		password, err := x.Password(dict)
@@ -400,7 +400,7 @@ func breakPassword(network, addr string, p, g *big.Int, dict string) error {
 		return err
 	}
 	if _, err := c.Read([]byte{}); err != nil {
-		panic(err)
+		return err
 	}
 	c.Close()
 	<-done
