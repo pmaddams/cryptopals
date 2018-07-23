@@ -32,8 +32,10 @@ type interval struct {
 type rsaBreaker struct {
 	rsa.PublicKey
 	oracle func([]byte) error
+	twoB   *big.Int
+	threeB *big.Int
 	c      *big.Int
-	b      *big.Int
+	e      *big.Int
 	s      *big.Int
 	ivals  []interval
 }
@@ -44,30 +46,21 @@ func size(z *big.Int) int {
 }
 
 func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []byte) *rsaBreaker {
+	x := new(rsaBreaker)
+	x.PublicKey = *pub
+	x.oracle = oracle
+
 	z := big.NewInt(int64(8 * (size(pub.N) - 2)))
-	b := z.Exp(two, z, nil)
+	z.Exp(two, z, nil)
+	x.twoB = new(big.Int).Mul(two, z)
+	x.threeB = new(big.Int).Mul(three, z)
 
-	lo := new(big.Int).Mul(two, b)
-	hi := new(big.Int).Mul(three, b)
-	hi.Sub(hi, one)
-
-	return &rsaBreaker{
-		PublicKey: *pub,
-		oracle:    oracle,
-		c:         new(big.Int).SetBytes(ciphertext),
-		b:         b,
-		ivals:     []interval{interval{lo, hi}},
-	}
-}
-
-func (x *rsaBreaker) searchFirst() {
-	x.s = new(big.Int).Mul(x.b, three)
-	x.s.Div(x.N, x.s)
-
-	e := big.NewInt(int64(x.E))
+	x.c = z.SetBytes(ciphertext)
+	x.e = big.NewInt(int64(pub.E))
+	x.s = z.Div(pub.N, x.threeB)
 	cPrime := new(big.Int)
 	for {
-		cPrime.Exp(x.s, e, x.N)
+		cPrime.Exp(x.s, x.e, x.N)
 		cPrime.Mul(cPrime, x.c)
 		cPrime.Mod(cPrime, x.N)
 		if err := x.oracle(cPrime.Bytes()); err != nil {
@@ -75,22 +68,13 @@ func (x *rsaBreaker) searchFirst() {
 		}
 		x.s.Add(x.s, one)
 	}
-}
-
-func (x *rsaBreaker) searchMany() {
-	x.s.Add(x.s, one)
-
-	e := big.NewInt(int64(x.E))
-	cPrime := new(big.Int)
-	for {
-		cPrime.Exp(x.s, e, x.N)
-		cPrime.Mul(cPrime, x.c)
-		cPrime.Mod(cPrime, x.N)
-		if err := x.oracle(cPrime.Bytes()); err != nil {
-			break
-		}
-		x.s.Add(x.s, one)
+	x.ivals = []interval{
+		interval{
+			new(big.Int).Set(x.twoB),
+			new(big.Int).Set(x.threeB),
+		},
 	}
+	return x
 }
 
 // equal returns true if two arbitrary-precision integers are equal.
@@ -120,16 +104,12 @@ func Values(lo, hi *big.Int) <-chan *big.Int {
 
 func (x *rsaBreaker) intervalRValues(m interval) <-chan *big.Int {
 	lo := new(big.Int).Mul(m.lo, x.s)
-	z := new(big.Int).Mul(three, x.b)
-	lo.Sub(lo, z)
+	lo.Sub(lo, x.threeB)
 	lo.Add(lo, one)
-	lo.DivMod(lo, x.N, z)
-	if !equal(z, zero) {
-		lo.Add(lo, one) // Ceiling division?
-	}
+	lo.Div(lo, x.N) // Ceiling division?
+
 	hi := new(big.Int).Mul(m.hi, x.s)
-	z.Mul(x.b, two)
-	hi.Sub(hi, z)
+	hi.Sub(hi, x.twoB)
 	hi.Div(hi, x.N)
 
 	return Values(lo, hi)
@@ -140,9 +120,8 @@ func (x *rsaBreaker) generateIntervals() {
 	z := new(big.Int)
 	for _, m := range x.ivals {
 		for r := range x.intervalRValues(m) {
-			lo := new(big.Int).Mul(two, x.b)
-			z.Mul(r, x.N)
-			lo.Add(lo, z)
+			lo := new(big.Int).Mul(r, x.N)
+			lo.Add(lo, x.twoB)
 			// Perform ceiling, not floor division.
 			lo.DivMod(lo, x.s, z)
 			if !equal(z, zero) {
@@ -151,10 +130,9 @@ func (x *rsaBreaker) generateIntervals() {
 			if lo.Cmp(m.lo) < 0 {
 				lo = m.lo
 			}
-			hi := new(big.Int).Mul(three, x.b)
+			hi := new(big.Int).Mul(r, x.N)
+			hi.Add(hi, x.threeB)
 			hi.Sub(hi, one)
-			z.Mul(r, x.N)
-			hi.Add(hi, z)
 			hi.Div(hi, x.s)
 			if hi.Cmp(m.hi) > 0 {
 				hi = m.hi
@@ -167,36 +145,27 @@ func (x *rsaBreaker) generateIntervals() {
 
 func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
 	lo := new(big.Int).Mul(hi, x.s)
-	z := new(big.Int).Mul(two, x.b)
-	lo.Sub(lo, z)
+	lo.Sub(lo, x.twoB)
 	lo.Mul(two, lo)
-	lo.DivMod(lo, x.N, z)
-	if !equal(z, zero) {
-		lo.Add(lo, one) // Ceiling division?
-	}
+	lo.Div(lo, x.N) // Ceiling division?
+
 	return Values(lo, nil)
 }
 
 func (x *rsaBreaker) searchOne() {
 	m := x.ivals[0]
-	e := big.NewInt(int64(x.E))
-	cPrime, z1, z2 := new(big.Int), new(big.Int), new(big.Int)
+	cPrime := new(big.Int)
 	for r := range x.searchOneRValues(m.hi) {
-		lo := new(big.Int).Mul(two, x.b)
-		z1.Add(r, x.N)
-		lo.Add(lo, z1)
-		lo.DivMod(lo, m.hi, z2)
-		if !equal(z2, zero) {
-			lo.Add(lo, one) // Ceiling division?
-		}
-		hi := new(big.Int).Mul(three, x.b)
-		hi.Add(hi, z1)
-		hi.DivMod(hi, m.lo, z2)
-		if !equal(z2, zero) {
-			hi.Add(hi, one) // Ceiling division?
-		}
+		lo := new(big.Int).Mul(r, x.N)
+		lo.Add(lo, x.twoB)
+		lo.Div(lo, m.hi) // Ceiling division?
+
+		hi := new(big.Int).Mul(r, x.N)
+		hi.Add(hi, x.threeB)
+		hi.Div(hi, m.lo) // Ceiling division?
+
 		for x.s = range Values(lo, hi) {
-			cPrime.Exp(x.s, e, x.N)
+			cPrime.Exp(x.s, x.e, x.N)
 			cPrime.Mul(cPrime, x.c)
 			cPrime.Mod(cPrime, x.N)
 			if err := x.oracle(cPrime.Bytes()); err != nil {
@@ -206,31 +175,34 @@ func (x *rsaBreaker) searchOne() {
 	}
 }
 
-func (x *rsaBreaker) searchNext() {
-	switch len(x.ivals) {
-	case 0:
-		panic("searchNext: no search space")
-	case 1:
-		x.searchOne()
-	default:
-		x.searchMany()
+func (x *rsaBreaker) searchMany() {
+	x.s.Add(x.s, one)
+
+	cPrime := new(big.Int)
+	for {
+		cPrime.Exp(x.s, x.e, x.N)
+		cPrime.Mul(cPrime, x.c)
+		cPrime.Mod(cPrime, x.N)
+		if err := x.oracle(cPrime.Bytes()); err != nil {
+			break
+		}
+		x.s.Add(x.s, one)
 	}
 }
 
 func (x *rsaBreaker) breakOracle() []byte {
-	x.searchFirst()
 	for {
 		if len(x.ivals) == 1 {
-			m := x.ivals[0]
-			if equal(m.lo, m.hi) {
+			if m := x.ivals[0]; equal(m.lo, m.hi) {
 				return m.lo.Bytes()
 			}
+			x.searchOne()
 		}
-		x.searchNext()
+		x.searchMany()
 	}
 }
 
-func breakAndPrint(in io.Reader, pub *rsa.PublicKey, oracle func([]byte) error) error {
+func breakRSA(in io.Reader, pub *rsa.PublicKey, oracle func([]byte) error) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, pub, input.Bytes())
@@ -256,7 +228,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := breakAndPrint(os.Stdin, pub, oracle); err != nil {
+		if err := breakRSA(os.Stdin, pub, oracle); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -267,7 +239,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := breakAndPrint(f, pub, oracle); err != nil {
+		if err := breakRSA(f, pub, oracle); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
