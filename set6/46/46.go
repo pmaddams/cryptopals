@@ -139,8 +139,8 @@ type parityBreaker struct {
 	oracle func([]byte) (bool, error)
 }
 
-// newParityOracleBreaker takes a public key and parity oracle, and returns a breaker.
-func newParityOracleBreaker(pub *RSAPublicKey, oracle func([]byte) (bool, error)) *parityBreaker {
+// newParityBreaker takes a public key and parity oracle, and returns a breaker.
+func newParityBreaker(pub *RSAPublicKey, oracle func([]byte) (bool, error)) *parityBreaker {
 	return &parityBreaker{pub, oracle}
 }
 
@@ -209,7 +209,7 @@ func main() {
 	}
 	fmt.Println("done.")
 	oracle := parityOracle(priv)
-	x := newParityOracleBreaker(priv.Public(), oracle)
+	x := newParityBreaker(priv.Public(), oracle)
 
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
