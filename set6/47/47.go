@@ -99,17 +99,19 @@ func equal(z1, z2 *big.Int) bool {
 }
 
 // Values returns a channel that yields successive values in [lo, hi].
-// If hi is nil, the channel yields an infinite stream of values.
 func Values(lo, hi *big.Int) <-chan *big.Int {
+	z1 := new(big.Int).Set(lo)
+	z2 := new(big.Int).Set(hi)
+
 	ch := make(chan *big.Int)
 	go func() {
-		z := new(big.Int).Set(lo)
+		lo, hi := z1, z2
 		for {
-			if hi != nil && z.Cmp(hi) > 0 {
+			if lo.Cmp(hi) > 0 {
 				break
 			}
-			ch <- new(big.Int).Set(z)
-			z.Add(z, one)
+			ch <- new(big.Int).Set(lo)
+			lo.Add(lo, one)
 		}
 		close(ch)
 	}()
