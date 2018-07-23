@@ -30,12 +30,12 @@ type interval struct {
 }
 
 type rsaBreaker struct {
-	rsa.PublicKey
 	oracle func([]byte) error
+	e      *big.Int
+	n      *big.Int
 	twoB   *big.Int
 	threeB *big.Int
 	c      *big.Int
-	e      *big.Int
 	s      *big.Int
 	ivals  []interval
 }
@@ -47,22 +47,22 @@ func size(z *big.Int) int {
 
 func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []byte) *rsaBreaker {
 	x := new(rsaBreaker)
-	x.PublicKey = *pub
 	x.oracle = oracle
+	x.e = big.NewInt(int64(pub.E))
+	x.n = new(big.Int).Set(pub.N)
 
-	z := big.NewInt(int64(8 * (size(pub.N) - 2)))
+	z := big.NewInt(int64(8 * (size(x.n) - 2)))
 	z.Exp(two, z, nil)
 	x.twoB = new(big.Int).Mul(two, z)
 	x.threeB = new(big.Int).Mul(three, z)
 
 	x.c = z.SetBytes(ciphertext)
-	x.e = big.NewInt(int64(pub.E))
-	x.s = z.Div(pub.N, x.threeB)
+	x.s = z.Div(x.n, x.threeB)
 	cPrime := new(big.Int)
 	for {
-		cPrime.Exp(x.s, x.e, x.N)
+		cPrime.Exp(x.s, x.e, x.n)
 		cPrime.Mul(cPrime, x.c)
-		cPrime.Mod(cPrime, x.N)
+		cPrime.Mod(cPrime, x.n)
 		if err := x.oracle(cPrime.Bytes()); err != nil {
 			break
 		}
@@ -106,11 +106,11 @@ func (x *rsaBreaker) intervalRValues(m interval) <-chan *big.Int {
 	lo := new(big.Int).Mul(m.lo, x.s)
 	lo.Sub(lo, x.threeB)
 	lo.Add(lo, one)
-	lo.Div(lo, x.N) // Ceiling division?
+	lo.Div(lo, x.n) // Ceiling division?
 
 	hi := new(big.Int).Mul(m.hi, x.s)
 	hi.Sub(hi, x.twoB)
-	hi.Div(hi, x.N)
+	hi.Div(hi, x.n)
 
 	return Values(lo, hi)
 }
@@ -120,7 +120,7 @@ func (x *rsaBreaker) generateIntervals() {
 	z := new(big.Int)
 	for _, m := range x.ivals {
 		for r := range x.intervalRValues(m) {
-			lo := new(big.Int).Mul(r, x.N)
+			lo := new(big.Int).Mul(r, x.n)
 			lo.Add(lo, x.twoB)
 			// Perform ceiling, not floor division.
 			lo.DivMod(lo, x.s, z)
@@ -130,7 +130,7 @@ func (x *rsaBreaker) generateIntervals() {
 			if lo.Cmp(m.lo) < 0 {
 				lo = m.lo
 			}
-			hi := new(big.Int).Mul(r, x.N)
+			hi := new(big.Int).Mul(r, x.n)
 			hi.Add(hi, x.threeB)
 			hi.Sub(hi, one)
 			hi.Div(hi, x.s)
@@ -147,27 +147,27 @@ func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
 	lo := new(big.Int).Mul(hi, x.s)
 	lo.Sub(lo, x.twoB)
 	lo.Mul(two, lo)
-	lo.Div(lo, x.N) // Ceiling division?
+	lo.Div(lo, x.n) // Ceiling division?
 
-	return Values(lo, nil)
+	return Values(lo, x.n)
 }
 
 func (x *rsaBreaker) searchOne() {
 	m := x.ivals[0]
 	cPrime := new(big.Int)
 	for r := range x.searchOneRValues(m.hi) {
-		lo := new(big.Int).Mul(r, x.N)
+		lo := new(big.Int).Mul(r, x.n)
 		lo.Add(lo, x.twoB)
 		lo.Div(lo, m.hi) // Ceiling division?
 
-		hi := new(big.Int).Mul(r, x.N)
+		hi := new(big.Int).Mul(r, x.n)
 		hi.Add(hi, x.threeB)
 		hi.Div(hi, m.lo) // Ceiling division?
 
 		for x.s = range Values(lo, hi) {
-			cPrime.Exp(x.s, x.e, x.N)
+			cPrime.Exp(x.s, x.e, x.n)
 			cPrime.Mul(cPrime, x.c)
-			cPrime.Mod(cPrime, x.N)
+			cPrime.Mod(cPrime, x.n)
 			if err := x.oracle(cPrime.Bytes()); err != nil {
 				break
 			}
@@ -180,9 +180,9 @@ func (x *rsaBreaker) searchMany() {
 
 	cPrime := new(big.Int)
 	for {
-		cPrime.Exp(x.s, x.e, x.N)
+		cPrime.Exp(x.s, x.e, x.n)
 		cPrime.Mul(cPrime, x.c)
-		cPrime.Mod(cPrime, x.N)
+		cPrime.Mod(cPrime, x.n)
 		if err := x.oracle(cPrime.Bytes()); err != nil {
 			break
 		}
