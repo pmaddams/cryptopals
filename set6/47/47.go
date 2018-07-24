@@ -197,6 +197,7 @@ func (x *rsaBreaker) searchMany() {
 
 func (x *rsaBreaker) breakOracle() []byte {
 	for {
+		x.generateIntervals()
 		if len(x.ivals) == 1 {
 			if m := x.ivals[0]; equal(m.lo, m.hi) {
 				return m.lo.Bytes()
