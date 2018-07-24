@@ -63,11 +63,10 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 	x.twoB = new(big.Int).Mul(two, b)
 	x.threeB = new(big.Int).Mul(three, b)
 
-	x.c = z.SetBytes(ciphertext)
-	x.s = z.Div(x.n, x.threeB)
-	cPrime := new(big.Int)
+	x.c = new(big.Int).SetBytes(ciphertext)
+	x.s = new(big.Int).Div(x.n, x.threeB)
 	for {
-		cPrime.Exp(x.s, x.e, x.n)
+		cPrime := z.Exp(x.s, x.e, x.n)
 		cPrime.Mul(cPrime, x.c)
 		cPrime.Mod(cPrime, x.n)
 		if err := x.oracle(cPrime.Bytes()); err != nil {
@@ -87,10 +86,9 @@ func equal(z1, z2 *big.Int) bool {
 
 // Values returns a channel that yields successive values in [lo, hi].
 func Values(lo, hi *big.Int) <-chan *big.Int {
+	ch := make(chan *big.Int)
 	z1 := new(big.Int).Set(lo)
 	z2 := new(big.Int).Set(hi)
-
-	ch := make(chan *big.Int)
 	go func() {
 		lo, hi := z1, z2
 		for {
