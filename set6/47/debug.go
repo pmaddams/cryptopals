@@ -93,11 +93,12 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 			break
 		}
 		x.s.Add(x.s, one)
+		fmt.Printf("s: %x\n", x.s)
 	}
 	x.ivals = []interval{
 		interval{
-		new(big.Int).Set(x.twoB),
-		new(big.Int).Sub(x.threeB, one),
+			new(big.Int).Set(x.twoB),
+			new(big.Int).Sub(x.threeB, one),
 		},
 	}
 	return x
@@ -200,6 +201,7 @@ func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
 }
 
 func (x *rsaBreaker) searchOne() {
+	panic("shouldn't get here")
 	m := x.ivals[0]
 	lo, hi, z := new(big.Int), new(big.Int), new(big.Int)
 	for r := range x.searchOneRValues(m.hi) {

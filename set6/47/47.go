@@ -30,13 +30,6 @@ type interval struct {
 	hi *big.Int
 }
 
-func makeInterval(lo, hi *big.Int) interval {
-	return interval{
-		new(big.Int).Set(lo),
-		new(big.Int).Set(hi),
-	}
-}
-
 type rsaBreaker struct {
 	oracle func([]byte) error
 	e      *big.Int
@@ -65,7 +58,10 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 	x.threeB = new(big.Int).Mul(three, b)
 
 	x.c = new(big.Int).SetBytes(ciphertext)
-	x.s = new(big.Int).Div(x.n, x.threeB)
+	x.s, z = new(big.Int).DivMod(x.n, x.threeB, z)
+	if !equal(z, zero) {
+		x.s.Add(x.s, one)
+	}
 	for {
 		cPrime := z.Exp(x.s, x.e, x.n)
 		cPrime.Mul(cPrime, x.c)
@@ -75,8 +71,10 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 		}
 		x.s.Add(x.s, one)
 	}
-	x.ivals = append(x.ivals, makeInterval(x.twoB, x.threeB))
-
+	x.ivals = append(x.ivals, interval{
+		new(big.Int).Set(x.twoB),
+		new(big.Int).Sub(x.threeB, one),
+	})
 	return x
 }
 
@@ -141,7 +139,10 @@ func (x *rsaBreaker) generateIntervals() {
 			if hi.Cmp(m.hi) > 0 {
 				hi.Set(m.hi)
 			}
-			ivals = append(ivals, makeInterval(lo, hi))
+			ivals = append(ivals, interval{
+				new(big.Int).Set(lo),
+				new(big.Int).Set(hi),
+			})
 		}
 	}
 	x.ivals = ivals
