@@ -29,7 +29,7 @@ type interval struct {
 	hi *big.Int
 }
 
-func newInterval(lo, hi *big.Int) interval {
+func makeInterval(lo, hi *big.Int) interval {
 	return interval{
 		new(big.Int).Set(lo),
 		new(big.Int).Set(hi),
@@ -75,7 +75,7 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 		}
 		x.s.Add(x.s, one)
 	}
-	x.ivals = []interval{newInterval(x.twoB, x.threeB)}
+	x.ivals = append(x.ivals, makeInterval(x.twoB, x.threeB))
 
 	return x
 }
@@ -123,26 +123,26 @@ func (x *rsaBreaker) intervalRValues(m interval) <-chan *big.Int {
 
 func (x *rsaBreaker) generateIntervals() {
 	ivals := []interval{}
-	z := new(big.Int)
+	lo, hi, z := new(big.Int), new(big.Int), new(big.Int)
 	for _, m := range x.ivals {
 		for r := range x.intervalRValues(m) {
-			lo := new(big.Int).Mul(r, x.n)
+			lo.Mul(r, x.n)
 			lo.Add(lo, x.twoB)
 			lo.DivMod(lo, x.s, z)
 			if !equal(z, zero) {
 				lo.Add(lo, one)
 			}
 			if lo.Cmp(m.lo) < 0 {
-				lo = m.lo
+				lo.Set(m.lo)
 			}
-			hi := new(big.Int).Mul(r, x.n)
+			hi.Mul(r, x.n)
 			hi.Add(hi, x.threeB)
 			hi.Sub(hi, one)
 			hi.Div(hi, x.s)
 			if hi.Cmp(m.hi) > 0 {
-				hi = m.hi
+				hi.Set(m.hi)
 			}
-			ivals = append(ivals, newInterval(lo, hi))
+			ivals = append(ivals, makeInterval(lo, hi))
 		}
 	}
 	x.ivals = ivals
