@@ -160,22 +160,19 @@ func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
 
 func (x *rsaBreaker) searchOne() {
 	m := x.ivals[0]
-	cPrime, z := new(big.Int), new(big.Int)
+	lo, hi, z := new(big.Int), new(big.Int), new(big.Int)
 	for r := range x.searchOneRValues(m.hi) {
-		lo := new(big.Int).Mul(r, x.n)
+		lo.Mul(r, x.n)
 		lo.Add(lo, x.twoB)
 		lo.DivMod(lo, m.hi, z)
 		if !equal(z, zero) {
 			lo.Add(lo, one)
 		}
-		hi := new(big.Int).Mul(r, x.n)
+		hi.Mul(r, x.n)
 		hi.Add(hi, x.threeB)
-		hi.DivMod(hi, m.lo, z)
-		if !equal(z, zero) {
-			hi.Add(hi, one)
-		}
+		hi.Div(hi, m.lo)
 		for x.s = range Values(lo, hi) {
-			cPrime.Exp(x.s, x.e, x.n)
+			cPrime := z.Exp(x.s, x.e, x.n)
 			cPrime.Mul(cPrime, x.c)
 			cPrime.Mod(cPrime, x.n)
 			if err := x.oracle(cPrime.Bytes()); err != nil {
