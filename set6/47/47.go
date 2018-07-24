@@ -183,17 +183,15 @@ func (x *rsaBreaker) searchOne() {
 }
 
 func (x *rsaBreaker) searchMany() {
-	x.s.Add(x.s, one)
-
 	cPrime := new(big.Int)
 	for {
+		x.s.Add(x.s, one)
 		cPrime.Exp(x.s, x.e, x.n)
 		cPrime.Mul(cPrime, x.c)
 		cPrime.Mod(cPrime, x.n)
 		if err := x.oracle(cPrime.Bytes()); err != nil {
 			break
 		}
-		x.s.Add(x.s, one)
 	}
 }
 
