@@ -20,6 +20,7 @@ var (
 func rsaPaddingOracle(priv *rsa.PrivateKey) func([]byte) error {
 	return func(ciphertext []byte) error {
 		_, err := rsa.DecryptPKCS1v15(nil, priv, ciphertext)
+
 		return err
 	}
 }
@@ -69,7 +70,7 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 		cPrime := z.Exp(x.s, x.e, x.n)
 		cPrime.Mul(cPrime, x.c)
 		cPrime.Mod(cPrime, x.n)
-		if err := x.oracle(cPrime.Bytes()); err != nil {
+		if err := x.oracle(cPrime.Bytes()); err == nil {
 			break
 		}
 		x.s.Add(x.s, one)
@@ -175,7 +176,7 @@ func (x *rsaBreaker) searchOne() {
 			cPrime := z.Exp(x.s, x.e, x.n)
 			cPrime.Mul(cPrime, x.c)
 			cPrime.Mod(cPrime, x.n)
-			if err := x.oracle(cPrime.Bytes()); err != nil {
+			if err := x.oracle(cPrime.Bytes()); err == nil {
 				break
 			}
 		}
@@ -189,7 +190,7 @@ func (x *rsaBreaker) searchMany() {
 		cPrime.Exp(x.s, x.e, x.n)
 		cPrime.Mul(cPrime, x.c)
 		cPrime.Mod(cPrime, x.n)
-		if err := x.oracle(cPrime.Bytes()); err != nil {
+		if err := x.oracle(cPrime.Bytes()); err == nil {
 			break
 		}
 	}
