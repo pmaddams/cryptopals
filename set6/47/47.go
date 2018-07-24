@@ -29,6 +29,13 @@ type interval struct {
 	hi *big.Int
 }
 
+func newInterval(lo, hi *big.Int) interval {
+	return interval{
+		new(big.Int).Set(lo),
+		new(big.Int).Set(hi),
+	}
+}
+
 type rsaBreaker struct {
 	oracle func([]byte) error
 	e      *big.Int
@@ -52,9 +59,9 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 	x.n = new(big.Int).Set(pub.N)
 
 	z := big.NewInt(int64(8 * (size(x.n) - 2)))
-	z.Exp(two, z, nil)
-	x.twoB = new(big.Int).Mul(two, z)
-	x.threeB = new(big.Int).Mul(three, z)
+	b := z.Exp(two, z, nil)
+	x.twoB = new(big.Int).Mul(two, b)
+	x.threeB = new(big.Int).Mul(three, b)
 
 	x.c = z.SetBytes(ciphertext)
 	x.s = z.Div(x.n, x.threeB)
@@ -68,12 +75,8 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []b
 		}
 		x.s.Add(x.s, one)
 	}
-	x.ivals = []interval{
-		interval{
-			new(big.Int).Set(x.twoB),
-			new(big.Int).Set(x.threeB),
-		},
-	}
+	x.ivals = []interval{newInterval(x.twoB, x.threeB)}
+
 	return x
 }
 
@@ -106,8 +109,11 @@ func (x *rsaBreaker) intervalRValues(m interval) <-chan *big.Int {
 	lo := new(big.Int).Mul(m.lo, x.s)
 	lo.Sub(lo, x.threeB)
 	lo.Add(lo, one)
-	lo.Div(lo, x.n) // Ceiling division?
-
+	z := new(big.Int)
+	lo.DivMod(lo, x.n, z)
+	if !equal(z, zero) {
+		lo.Add(lo, one)
+	}
 	hi := new(big.Int).Mul(m.hi, x.s)
 	hi.Sub(hi, x.twoB)
 	hi.Div(hi, x.n)
@@ -122,7 +128,6 @@ func (x *rsaBreaker) generateIntervals() {
 		for r := range x.intervalRValues(m) {
 			lo := new(big.Int).Mul(r, x.n)
 			lo.Add(lo, x.twoB)
-			// Perform ceiling, not floor division.
 			lo.DivMod(lo, x.s, z)
 			if !equal(z, zero) {
 				lo.Add(lo, one)
@@ -137,7 +142,7 @@ func (x *rsaBreaker) generateIntervals() {
 			if hi.Cmp(m.hi) > 0 {
 				hi = m.hi
 			}
-			ivals = append(ivals, interval{lo, hi})
+			ivals = append(ivals, newInterval(lo, hi))
 		}
 	}
 	x.ivals = ivals
@@ -147,23 +152,30 @@ func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
 	lo := new(big.Int).Mul(hi, x.s)
 	lo.Sub(lo, x.twoB)
 	lo.Mul(two, lo)
-	lo.Div(lo, x.n) // Ceiling division?
-
+	z := new(big.Int)
+	lo.DivMod(lo, x.n, z)
+	if !equal(z, zero) {
+		lo.Add(lo, one)
+	}
 	return Values(lo, x.n)
 }
 
 func (x *rsaBreaker) searchOne() {
 	m := x.ivals[0]
-	cPrime := new(big.Int)
+	cPrime, z := new(big.Int), new(big.Int)
 	for r := range x.searchOneRValues(m.hi) {
 		lo := new(big.Int).Mul(r, x.n)
 		lo.Add(lo, x.twoB)
-		lo.Div(lo, m.hi) // Ceiling division?
-
+		lo.DivMod(lo, m.hi, z)
+		if !equal(z, zero) {
+			lo.Add(lo, one)
+		}
 		hi := new(big.Int).Mul(r, x.n)
 		hi.Add(hi, x.threeB)
-		hi.Div(hi, m.lo) // Ceiling division?
-
+		hi.DivMod(hi, m.lo, z)
+		if !equal(z, zero) {
+			hi.Add(hi, one)
+		}
 		for x.s = range Values(lo, hi) {
 			cPrime.Exp(x.s, x.e, x.n)
 			cPrime.Mul(cPrime, x.c)
