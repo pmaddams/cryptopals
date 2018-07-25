@@ -38,8 +38,8 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// encryptAndPrint reads plaintext and prints hex-encoded ciphertext.
-func encryptAndPrint(in io.Reader, stream cipher.Stream) error {
+// encryptXOR reads plaintext and prints hex-encoded ciphertext.
+func encryptXOR(in io.Reader, stream cipher.Stream) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return err
@@ -50,8 +50,8 @@ func encryptAndPrint(in io.Reader, stream cipher.Stream) error {
 	return nil
 }
 
-// decryptAndPrint reads hex-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, stream cipher.Stream) error {
+// decryptXOR reads hex-encoded ciphertext and prints plaintext.
+func decryptXOR(in io.Reader, stream cipher.Stream) error {
 	input := bufio.NewScanner(in)
 	var buf []byte
 	for input.Scan() {
@@ -76,9 +76,9 @@ func main() {
 	var fn func(io.Reader, cipher.Stream) error
 	flag.Parse()
 	if *d {
-		fn = decryptAndPrint
+		fn = decryptXOR
 	} else {
-		fn = encryptAndPrint
+		fn = encryptXOR
 	}
 	files := flag.Args()
 	// If no files are specified, read from standard input.

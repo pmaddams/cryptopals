@@ -181,8 +181,8 @@ func (x *parityBreaker) breakOracle(ciphertext []byte) ([]byte, error) {
 	return p.Bytes(), nil
 }
 
-// breakHollywoodStyle reads lines of base64-encoded input, encrypts them, and prints them "Hollywood style".
-func breakHollywoodStyle(in io.Reader, x *parityBreaker) error {
+// decryptHollywoodStyle reads lines of base64-encoded input, encrypts them, and prints them "Hollywood style".
+func decryptHollywoodStyle(in io.Reader, x *parityBreaker) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		buf, err := base64.StdEncoding.DecodeString(input.Text())
@@ -215,7 +215,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := breakHollywoodStyle(os.Stdin, x); err != nil {
+		if err := decryptHollywoodStyle(os.Stdin, x); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -226,7 +226,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := breakHollywoodStyle(f, x); err != nil {
+		if err := decryptHollywoodStyle(f, x); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

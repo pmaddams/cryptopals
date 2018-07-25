@@ -160,8 +160,8 @@ func breakServer(url string, buf []byte, name string, size int) []byte {
 	return res
 }
 
-// printHMACAndBreakServer prints a valid HMAC and attempts to break the server.
-func printHMACAndBreakServer(h hash.Hash, url string, buf []byte, name string) error {
+// breakHMAC prints a valid HMAC and attempts to break the server.
+func breakHMAC(h hash.Hash, url string, buf []byte, name string) error {
 	h.Reset()
 	h.Write(buf)
 	fmt.Printf("attempting to upload %s...\n%x\n", name, h.Sum([]byte{}))
@@ -197,7 +197,7 @@ func main() {
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		io.Copy(buf, os.Stdin)
-		err := printHMACAndBreakServer(h, url, buf.Bytes(), "user input")
+		err := breakHMAC(h, url, buf.Bytes(), "user input")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
@@ -210,7 +210,7 @@ func main() {
 			continue
 		}
 		io.Copy(buf, f)
-		err = printHMACAndBreakServer(h, url, buf.Bytes(), name)
+		err = breakHMAC(h, url, buf.Bytes(), name)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}

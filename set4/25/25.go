@@ -94,7 +94,7 @@ func RandomBytes(n int) []byte {
 	return buf
 }
 
-// NewCTREditor takes a buffer and creates a CTREditor with a random key.
+// NewCTREditor takes a buffer and creates a CTR editor with a random key.
 func NewCTREditor(buf []byte) (*CTREditor, error) {
 	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
@@ -134,8 +134,8 @@ func (e *CTREditor) Show() []byte {
 	return append([]byte{}, e.ciphertext...)
 }
 
-// breakCTREditor decrypts and returns the ciphertext.
-func breakCTREditor(e *CTREditor) ([]byte, error) {
+// breakCTR decrypts and returns the ciphertext.
+func breakCTR(e *CTREditor) ([]byte, error) {
 	ciphertext := e.Show()
 	if err := e.Edit(ciphertext, 0); err != nil {
 		return nil, err
@@ -143,9 +143,9 @@ func breakCTREditor(e *CTREditor) ([]byte, error) {
 	return e.Show(), nil
 }
 
-// decryptAndPrint generates a CTREditor from base64-encoded,
+// decryptCTR generates a CTR editor from base64-encoded,
 // ECB-encrypted input, breaks it, and prints the plaintext.
-func decryptAndPrint(in io.Reader) error {
+func decryptCTR(in io.Reader) error {
 	buf, err := decryptECB(in)
 	if err != nil {
 		return err
@@ -154,7 +154,7 @@ func decryptAndPrint(in io.Reader) error {
 	if err != nil {
 		return err
 	}
-	buf, err = breakCTREditor(e)
+	buf, err = breakCTR(e)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := decryptAndPrint(os.Stdin); err != nil {
+		if err := decryptCTR(os.Stdin); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -177,7 +177,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := decryptAndPrint(f); err != nil {
+		if err := decryptCTR(f); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

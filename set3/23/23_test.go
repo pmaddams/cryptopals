@@ -754,12 +754,12 @@ func TestUntemper(t *testing.T) {
 	}
 }
 
-func TestCloneMT(t *testing.T) {
-	mt := NewMT(uint32(time.Now().Unix()))
-	clone := CloneMT(mt)
+func TestClone(t *testing.T) {
+	mt1 := NewMT(uint32(time.Now().Unix()))
+	mt2 := Clone(mt1)
 	for i := 0; i < 700; i++ {
-		want := mt.Uint32()
-		if got := clone.Uint32(); got != want {
+		want := mt1.Uint32()
+		if got := mt2.Uint32(); got != want {
 			t.Fatalf("got %v (output #%v), want %v", got, i+1, want)
 		}
 	}

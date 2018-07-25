@@ -125,8 +125,8 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return dup(buf)[:len(buf)-int(b)], nil
 }
 
-// encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func encryptAndPrint(in io.Reader, mode cipher.BlockMode) error {
+// encryptCBC reads plaintext and prints base64-encoded ciphertext.
+func encryptCBC(in io.Reader, mode cipher.BlockMode) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return err
@@ -138,8 +138,8 @@ func encryptAndPrint(in io.Reader, mode cipher.BlockMode) error {
 	return nil
 }
 
-// decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, mode cipher.BlockMode) error {
+// decryptCBC reads base64-encoded ciphertext and prints plaintext.
+func decryptCBC(in io.Reader, mode cipher.BlockMode) error {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
 		return err
@@ -167,10 +167,10 @@ func main() {
 	)
 	flag.Parse()
 	if *e {
-		fn = encryptAndPrint
+		fn = encryptCBC
 		mode = NewCBCEncrypter(c, iv)
 	} else {
-		fn = decryptAndPrint
+		fn = decryptCBC
 		mode = NewCBCDecrypter(c, iv)
 	}
 	files := flag.Args()

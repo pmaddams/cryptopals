@@ -123,8 +123,8 @@ func Transpose(bufs [][]byte) ([][]byte, error) {
 	return res, nil
 }
 
-// breakIdenticalCTR returns the keystream used to encrypt buffers with identical CTR.
-func breakIdenticalCTR(bufs [][]byte) ([]byte, error) {
+// breakCTR returns the keystream used to encrypt buffers with identical CTR.
+func breakCTR(bufs [][]byte) ([]byte, error) {
 	n, err := Median(Lengths(bufs))
 	if err != nil {
 		return nil, err
@@ -156,8 +156,8 @@ func RandomBytes(n int) []byte {
 	return buf
 }
 
-// decodeAndEncrypt reads lines of base64-encoded text and encrypts them with an identical CTR keystream.
-func decodeAndEncrypt(in io.Reader, c cipher.Block, iv []byte) ([][]byte, error) {
+// encryptCTR reads lines of base64-encoded text and encrypts them with an identical CTR keystream.
+func encryptCTR(in io.Reader, c cipher.Block, iv []byte) ([][]byte, error) {
 	input := bufio.NewScanner(in)
 	var res [][]byte
 	for input.Scan() {
@@ -192,9 +192,9 @@ func XORBytes(dst, b1, b2 []byte) int {
 	return n
 }
 
-// decryptAndPrint decrypts and prints buffers encrypted with an identical CTR keystream.
-func decryptAndPrint(bufs [][]byte) error {
-	keystream, err := breakIdenticalCTR(bufs)
+// decryptCTR decrypts and prints buffers encrypted with an identical CTR keystream.
+func decryptCTR(bufs [][]byte) error {
+	keystream, err := breakCTR(bufs)
 	if err != nil {
 		return err
 	}
@@ -233,12 +233,12 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		lines, err := decodeAndEncrypt(os.Stdin, c, iv)
+		lines, err := encryptCTR(os.Stdin, c, iv)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		if err := decryptAndPrint(lines); err != nil {
+		if err := decryptCTR(lines); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -248,12 +248,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		lines, err := decodeAndEncrypt(f, c, iv)
+		lines, err := encryptCTR(f, c, iv)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := decryptAndPrint(lines); err != nil {
+		if err := decryptCTR(lines); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

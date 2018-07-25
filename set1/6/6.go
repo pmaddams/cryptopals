@@ -214,8 +214,8 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader) error {
+// decryptXOR reads base64-encoded ciphertext and prints plaintext.
+func decryptXOR(in io.Reader) error {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
 		return err
@@ -253,7 +253,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := decryptAndPrint(os.Stdin); err != nil {
+		if err := decryptXOR(os.Stdin); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -263,7 +263,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := decryptAndPrint(f); err != nil {
+		if err := decryptXOR(f); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

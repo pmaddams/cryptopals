@@ -79,8 +79,8 @@ func (stream ctr) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func encryptAndPrint(in io.Reader, stream cipher.Stream) error {
+// encryptCTR reads plaintext and prints base64-encoded ciphertext.
+func encryptCTR(in io.Reader, stream cipher.Stream) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return err
@@ -91,8 +91,8 @@ func encryptAndPrint(in io.Reader, stream cipher.Stream) error {
 	return nil
 }
 
-// decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, stream cipher.Stream) error {
+// decryptCTR reads base64-encoded ciphertext and prints plaintext.
+func decryptCTR(in io.Reader, stream cipher.Stream) error {
 	in = base64.NewDecoder(base64.StdEncoding, in)
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
@@ -117,9 +117,9 @@ func main() {
 	var fn func(io.Reader, cipher.Stream) error
 	flag.Parse()
 	if *e {
-		fn = encryptAndPrint
+		fn = encryptCTR
 	} else {
-		fn = decryptAndPrint
+		fn = decryptCTR
 	}
 	files := flag.Args()
 	// If no files are specified, read from standard input.

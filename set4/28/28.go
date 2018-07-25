@@ -55,8 +55,8 @@ func RandomBytes(n int) []byte {
 	return buf
 }
 
-// readAndPrintMAC reads input and prints the MAC and SHA-1(key + message).
-func readAndPrintMAC(in io.Reader, mac hash.Hash, key []byte) error {
+// printMAC reads input and prints the MAC and SHA-1(key + message).
+func printMAC(in io.Reader, mac hash.Hash, key []byte) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return err
@@ -69,7 +69,7 @@ func readAndPrintMAC(in io.Reader, mac hash.Hash, key []byte) error {
 	array := sha1.Sum(append(key, buf...))
 	sum2 := array[:]
 	if !bytes.Equal(sum1, sum2) {
-		return errors.New("readAndPrintMAC: invalid MAC")
+		return errors.New("readMAC: invalid MAC")
 	}
 	fmt.Printf("%x\n%x\n", sum1, sum2)
 
@@ -83,7 +83,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := readAndPrintMAC(os.Stdin, mac, key); err != nil {
+		if err := printMAC(os.Stdin, mac, key); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -94,7 +94,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := readAndPrintMAC(f, mac, key); err != nil {
+		if err := printMAC(f, mac, key); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

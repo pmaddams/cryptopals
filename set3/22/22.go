@@ -87,21 +87,21 @@ func MTRandomRange(lo, hi uint32) uint32 {
 	return lo + mt.Uint32n(hi-lo+1)
 }
 
-// breakSeed takes an MT19937 output and the current time, and returns the seed.
-func breakSeed(n, unixTime uint32) (uint32, error) {
+// breakMT takes an MT19937 output and the current time, and returns the seed.
+func breakMT(n, unixTime uint32) (uint32, error) {
 	for seed := unixTime; seed > 0; seed-- {
 		if NewMT(seed).Uint32() == n {
 			return seed, nil
 		}
 	}
-	return 0, errors.New("breakSeed")
+	return 0, errors.New("breakMT: nothing found")
 }
 
 func main() {
 	seed := uint32(time.Now().Unix())
 	mt := NewMT(seed)
 
-	n, err := breakSeed(mt.Uint32(), seed+MTRandomRange(40, 1000))
+	n, err := breakMT(mt.Uint32(), seed+MTRandomRange(40, 1000))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

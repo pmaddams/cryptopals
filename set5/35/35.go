@@ -162,8 +162,8 @@ func equal(z1, z2 *big.Int) bool {
 	return z1.Cmp(z2) == 0
 }
 
-// simulateMITM simulates a man-in-the-middle attack.
-func simulateMITM(p, g *big.Int) {
+// mitm simulates a man-in-the-middle attack.
+func mitm(p, g *big.Int) {
 	alice, bob, mallory := newBot(), newBot(), newBot()
 	alice.DHPrivateKey = DHGenerateKey(p, g)
 
@@ -216,7 +216,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	simulateMITM(p, one)
-	simulateMITM(p, p)
-	simulateMITM(p, new(big.Int).Sub(p, one))
+	mitm(p, one)
+	mitm(p, p)
+	mitm(p, new(big.Int).Sub(p, one))
 }

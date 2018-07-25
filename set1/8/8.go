@@ -33,9 +33,9 @@ func IdenticalBlocks(buf []byte, blockSize int) bool {
 	return false
 }
 
-// detectAndPrintECB reads hex-encoded input and prints lines
+// detectECB reads hex-encoded input and prints lines
 // that appear to have been encrypted with AES in ECB mode.
-func detectAndPrintECB(in io.Reader) error {
+func detectECB(in io.Reader) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		line, err := hex.DecodeString(input.Text())
@@ -53,7 +53,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := detectAndPrintECB(os.Stdin); err != nil {
+		if err := detectECB(os.Stdin); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -64,7 +64,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := detectAndPrintECB(f); err != nil {
+		if err := detectECB(f); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

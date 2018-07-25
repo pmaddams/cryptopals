@@ -32,8 +32,8 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return dup(buf)[:len(buf)-int(b)], nil
 }
 
-// unpadAndPrint prints lines of PKCS#7 padded input with padding removed.
-func unpadAndPrint(in io.Reader, blockSize int) error {
+// stripPKCS7 prints lines of PKCS#7 padded input with padding removed.
+func stripPKCS7(in io.Reader, blockSize int) error {
 	input := bufio.NewReader(in)
 Loop:
 	for {
@@ -70,7 +70,7 @@ func main() {
 	files := flag.Args()
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := unpadAndPrint(os.Stdin, blockSize); err != nil {
+		if err := stripPKCS7(os.Stdin, blockSize); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -80,7 +80,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := unpadAndPrint(f, blockSize); err != nil {
+		if err := stripPKCS7(f, blockSize); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

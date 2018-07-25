@@ -65,8 +65,8 @@ func breakSingleXOR(buf []byte) byte {
 	return b
 }
 
-// decryptAndPrint reads hex-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader) error {
+// decryptSingleXOR reads hex-encoded ciphertext and prints plaintext.
+func decryptSingleXOR(in io.Reader) error {
 	input := bufio.NewScanner(in)
 	var buf []byte
 	for input.Scan() {
@@ -108,7 +108,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := decryptAndPrint(os.Stdin); err != nil {
+		if err := decryptSingleXOR(os.Stdin); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -119,7 +119,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := decryptAndPrint(f); err != nil {
+		if err := decryptSingleXOR(f); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

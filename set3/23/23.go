@@ -93,8 +93,8 @@ func Untemper(n uint32) uint32 {
 	return n
 }
 
-// CloneMT clones an MT19937 PRNG from 624 consecutive outputs.
-func CloneMT(mt *MT) *MT {
+// Clone clones an MT19937 PRNG from 624 consecutive outputs.
+func Clone(mt *MT) *MT {
 	var clone MT
 	for i := range clone.state {
 		clone.state[i] = Untemper(mt.Uint32())
@@ -103,18 +103,18 @@ func CloneMT(mt *MT) *MT {
 	return &clone
 }
 
-// printColumns prints values in two columns.
-func printColumns(a, b interface{}) {
+// printCols prints values in two columns.
+func printCols(a, b interface{}) {
 	fmt.Printf("%-10v\t%v", a, b)
 }
 
 func main() {
 	mt1 := NewMT(uint32(time.Now().Unix()))
-	mt2 := CloneMT(mt1)
+	mt2 := Clone(mt1)
 
 	input := bufio.NewScanner(os.Stdin)
-	printColumns("Original:", "Clone:")
+	printCols("Original:", "Clone:")
 	for input.Scan() {
-		printColumns(mt1.Uint32(), mt2.Uint32())
+		printCols(mt1.Uint32(), mt2.Uint32())
 	}
 }

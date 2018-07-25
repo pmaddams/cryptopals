@@ -65,9 +65,9 @@ func bestSingleXOR(buf []byte) (float64, byte) {
 	return best, b
 }
 
-// decryptAndPrint reads hex-encoded input, decrypts the single line (if any)
-// that was encrypted with single-byte XOR, and prints the message.
-func decryptAndPrint(in io.Reader) error {
+// detectSingleXOR reads hex-encoded input, decrypts the single line
+// (if any) encrypted with single-byte XOR, and prints the message.
+func detectSingleXOR(in io.Reader) error {
 	input := bufio.NewScanner(in)
 	var (
 		buf  []byte
@@ -114,7 +114,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := decryptAndPrint(os.Stdin); err != nil {
+		if err := detectSingleXOR(os.Stdin); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -125,7 +125,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := decryptAndPrint(f); err != nil {
+		if err := detectSingleXOR(f); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

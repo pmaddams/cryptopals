@@ -91,8 +91,8 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return dup(buf)[:len(buf)-int(b)], nil
 }
 
-// encryptAndPrint reads plaintext and prints base64-encoded ciphertext.
-func encryptAndPrint(in io.Reader, c cipher.Block) error {
+// encryptECB reads plaintext and prints base64-encoded ciphertext.
+func encryptECB(in io.Reader, c cipher.Block) error {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return err
@@ -104,8 +104,8 @@ func encryptAndPrint(in io.Reader, c cipher.Block) error {
 	return nil
 }
 
-// decryptAndPrint reads base64-encoded ciphertext and prints plaintext.
-func decryptAndPrint(in io.Reader, c cipher.Block) error {
+// decryptECB reads base64-encoded ciphertext and prints plaintext.
+func decryptECB(in io.Reader, c cipher.Block) error {
 	in = base64.NewDecoder(base64.StdEncoding, in)
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
@@ -127,9 +127,9 @@ func main() {
 	var fn func(io.Reader, cipher.Block) error
 	flag.Parse()
 	if *e {
-		fn = encryptAndPrint
+		fn = encryptECB
 	} else {
-		fn = decryptAndPrint
+		fn = decryptECB
 	}
 	c, err := aes.NewCipher([]byte(secret))
 	if err != nil {
