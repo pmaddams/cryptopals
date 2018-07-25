@@ -289,13 +289,13 @@ func Values(lo, hi *big.Int) <-chan *big.Int {
 	return ch
 }
 
-func (x *rsaBreaker) intervalRValue(m interval) *big.Int {
-	rMin := new(big.Int).Mul(m.lo, x.s)
+func (x *rsaBreaker) intervalRValue() *big.Int {
+	rMin := new(big.Int).Mul(x.m.lo, x.s)
 	rMin.Sub(rMin, x.threeB)
 	rMin.Add(rMin, one)
 	ceilingDiv(rMin, rMin, x.n)
 
-	rMax := new(big.Int).Mul(m.hi, x.s)
+	rMax := new(big.Int).Mul(x.m.hi, x.s)
 	rMax.Sub(rMax, x.twoB)
 	rMax.Div(rMax, x.n)
 
@@ -306,7 +306,7 @@ func (x *rsaBreaker) intervalRValue(m interval) *big.Int {
 }
 
 func (x *rsaBreaker) generateInterval() {
-	r := x.intervalRValue(x.m)
+	r := x.intervalRValue()
 	lo, hi := new(big.Int), new(big.Int)
 
 	lo.Mul(r, x.n)
@@ -322,22 +322,17 @@ func (x *rsaBreaker) generateInterval() {
 	if hi.Cmp(x.m.hi) > 0 {
 		hi.Set(x.m.hi)
 	}
-	x.m.lo.Set(lo)
-	x.m.hi.Set(hi)
-}
-
-func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
-	rMin := new(big.Int).Mul(hi, x.s)
-	rMin.Sub(rMin, x.twoB)
-	rMin.Mul(two, rMin)
-	ceilingDiv(rMin, rMin, x.n)
-
-	return Values(rMin, x.n)
+	x.m = interval{lo, hi}
 }
 
 func (x *rsaBreaker) searchOne() error {
+	r := new(big.Int).Mul(x.m.hi, x.s)
+	r.Sub(r, x.twoB)
+	r.Mul(two, r)
+	ceilingDiv(r, r, x.n)
+
 	sMin, sMax := new(big.Int), new(big.Int)
-	for r := range x.searchOneRValues(x.m.hi) {
+	for {
 		sMin.Mul(r, x.n)
 		sMin.Add(sMin, x.twoB)
 		ceilingDiv(sMin, sMin, x.m.hi)
@@ -353,8 +348,8 @@ func (x *rsaBreaker) searchOne() error {
 			x.s = s
 			return nil
 		}
+		r.Add(r, one)
 	}
-	return errors.New("searchOne: nothing found")
 }
 
 func (x *rsaBreaker) breakOracle() []byte {
