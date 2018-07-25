@@ -87,7 +87,7 @@ func copyRight(dst, src []byte) {
 	copy(dst, src)
 }
 
-// RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
+// RSAEncrypt takes a public key and plaintext, and returns ciphertext.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	z := new(big.Int).SetBytes(buf)
 	if z.Cmp(pub.n) > 0 {
@@ -101,7 +101,7 @@ func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	return res, nil
 }
 
-// RSADecrypt takes a decrypted buffer and returns an encrypted buffer.
+// RSADecrypt takes a private key and ciphertext, and returns plaintext.
 func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	z := new(big.Int).SetBytes(buf)
 	if z.Cmp(priv.n) > 0 {
