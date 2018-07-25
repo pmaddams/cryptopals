@@ -322,33 +322,31 @@ func (x *rsaBreaker) generateInterval() {
 	if hi.Cmp(x.m.hi) > 0 {
 		hi.Set(x.m.hi)
 	}
-	x.m = interval{
-		new(big.Int).Set(lo),
-		new(big.Int).Set(hi),
-	}
+	x.m.lo.Set(lo)
+	x.m.hi.Set(hi)
 }
 
 func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
-	lo := new(big.Int).Mul(hi, x.s)
-	lo.Sub(lo, x.twoB)
-	lo.Mul(two, lo)
-	ceilingDiv(lo, lo, x.n)
+	rMin := new(big.Int).Mul(hi, x.s)
+	rMin.Sub(rMin, x.twoB)
+	rMin.Mul(two, rMin)
+	ceilingDiv(rMin, rMin, x.n)
 
-	return Values(lo, x.n)
+	return Values(rMin, x.n)
 }
 
 func (x *rsaBreaker) searchOne() error {
-	lo, hi := new(big.Int), new(big.Int)
+	sMin, sMax := new(big.Int), new(big.Int)
 	for r := range x.searchOneRValues(x.m.hi) {
-		lo.Mul(r, x.n)
-		lo.Add(lo, x.twoB)
-		ceilingDiv(lo, lo, x.m.hi)
+		sMin.Mul(r, x.n)
+		sMin.Add(sMin, x.twoB)
+		ceilingDiv(sMin, sMin, x.m.hi)
 
-		hi.Mul(r, x.n)
-		hi.Add(hi, x.threeB)
-		hi.Div(hi, x.m.lo)
+		sMax.Mul(r, x.n)
+		sMax.Add(sMax, x.threeB)
+		sMax.Div(sMax, x.m.lo)
 
-		s, err := x.findS(lo, hi)
+		s, err := x.findS(sMin, sMax)
 		if err != nil {
 			return err
 		} else if s != nil {
