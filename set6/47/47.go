@@ -3,10 +3,16 @@ package main
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"math/big"
 )
 
-var one = big.NewInt(1)
+var (
+	zero  = big.NewInt(0)
+	one   = big.NewInt(1)
+	two   = big.NewInt(2)
+	three = big.NewInt(3)
+)
 
 // RSAPublicKey represents the public part of an RSA key pair.
 type RSAPublicKey struct {
@@ -179,5 +185,186 @@ func RSADecryptPKCS1v15(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return PKCS1v15CryptUnpad(buf)
 }
 
+func rsaPaddingOracle(priv *RSAPrivateKey) func([]byte) error {
+	return func(ciphertext []byte) error {
+		_, err := RSADecryptPKCS1v15(priv, ciphertext)
+
+		return err
+	}
+}
+
+type interval struct {
+	lo *big.Int
+	hi *big.Int
+}
+
+type rsaBreaker struct {
+	oracle func([]byte) error
+	e      *big.Int
+	n      *big.Int
+	twoB   *big.Int
+	threeB *big.Int
+	c      *big.Int
+	s      *big.Int
+	m      interval
+}
+
+func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) error, ciphertext []byte) *rsaBreaker {
+	x := new(rsaBreaker)
+	x.oracle = oracle
+	x.e = new(big.Int).Set(pub.e)
+	x.n = new(big.Int).Set(pub.n)
+
+	z := big.NewInt(int64(8 * (size(x.n) - 2)))
+	b := z.Exp(two, z, nil)
+	x.twoB = new(big.Int).Mul(two, b)
+	x.threeB = new(big.Int).Mul(three, b)
+
+	x.c = new(big.Int).SetBytes(ciphertext)
+	x.s, z = new(big.Int).DivMod(x.n, x.threeB, z)
+	if !equal(z, zero) {
+		x.s.Add(x.s, one)
+	}
+	for {
+		cPrime := z.Exp(x.s, x.e, x.n)
+		cPrime.Mul(cPrime, x.c)
+		cPrime.Mod(cPrime, x.n)
+		if err := x.oracle(cPrime.Bytes()); err == nil {
+			break
+		}
+		x.s.Add(x.s, one)
+	}
+	x.m = interval{
+		new(big.Int).Set(x.twoB),
+		new(big.Int).Sub(x.threeB, one),
+	}
+	return x
+}
+
+// Values returns a channel that yields successive values in [lo, hi].
+func Values(lo, hi *big.Int) <-chan *big.Int {
+	ch := make(chan *big.Int)
+	z1 := new(big.Int).Set(lo)
+	z2 := new(big.Int).Set(hi)
+	go func() {
+		lo, hi := z1, z2
+		for {
+			if lo.Cmp(hi) > 0 {
+				break
+			}
+			ch <- new(big.Int).Set(lo)
+			lo.Add(lo, one)
+		}
+		close(ch)
+	}()
+	return ch
+}
+
+func (x *rsaBreaker) intervalRValue(m interval) *big.Int {
+	lo := new(big.Int).Mul(m.lo, x.s)
+	lo.Sub(lo, x.threeB)
+	lo.Add(lo, one)
+	z := new(big.Int)
+	lo.DivMod(lo, x.n, z)
+	if !equal(z, zero) {
+		lo.Add(lo, one)
+	}
+	hi := new(big.Int).Mul(m.hi, x.s)
+	hi.Sub(hi, x.twoB)
+	hi.Div(hi, x.n)
+
+	if !equal(lo, hi) {
+		panic("intervalRValue: multiple r values")
+	}
+	return lo
+}
+
+func (x *rsaBreaker) generateInterval() {
+	r := x.intervalRValue(x.m)
+	lo, hi, z := new(big.Int), new(big.Int), new(big.Int)
+
+	lo.Mul(r, x.n)
+	lo.Add(lo, x.twoB)
+	lo.DivMod(lo, x.s, z)
+	if !equal(z, zero) {
+		lo.Add(lo, one)
+	}
+	if lo.Cmp(x.m.lo) < 0 {
+		lo.Set(x.m.lo)
+	}
+	hi.Mul(r, x.n)
+	hi.Add(hi, x.threeB)
+	hi.Sub(hi, one)
+	hi.Div(hi, x.s)
+	if hi.Cmp(x.m.hi) > 0 {
+		hi.Set(x.m.hi)
+	}
+	x.m = interval{
+		new(big.Int).Set(lo),
+		new(big.Int).Set(hi),
+	}
+}
+
+func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
+	lo := new(big.Int).Mul(hi, x.s)
+	lo.Sub(lo, x.twoB)
+	lo.Mul(two, lo)
+	z := new(big.Int)
+	lo.DivMod(lo, x.n, z)
+	if !equal(z, zero) {
+		lo.Add(lo, one)
+	}
+	return Values(lo, x.n)
+}
+
+func (x *rsaBreaker) searchOne() {
+	lo, hi, z := new(big.Int), new(big.Int), new(big.Int)
+	for r := range x.searchOneRValues(x.m.hi) {
+		lo.Mul(r, x.n)
+		lo.Add(lo, x.twoB)
+		lo.DivMod(lo, x.m.hi, z)
+		if !equal(z, zero) {
+			lo.Add(lo, one)
+		}
+		hi.Mul(r, x.n)
+		hi.Add(hi, x.threeB)
+		hi.Div(hi, x.m.lo)
+		for x.s = range Values(lo, hi) {
+			cPrime := z.Exp(x.s, x.e, x.n)
+			cPrime.Mul(cPrime, x.c)
+			cPrime.Mod(cPrime, x.n)
+			if err := x.oracle(cPrime.Bytes()); err == nil {
+				break
+			}
+		}
+	}
+}
+
+func (x *rsaBreaker) breakOracle() []byte {
+	for {
+		x.generateInterval()
+		if equal(x.m.lo, x.m.hi) {
+			return x.m.lo.Bytes()
+		}
+		x.searchOne()
+	}
+}
+
 func main() {
+	priv, err := RSAGenerateKey(3, 256)
+	if err != nil {
+		panic(err)
+	}
+	oracle := rsaPaddingOracle(priv)
+	pub := &priv.RSAPublicKey
+
+	ciphertext, err := RSAEncryptPKCS1v15(pub, []byte("kick it, CC"))
+	if err != nil {
+		panic(err)
+	}
+	x := newRSABreaker(pub, oracle, ciphertext)
+
+	plaintext := x.breakOracle()
+
+	fmt.Println(string(plaintext))
 }
