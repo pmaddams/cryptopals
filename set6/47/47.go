@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 )
 
 var (
@@ -204,9 +205,9 @@ type rsaBreaker struct {
 	oracle func([]byte) bool
 	e      *big.Int
 	n      *big.Int
+	c      *big.Int
 	twoB   *big.Int
 	threeB *big.Int
-	c      *big.Int
 	s      *big.Int
 	m      interval
 }
@@ -221,33 +222,52 @@ func ceilingDiv(res, z1, z2 *big.Int) *big.Int {
 	return res
 }
 
-func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) bool, ciphertext []byte) *rsaBreaker {
+func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) bool, ciphertext []byte) (*rsaBreaker, error) {
 	x := new(rsaBreaker)
 	x.oracle = oracle
+
 	x.e = new(big.Int).Set(pub.e)
 	x.n = new(big.Int).Set(pub.n)
+	x.c = new(big.Int).SetBytes(ciphertext)
 
 	z := big.NewInt(int64(8 * (size(x.n) - 2)))
 	b := z.Exp(two, z, nil)
 	x.twoB = new(big.Int).Mul(two, b)
 	x.threeB = new(big.Int).Mul(three, b)
 
-	x.c = new(big.Int).SetBytes(ciphertext)
-	x.s = ceilingDiv(new(big.Int), x.n, x.threeB)
-	for {
-		cPrime := z.Exp(x.s, x.e, x.n)
-		cPrime.Mul(cPrime, x.c)
-		cPrime.Mod(cPrime, x.n)
-		if x.oracle(cPrime.Bytes()) {
-			break
-		}
-		x.s.Add(x.s, one)
+	sMin := ceilingDiv(z, x.n, x.threeB)
+	s, err := x.findS(sMin, x.n)
+	if err != nil {
+		return nil, err
+	} else if s == nil {
+		return nil, errors.New("newRSABreaker: nothing found")
 	}
+	x.s = s
 	x.m = interval{
 		new(big.Int).Set(x.twoB),
 		new(big.Int).Sub(x.threeB, one),
 	}
-	return x
+	return x, nil
+}
+
+func (x *rsaBreaker) findS(sMin, sMax *big.Int) (*big.Int, error) {
+	if sMin.Cmp(sMax) > 0 {
+		return nil, errors.New("findS: invalid range")
+	}
+	s := new(big.Int).Set(sMin)
+	cPrime := new(big.Int)
+	for {
+		if s.Cmp(sMax) > 0 {
+			return nil, nil
+		}
+		cPrime.Exp(s, x.e, x.n)
+		cPrime.Mul(cPrime, x.c)
+		cPrime.Mod(cPrime, x.n)
+		if x.oracle(cPrime.Bytes()) {
+			return s, nil
+		}
+		s.Add(s, one)
+	}
 }
 
 // Values returns a channel that yields successive values in [lo, hi].
@@ -317,8 +337,8 @@ func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
 	return Values(lo, x.n)
 }
 
-func (x *rsaBreaker) searchOne() {
-	lo, hi, z := new(big.Int), new(big.Int), new(big.Int)
+func (x *rsaBreaker) searchOne() error {
+	lo, hi := new(big.Int), new(big.Int)
 	for r := range x.searchOneRValues(x.m.hi) {
 		lo.Mul(r, x.n)
 		lo.Add(lo, x.twoB)
@@ -327,15 +347,16 @@ func (x *rsaBreaker) searchOne() {
 		hi.Mul(r, x.n)
 		hi.Add(hi, x.threeB)
 		hi.Div(hi, x.m.lo)
-		for x.s = range Values(lo, hi) {
-			cPrime := z.Exp(x.s, x.e, x.n)
-			cPrime.Mul(cPrime, x.c)
-			cPrime.Mod(cPrime, x.n)
-			if x.oracle(cPrime.Bytes()) {
-				break
-			}
+
+		s, err := x.findS(lo, hi)
+		if err != nil {
+			return err
+		} else if s != nil {
+			x.s = s
+			return nil
 		}
 	}
+	return errors.New("searchOne: nothing found")
 }
 
 func (x *rsaBreaker) breakOracle() []byte {
@@ -360,8 +381,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	x := newRSABreaker(pub, oracle, ciphertext)
-
+	x, err := newRSABreaker(pub, oracle, ciphertext)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 	plaintext := x.breakOracle()
 
 	fmt.Println(string(plaintext))
