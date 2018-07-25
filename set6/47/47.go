@@ -189,6 +189,7 @@ func RSADecryptPKCS1v15(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return PKCS1v15CryptUnpad(buf)
 }
 
+// rsaPaddingOracle returns an RSA padding oracle.
 func rsaPaddingOracle(priv *RSAPrivateKey) func([]byte) bool {
 	return func(ciphertext []byte) bool {
 		buf, err := RSADecrypt(priv, ciphertext)
@@ -199,11 +200,13 @@ func rsaPaddingOracle(priv *RSAPrivateKey) func([]byte) bool {
 	}
 }
 
+// interval represents an range of possible plaintexts.
 type interval struct {
 	lo *big.Int
 	hi *big.Int
 }
 
+// rsaBreaker contains data necessary to attack the PKCS #1 v1.5 padding oracle.
 type rsaBreaker struct {
 	oracle func([]byte) bool
 	e      *big.Int
@@ -225,6 +228,7 @@ func ceilingDiv(res, z1, z2 *big.Int) *big.Int {
 	return res
 }
 
+// newRSABreaker takes a public key, oracle, and ciphertext, and returns a breaker.
 func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) bool, ciphertext []byte) (*rsaBreaker, error) {
 	x := new(rsaBreaker)
 	x.oracle = oracle
@@ -253,6 +257,7 @@ func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) bool, ciphertext []byt
 	return x, nil
 }
 
+// findS finds the smallest multiple of the ciphertext that generates valid padding.
 func (x *rsaBreaker) findS(sMin, sMax *big.Int) (*big.Int, error) {
 	if sMin.Cmp(sMax) > 0 {
 		return nil, errors.New("findS: invalid range")
@@ -273,6 +278,7 @@ func (x *rsaBreaker) findS(sMin, sMax *big.Int) (*big.Int, error) {
 	}
 }
 
+// intervalRValues returns the bounds for generating the next set of intervals.
 func (x *rsaBreaker) intervalRValues(m interval) (*big.Int, *big.Int) {
 	r := new(big.Int).Mul(m.lo, x.s)
 	r.Sub(r, x.threeB)
@@ -286,6 +292,7 @@ func (x *rsaBreaker) intervalRValues(m interval) (*big.Int, *big.Int) {
 	return r, rMax
 }
 
+// generateIntervals generates the next set of intervals.
 func (x *rsaBreaker) generateIntervals() {
 	var ivals []interval
 	for _, m := range x.ivals {
@@ -311,6 +318,7 @@ func (x *rsaBreaker) generateIntervals() {
 	x.ivals = ivals
 }
 
+// searchOne searches for the next "s" value for a single interval.
 func (x *rsaBreaker) searchOne(m interval) error {
 	r := new(big.Int).Mul(m.hi, x.s)
 	r.Sub(r, x.twoB)
@@ -338,6 +346,7 @@ func (x *rsaBreaker) searchOne(m interval) error {
 	}
 }
 
+// searchMany searches for the next "s" value for multiple intervals.
 func (x *rsaBreaker) searchMany() error {
 	sMin := new(big.Int).Add(x.s, one)
 	s, err := x.findS(sMin, x.n)
@@ -350,6 +359,7 @@ func (x *rsaBreaker) searchMany() error {
 	return nil
 }
 
+// breakOracle breaks the padding oracle and returns the plaintext.
 func (x *rsaBreaker) breakOracle() ([]byte, error) {
 	for {
 		x.generateIntervals()
@@ -375,6 +385,7 @@ func (x *rsaBreaker) breakOracle() ([]byte, error) {
 	}
 }
 
+// breakRSA reads lines of text, encrypts them, and prints the decrypted plaintext.
 func breakRSA(in io.Reader, pub *RSAPublicKey, oracle func([]byte) bool) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
