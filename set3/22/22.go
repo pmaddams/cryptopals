@@ -72,7 +72,7 @@ func (mt *MT) Uint32() uint32 {
 // Uint32n returns a pseudo-random unsigned 32-bit integer in [0, n).
 func (mt *MT) Uint32n(n uint32) uint32 {
 	if n == 0 {
-		panic("Intn: invalid bound")
+		panic("Uint32n: invalid range")
 	}
 	return uint32(float64(mt.Uint32()) *
 		float64(n-1) / float64(^uint32(0)))
