@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
 )
@@ -373,27 +375,51 @@ func (x *rsaBreaker) breakOracle() ([]byte, error) {
 	}
 }
 
+func breakRSA(in io.Reader, pub *RSAPublicKey, oracle func([]byte) bool) error {
+	input := bufio.NewScanner(in)
+	for input.Scan() {
+		ciphertext, err := RSAEncryptPKCS1v15(pub, input.Bytes())
+		if err != nil {
+			return err
+		}
+		x, err := newRSABreaker(pub, oracle, ciphertext)
+		if err != nil {
+			return err
+		}
+		plaintext, err := x.breakOracle()
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(plaintext))
+	}
+	return input.Err()
+}
+
 func main() {
 	priv, err := RSAGenerateKey(3, 256)
 	if err != nil {
 		panic(err)
 	}
-	oracle := rsaPaddingOracle(priv)
 	pub := &priv.RSAPublicKey
+	oracle := rsaPaddingOracle(priv)
 
-	ciphertext, err := RSAEncryptPKCS1v15(pub, []byte("kick it, CC"))
-	if err != nil {
-		panic(err)
-	}
-	x, err := newRSABreaker(pub, oracle, ciphertext)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	files := os.Args[1:]
+	// If no files are specified, read from standard input.
+	if len(files) == 0 {
+		if err := breakRSA(os.Stdin, pub, oracle); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		return
 	}
-	plaintext, err := x.breakOracle()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	for _, name := range files {
+		f, err := os.Open(name)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := breakRSA(f, pub, oracle); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
 	}
-	fmt.Println(string(plaintext))
 }
