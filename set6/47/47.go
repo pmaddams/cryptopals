@@ -210,7 +210,7 @@ type rsaBreaker struct {
 	twoB   *big.Int
 	threeB *big.Int
 	s      *big.Int
-	m      interval
+	ivals  []interval
 }
 
 // ceilingDiv performs ceiling division of z1 by z2.
@@ -244,10 +244,10 @@ func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) bool, ciphertext []byt
 		return nil, errors.New("newRSABreaker: nothing found")
 	}
 	x.s = s
-	x.m = interval{
+	x.ivals = append(x.ivals, interval{
 		new(big.Int).Set(x.twoB),
 		new(big.Int).Sub(x.threeB, one),
-	}
+	})
 	return x, nil
 }
 
@@ -271,63 +271,46 @@ func (x *rsaBreaker) findS(sMin, sMax *big.Int) (*big.Int, error) {
 	}
 }
 
-// Values returns a channel that yields successive values in [lo, hi].
-func Values(lo, hi *big.Int) <-chan *big.Int {
-	ch := make(chan *big.Int)
-	z1 := new(big.Int).Set(lo)
-	z2 := new(big.Int).Set(hi)
-	go func() {
-		lo, hi := z1, z2
-		for {
-			if lo.Cmp(hi) > 0 {
-				break
-			}
-			ch <- new(big.Int).Set(lo)
-			lo.Add(lo, one)
-		}
-		close(ch)
-	}()
-	return ch
-}
+func (x *rsaBreaker) intervalRValues(m interval) (*big.Int, *big.Int) {
+	r := new(big.Int).Mul(m.lo, x.s)
+	r.Sub(r, x.threeB)
+	r.Add(r, one)
+	ceilingDiv(r, r, x.n)
 
-func (x *rsaBreaker) intervalRValue() *big.Int {
-	rMin := new(big.Int).Mul(x.m.lo, x.s)
-	rMin.Sub(rMin, x.threeB)
-	rMin.Add(rMin, one)
-	ceilingDiv(rMin, rMin, x.n)
-
-	rMax := new(big.Int).Mul(x.m.hi, x.s)
+	rMax := new(big.Int).Mul(m.hi, x.s)
 	rMax.Sub(rMax, x.twoB)
 	rMax.Div(rMax, x.n)
 
-	if !equal(rMin, rMax) {
-		panic("intervalRValue: multiple r values")
-	}
-	return rMin
+	return r, rMax
 }
 
-func (x *rsaBreaker) generateInterval() {
-	r := x.intervalRValue()
-	lo, hi := new(big.Int), new(big.Int)
+func (x *rsaBreaker) generateIntervals() {
+	var ivals []interval
+	for _, m := range x.ivals {
+		for r, rMax := x.intervalRValues(m); r.Cmp(rMax) <= 0; r.Add(r, one) {
+			lo, hi := new(big.Int), new(big.Int)
 
-	lo.Mul(r, x.n)
-	lo.Add(lo, x.twoB)
-	ceilingDiv(lo, lo, x.s)
-	if lo.Cmp(x.m.lo) < 0 {
-		lo.Set(x.m.lo)
+			lo.Mul(r, x.n)
+			lo.Add(lo, x.twoB)
+			ceilingDiv(lo, lo, x.s)
+			if lo.Cmp(m.lo) < 0 {
+				lo.Set(m.lo)
+			}
+			hi.Mul(r, x.n)
+			hi.Add(hi, x.threeB)
+			hi.Sub(hi, one)
+			hi.Div(hi, x.s)
+			if hi.Cmp(m.hi) > 0 {
+				hi.Set(m.hi)
+			}
+			ivals = append(ivals, interval{lo, hi})
+		}
 	}
-	hi.Mul(r, x.n)
-	hi.Add(hi, x.threeB)
-	hi.Sub(hi, one)
-	hi.Div(hi, x.s)
-	if hi.Cmp(x.m.hi) > 0 {
-		hi.Set(x.m.hi)
-	}
-	x.m = interval{lo, hi}
+	x.ivals = ivals
 }
 
-func (x *rsaBreaker) searchOne() error {
-	r := new(big.Int).Mul(x.m.hi, x.s)
+func (x *rsaBreaker) searchOne(m interval) error {
+	r := new(big.Int).Mul(m.hi, x.s)
 	r.Sub(r, x.twoB)
 	r.Mul(two, r)
 	r.Div(r, x.n)
@@ -336,11 +319,11 @@ func (x *rsaBreaker) searchOne() error {
 	for {
 		sMin.Mul(r, x.n)
 		sMin.Add(sMin, x.twoB)
-		sMin.Div(sMin, x.m.hi)
+		sMin.Div(sMin, m.hi)
 
 		sMax.Mul(r, x.n)
 		sMax.Add(sMax, x.threeB)
-		sMax.Div(sMax, x.m.lo)
+		sMax.Div(sMax, m.lo)
 
 		s, err := x.findS(sMin, sMax)
 		if err != nil {
@@ -353,20 +336,40 @@ func (x *rsaBreaker) searchOne() error {
 	}
 }
 
+func (x *rsaBreaker) searchMany() error {
+	sMin := new(big.Int).Add(x.s, one)
+	s, err := x.findS(sMin, x.n)
+	if err != nil {
+		return err
+	} else if s == nil {
+		return errors.New("searchMany: nothing found")
+	}
+	x.s = s
+	return nil
+}
+
 func (x *rsaBreaker) breakOracle() ([]byte, error) {
 	for {
-		x.generateInterval()
-		if equal(x.m.lo, x.m.hi) {
-			buf := make([]byte, size(x.n))
-			copyRight(buf, x.m.lo.Bytes())
+		x.generateIntervals()
+		switch len(x.ivals) {
+		case 0:
+			return nil, errors.New("breakOracle: no intervals")
+		case 1:
+			m := x.ivals[0]
+			if equal(m.lo, m.hi) {
+				buf := make([]byte, size(x.n))
+				copyRight(buf, m.lo.Bytes())
 
-			plaintext, err := PKCS1v15CryptUnpad(buf)
-			if err != nil {
-				return nil, err
+				plaintext, err := PKCS1v15CryptUnpad(buf)
+				if err != nil {
+					return nil, err
+				}
+				return plaintext, nil
 			}
-			return plaintext, nil
+			x.searchOne(m)
+		default:
+			x.searchMany()
 		}
-		x.searchOne()
 	}
 }
 
