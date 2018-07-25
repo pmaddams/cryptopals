@@ -185,11 +185,13 @@ func RSADecryptPKCS1v15(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return PKCS1v15CryptUnpad(buf)
 }
 
-func rsaPaddingOracle(priv *RSAPrivateKey) func([]byte) error {
-	return func(ciphertext []byte) error {
+func rsaPaddingOracle(priv *RSAPrivateKey) func([]byte) bool {
+	return func(ciphertext []byte) bool {
 		_, err := RSADecryptPKCS1v15(priv, ciphertext)
-
-		return err
+		if err != nil {
+			return false
+		}
+		return true
 	}
 }
 
@@ -199,7 +201,7 @@ type interval struct {
 }
 
 type rsaBreaker struct {
-	oracle func([]byte) error
+	oracle func([]byte) bool
 	e      *big.Int
 	n      *big.Int
 	twoB   *big.Int
@@ -209,7 +211,7 @@ type rsaBreaker struct {
 	m      interval
 }
 
-func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) error, ciphertext []byte) *rsaBreaker {
+func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) bool, ciphertext []byte) *rsaBreaker {
 	x := new(rsaBreaker)
 	x.oracle = oracle
 	x.e = new(big.Int).Set(pub.e)
@@ -229,7 +231,7 @@ func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) error, ciphertext []by
 		cPrime := z.Exp(x.s, x.e, x.n)
 		cPrime.Mul(cPrime, x.c)
 		cPrime.Mod(cPrime, x.n)
-		if err := x.oracle(cPrime.Bytes()); err == nil {
+		if x.oracle(cPrime.Bytes()) {
 			break
 		}
 		x.s.Add(x.s, one)
@@ -333,7 +335,7 @@ func (x *rsaBreaker) searchOne() {
 			cPrime := z.Exp(x.s, x.e, x.n)
 			cPrime.Mul(cPrime, x.c)
 			cPrime.Mod(cPrime, x.n)
-			if err := x.oracle(cPrime.Bytes()); err == nil {
+			if x.oracle(cPrime.Bytes()) {
 				break
 			}
 		}
