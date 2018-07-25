@@ -126,8 +126,8 @@ func RandomBytes(n int) []byte {
 // randomNonzeroBytes returns a random buffer of the desired length containing no zero bytes.
 func randomNonzeroBytes(n int) []byte {
 	buf := RandomBytes(n)
-	for i, b := range buf {
-		for b == 0 {
+	for i := range buf {
+		for buf[i] == 0 {
 			buf[i] = RandomBytes(1)[0]
 		}
 	}
