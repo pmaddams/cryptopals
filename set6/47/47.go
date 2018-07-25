@@ -235,7 +235,7 @@ func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) bool, ciphertext []byt
 	x.twoB = new(big.Int).Mul(two, b)
 	x.threeB = new(big.Int).Mul(three, b)
 
-	sMin := ceilingDiv(z, x.n, x.threeB)
+	sMin := z.Div(x.n, x.threeB)
 	s, err := x.findS(sMin, x.n)
 	if err != nil {
 		return nil, err
@@ -329,13 +329,13 @@ func (x *rsaBreaker) searchOne() error {
 	r := new(big.Int).Mul(x.m.hi, x.s)
 	r.Sub(r, x.twoB)
 	r.Mul(two, r)
-	ceilingDiv(r, r, x.n)
+	r.Div(r, x.n)
 
 	sMin, sMax := new(big.Int), new(big.Int)
 	for {
 		sMin.Mul(r, x.n)
 		sMin.Add(sMin, x.twoB)
-		ceilingDiv(sMin, sMin, x.m.hi)
+		sMin.Div(sMin, x.m.hi)
 
 		sMax.Mul(r, x.n)
 		sMax.Add(sMax, x.threeB)
@@ -352,11 +352,18 @@ func (x *rsaBreaker) searchOne() error {
 	}
 }
 
-func (x *rsaBreaker) breakOracle() []byte {
+func (x *rsaBreaker) breakOracle() ([]byte, error) {
 	for {
 		x.generateInterval()
 		if equal(x.m.lo, x.m.hi) {
-			return x.m.lo.Bytes()
+			buf := make([]byte, size(x.n))
+			copyRight(buf, x.m.lo.Bytes())
+
+			plaintext, err := PKCS1v15CryptUnpad(buf)
+			if err != nil {
+				return nil, err
+			}
+			return plaintext, nil
 		}
 		x.searchOne()
 	}
@@ -379,7 +386,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	plaintext := x.breakOracle()
-
+	plaintext, err := x.breakOracle()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 	fmt.Println(string(plaintext))
 }
