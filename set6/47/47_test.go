@@ -2,38 +2,40 @@ package main
 
 import (
 	"math/big"
-	"reflect"
+	weak "math/rand"
 	"testing"
+	"time"
 )
 
-func TestValues(t *testing.T) {
-	cases := []struct {
-		ch   <-chan *big.Int
-		want []*big.Int
-	}{
-		{
-			Values(zero, one),
-			[]*big.Int{zero, one},
-		},
-		{
-			Values(zero, two),
-			[]*big.Int{zero, one, two},
-		},
-		{
-			Values(zero, three),
-			[]*big.Int{zero, one, two, three},
-		},
-	}
-	for _, c := range cases {
-		got := func(ch <-chan *big.Int) []*big.Int {
-			var res []*big.Int
-			for z := range ch {
-				res = append(res, z)
-			}
-			return res
-		}(c.ch)
-		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("got %v, want %v", got, c.want)
+func init() { weak.Seed(time.Now().UnixNano()) }
+
+func TestRSA(t *testing.T) {
+	const (
+		exponent = 3
+		bits     = 256
+	)
+	buf := make([]byte, 16)
+	for i := 0; i < 5; i++ {
+		priv, err := RSAGenerateKey(exponent, bits)
+		if err != nil {
+			t.Error(err)
+		}
+		if n := priv.n.BitLen(); n != bits {
+			t.Errorf("got bit size %v, want %v", n, bits)
+		}
+		weak.Read(buf)
+		ciphertext, err := RSAEncrypt(priv.Public(), buf)
+		if err != nil {
+			t.Error(err)
+		}
+		plaintext, err := RSADecrypt(priv, ciphertext)
+		if err != nil {
+			t.Error(err)
+		}
+		want := new(big.Int).SetBytes(buf)
+		got := new(big.Int).SetBytes(plaintext)
+		if !equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }

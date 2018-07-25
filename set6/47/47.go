@@ -1,81 +1,28 @@
 package main
 
 import (
-	"bufio"
 	"crypto/rand"
-	"crypto/rsa"
-	"fmt"
-	"io"
+	"errors"
 	"math/big"
-	"os"
 )
 
-var (
-	zero  = big.NewInt(0)
-	one   = big.NewInt(1)
-	two   = big.NewInt(2)
-	three = big.NewInt(3)
+const (
+	rsaDefaultE    = 65537
+	rsaDefaultBits = 2048
 )
 
-func rsaPaddingOracle(priv *rsa.PrivateKey) func([]byte) error {
-	return func(ciphertext []byte) error {
-		_, err := rsa.DecryptPKCS1v15(nil, priv, ciphertext)
+var one = big.NewInt(1)
 
-		return err
-	}
+// RSAPublicKey represents the public part of an RSA key pair.
+type RSAPublicKey struct {
+	n *big.Int
+	e *big.Int
 }
 
-type interval struct {
-	lo *big.Int
-	hi *big.Int
-}
-
-type rsaBreaker struct {
-	oracle func([]byte) error
-	e      *big.Int
-	n      *big.Int
-	twoB   *big.Int
-	threeB *big.Int
-	c      *big.Int
-	s      *big.Int
-	ivals  []interval
-}
-
-// size returns the size of an arbitrary-precision integer in bytes.
-func size(z *big.Int) int {
-	return (z.BitLen() + 7) / 8
-}
-
-func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) error, ciphertext []byte) *rsaBreaker {
-	x := new(rsaBreaker)
-	x.oracle = oracle
-	x.e = big.NewInt(int64(pub.E))
-	x.n = new(big.Int).Set(pub.N)
-
-	z := big.NewInt(int64(8 * (size(x.n) - 2)))
-	b := z.Exp(two, z, nil)
-	x.twoB = new(big.Int).Mul(two, b)
-	x.threeB = new(big.Int).Mul(three, b)
-
-	x.c = new(big.Int).SetBytes(ciphertext)
-	x.s, z = new(big.Int).DivMod(x.n, x.threeB, z)
-	if !equal(z, zero) {
-		x.s.Add(x.s, one)
-	}
-	for {
-		cPrime := z.Exp(x.s, x.e, x.n)
-		cPrime.Mul(cPrime, x.c)
-		cPrime.Mod(cPrime, x.n)
-		if err := x.oracle(cPrime.Bytes()); err == nil {
-			break
-		}
-		x.s.Add(x.s, one)
-	}
-	x.ivals = append(x.ivals, interval{
-		new(big.Int).Set(x.twoB),
-		new(big.Int).Sub(x.threeB, one),
-	})
-	return x
+// RSAPrivateKey represents an RSA key pair.
+type RSAPrivateKey struct {
+	RSAPublicKey
+	d *big.Int
 }
 
 // equal returns true if two arbitrary-precision integers are equal.
@@ -83,173 +30,86 @@ func equal(z1, z2 *big.Int) bool {
 	return z1.Cmp(z2) == 0
 }
 
-// Values returns a channel that yields successive values in [lo, hi].
-func Values(lo, hi *big.Int) <-chan *big.Int {
-	ch := make(chan *big.Int)
-	z1 := new(big.Int).Set(lo)
-	z2 := new(big.Int).Set(hi)
-	go func() {
-		lo, hi := z1, z2
-		for {
-			if lo.Cmp(hi) > 0 {
-				break
-			}
-			ch <- new(big.Int).Set(lo)
-			lo.Add(lo, one)
-		}
-		close(ch)
-	}()
-	return ch
+// RSAGenerateKey generates a private key.
+func RSAGenerateKey(exponent, bits int) (*RSAPrivateKey, error) {
+	e := big.NewInt(int64(exponent))
+	if exponent < 3 || !e.ProbablyPrime(0) {
+		return nil, errors.New("RSAGenerateKey: invalid exponent")
+	}
+Retry:
+	p, err := rand.Prime(rand.Reader, bits/2)
+	if err != nil {
+		return nil, err
+	}
+	q, err := rand.Prime(rand.Reader, bits/2)
+	if err != nil {
+		return nil, err
+	}
+	if equal(p, q) {
+		goto Retry
+	}
+	pMinusOne := new(big.Int).Sub(p, one)
+	qMinusOne := new(big.Int).Sub(q, one)
+	totient := pMinusOne.Mul(pMinusOne, qMinusOne)
+	d := new(big.Int)
+	if gcd := new(big.Int).GCD(d, nil, e, totient); !equal(gcd, one) {
+		goto Retry
+	}
+	if d.Sign() < 0 {
+		d.Add(d, totient)
+	}
+	return &RSAPrivateKey{
+		RSAPublicKey{
+			n: p.Mul(p, q),
+			e: e,
+		},
+		d,
+	}, nil
 }
 
-func (x *rsaBreaker) intervalRValues(m interval) <-chan *big.Int {
-	lo := new(big.Int).Mul(m.lo, x.s)
-	lo.Sub(lo, x.threeB)
-	lo.Add(lo, one)
-	z := new(big.Int)
-	lo.DivMod(lo, x.n, z)
-	if !equal(z, zero) {
-		lo.Add(lo, one)
-	}
-	hi := new(big.Int).Mul(m.hi, x.s)
-	hi.Sub(hi, x.twoB)
-	hi.Div(hi, x.n)
-
-	return Values(lo, hi)
+// Public returns a public key.
+func (priv *RSAPrivateKey) Public() *RSAPublicKey {
+	return &priv.RSAPublicKey
 }
 
-func (x *rsaBreaker) generateIntervals() {
-	ivals := []interval{}
-	lo, hi, z := new(big.Int), new(big.Int), new(big.Int)
-	for _, m := range x.ivals {
-		for r := range x.intervalRValues(m) {
-			lo.Mul(r, x.n)
-			lo.Add(lo, x.twoB)
-			lo.DivMod(lo, x.s, z)
-			if !equal(z, zero) {
-				lo.Add(lo, one)
-			}
-			if lo.Cmp(m.lo) < 0 {
-				lo.Set(m.lo)
-			}
-			hi.Mul(r, x.n)
-			hi.Add(hi, x.threeB)
-			hi.Sub(hi, one)
-			hi.Div(hi, x.s)
-			if hi.Cmp(m.hi) > 0 {
-				hi.Set(m.hi)
-			}
-			ivals = append(ivals, interval{
-				new(big.Int).Set(lo),
-				new(big.Int).Set(hi),
-			})
-		}
-	}
-	x.ivals = ivals
+// size returns the size of an arbitrary-precision integer in bytes.
+func size(z *big.Int) int {
+	return (z.BitLen() + 7) / 8
 }
 
-func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
-	lo := new(big.Int).Mul(hi, x.s)
-	lo.Sub(lo, x.twoB)
-	lo.Mul(two, lo)
-	z := new(big.Int)
-	lo.DivMod(lo, x.n, z)
-	if !equal(z, zero) {
-		lo.Add(lo, one)
-	}
-	return Values(lo, x.n)
+// copyRight copies a source buffer to the right side of a destination buffer.
+func copyRight(dst, src []byte) {
+	dst = dst[len(dst)-len(src):]
+	copy(dst, src)
 }
 
-func (x *rsaBreaker) searchOne() {
-	m := x.ivals[0]
-	lo, hi, z := new(big.Int), new(big.Int), new(big.Int)
-	for r := range x.searchOneRValues(m.hi) {
-		lo.Mul(r, x.n)
-		lo.Add(lo, x.twoB)
-		lo.DivMod(lo, m.hi, z)
-		if !equal(z, zero) {
-			lo.Add(lo, one)
-		}
-		hi.Mul(r, x.n)
-		hi.Add(hi, x.threeB)
-		hi.Div(hi, m.lo)
-		for x.s = range Values(lo, hi) {
-			cPrime := z.Exp(x.s, x.e, x.n)
-			cPrime.Mul(cPrime, x.c)
-			cPrime.Mod(cPrime, x.n)
-			if err := x.oracle(cPrime.Bytes()); err == nil {
-				break
-			}
-		}
+// RSAEncrypt takes an encrypted buffer and returns a decrypted buffer.
+func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
+	z := new(big.Int).SetBytes(buf)
+	if z.Cmp(pub.n) > 0 {
+		return nil, errors.New("RSAEncrypt: buffer too large")
 	}
+	z.Exp(z, pub.e, pub.n)
+
+	res := make([]byte, size(pub.n))
+	copyRight(res, z.Bytes())
+
+	return res, nil
 }
 
-func (x *rsaBreaker) searchMany() {
-	cPrime := new(big.Int)
-	for {
-		x.s.Add(x.s, one)
-		cPrime.Exp(x.s, x.e, x.n)
-		cPrime.Mul(cPrime, x.c)
-		cPrime.Mod(cPrime, x.n)
-		if err := x.oracle(cPrime.Bytes()); err == nil {
-			break
-		}
+// RSADecrypt takes a decrypted buffer and returns an encrypted buffer.
+func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
+	z := new(big.Int).SetBytes(buf)
+	if z.Cmp(priv.n) > 0 {
+		return nil, errors.New("RSADecrypt: buffer too large")
 	}
-}
+	z.Exp(z, priv.d, priv.n)
 
-func (x *rsaBreaker) breakOracle() []byte {
-	for {
-		x.generateIntervals()
-		if len(x.ivals) == 1 {
-			if m := x.ivals[0]; equal(m.lo, m.hi) {
-				return m.lo.Bytes()
-			}
-			x.searchOne()
-		}
-		x.searchMany()
-	}
-}
+	res := make([]byte, size(priv.n))
+	copyRight(res, z.Bytes())
 
-func breakRSA(in io.Reader, pub *rsa.PublicKey, oracle func([]byte) error) error {
-	input := bufio.NewScanner(in)
-	for input.Scan() {
-		ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, pub, input.Bytes())
-		if err != nil {
-			return err
-		}
-		x := newRSABreaker(pub, oracle, ciphertext)
-		plaintext := x.breakOracle()
-
-		fmt.Println(string(plaintext))
-	}
-	return input.Err()
+	return res, nil
 }
 
 func main() {
-	priv, err := rsa.GenerateKey(rand.Reader, 256)
-	if err != nil {
-		panic(err)
-	}
-	pub := &priv.PublicKey
-	oracle := rsaPaddingOracle(priv)
-
-	files := os.Args[1:]
-	// If no files are specified, read from standard input.
-	if len(files) == 0 {
-		if err := breakRSA(os.Stdin, pub, oracle); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		return
-	}
-	for _, name := range files {
-		f, err := os.Open(name)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		if err := breakRSA(f, pub, oracle); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		f.Close()
-	}
 }
