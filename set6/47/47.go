@@ -290,19 +290,19 @@ func Values(lo, hi *big.Int) <-chan *big.Int {
 }
 
 func (x *rsaBreaker) intervalRValue(m interval) *big.Int {
-	lo := new(big.Int).Mul(m.lo, x.s)
-	lo.Sub(lo, x.threeB)
-	lo.Add(lo, one)
-	ceilingDiv(lo, lo, x.n)
+	rMin := new(big.Int).Mul(m.lo, x.s)
+	rMin.Sub(rMin, x.threeB)
+	rMin.Add(rMin, one)
+	ceilingDiv(rMin, rMin, x.n)
 
-	hi := new(big.Int).Mul(m.hi, x.s)
-	hi.Sub(hi, x.twoB)
-	hi.Div(hi, x.n)
+	rMax := new(big.Int).Mul(m.hi, x.s)
+	rMax.Sub(rMax, x.twoB)
+	rMax.Div(rMax, x.n)
 
-	if !equal(lo, hi) {
+	if !equal(rMin, rMax) {
 		panic("intervalRValue: multiple r values")
 	}
-	return lo
+	return rMin
 }
 
 func (x *rsaBreaker) generateInterval() {
