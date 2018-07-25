@@ -211,6 +211,16 @@ type rsaBreaker struct {
 	m      interval
 }
 
+// ceilingDiv performs ceiling division of z1 by z2.
+func ceilingDiv(res, z1, z2 *big.Int) *big.Int {
+	tmp := new(big.Int)
+	res.DivMod(z1, z2, tmp)
+	if !equal(tmp, zero) {
+		res.Add(res, one)
+	}
+	return res
+}
+
 func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) bool, ciphertext []byte) *rsaBreaker {
 	x := new(rsaBreaker)
 	x.oracle = oracle
@@ -223,10 +233,7 @@ func newRSABreaker(pub *RSAPublicKey, oracle func([]byte) bool, ciphertext []byt
 	x.threeB = new(big.Int).Mul(three, b)
 
 	x.c = new(big.Int).SetBytes(ciphertext)
-	x.s, z = new(big.Int).DivMod(x.n, x.threeB, z)
-	if !equal(z, zero) {
-		x.s.Add(x.s, one)
-	}
+	x.s = ceilingDiv(new(big.Int), x.n, x.threeB)
 	for {
 		cPrime := z.Exp(x.s, x.e, x.n)
 		cPrime.Mul(cPrime, x.c)
@@ -266,11 +273,8 @@ func (x *rsaBreaker) intervalRValue(m interval) *big.Int {
 	lo := new(big.Int).Mul(m.lo, x.s)
 	lo.Sub(lo, x.threeB)
 	lo.Add(lo, one)
-	z := new(big.Int)
-	lo.DivMod(lo, x.n, z)
-	if !equal(z, zero) {
-		lo.Add(lo, one)
-	}
+	ceilingDiv(lo, lo, x.n)
+
 	hi := new(big.Int).Mul(m.hi, x.s)
 	hi.Sub(hi, x.twoB)
 	hi.Div(hi, x.n)
@@ -283,14 +287,11 @@ func (x *rsaBreaker) intervalRValue(m interval) *big.Int {
 
 func (x *rsaBreaker) generateInterval() {
 	r := x.intervalRValue(x.m)
-	lo, hi, z := new(big.Int), new(big.Int), new(big.Int)
+	lo, hi := new(big.Int), new(big.Int)
 
 	lo.Mul(r, x.n)
 	lo.Add(lo, x.twoB)
-	lo.DivMod(lo, x.s, z)
-	if !equal(z, zero) {
-		lo.Add(lo, one)
-	}
+	ceilingDiv(lo, lo, x.s)
 	if lo.Cmp(x.m.lo) < 0 {
 		lo.Set(x.m.lo)
 	}
@@ -311,11 +312,8 @@ func (x *rsaBreaker) searchOneRValues(hi *big.Int) <-chan *big.Int {
 	lo := new(big.Int).Mul(hi, x.s)
 	lo.Sub(lo, x.twoB)
 	lo.Mul(two, lo)
-	z := new(big.Int)
-	lo.DivMod(lo, x.n, z)
-	if !equal(z, zero) {
-		lo.Add(lo, one)
-	}
+	ceilingDiv(lo, lo, x.n)
+
 	return Values(lo, x.n)
 }
 
@@ -324,10 +322,8 @@ func (x *rsaBreaker) searchOne() {
 	for r := range x.searchOneRValues(x.m.hi) {
 		lo.Mul(r, x.n)
 		lo.Add(lo, x.twoB)
-		lo.DivMod(lo, x.m.hi, z)
-		if !equal(z, zero) {
-			lo.Add(lo, one)
-		}
+		ceilingDiv(lo, lo, x.m.hi)
+
 		hi.Mul(r, x.n)
 		hi.Add(hi, x.threeB)
 		hi.Div(hi, x.m.lo)
