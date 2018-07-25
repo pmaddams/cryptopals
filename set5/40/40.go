@@ -80,10 +80,11 @@ func size(z *big.Int) int {
 	return (z.BitLen() + 7) / 8
 }
 
-// copyRight copies a source buffer to the right side of a destination buffer.
-func copyRight(dst, src []byte) {
+// copyRight copies a source buffer to the right of a destination buffer.
+func copyRight(dst, src []byte) int {
 	dst = dst[len(dst)-len(src):]
-	copy(dst, src)
+
+	return copy(dst, src)
 }
 
 // RSAEncrypt takes a public key and plaintext, and returns ciphertext.
