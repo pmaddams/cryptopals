@@ -123,18 +123,18 @@ func RandomBytes(n int) []byte {
 	return buf
 }
 
-// RandomNonzeroBytes returns a random buffer of the desired length containing no zero bytes.
-func RandomNonzeroBytes(n int) []byte {
+// randomNonzeroBytes returns a random buffer of the desired length containing no zero bytes.
+func randomNonzeroBytes(n int) []byte {
 	buf := RandomBytes(n)
 	for i, b := range buf {
-		if b == 0 {
-			buf[i]++
+		for b == 0 {
+			buf[i] = RandomBytes(1)[0]
 		}
 	}
 	return buf
 }
 
-// PKCS1v15CryptPad returns a checksum with PKCS #1 v1.5 signature padding added.
+// PKCS1v15CryptPad returns a checksum with PKCS #1 v1.5 encryption padding added.
 func PKCS1v15CryptPad(buf []byte, size int) ([]byte, error) {
 	if len(buf)+11 > size {
 		return nil, errors.New("PKCS1v15CryptPad: buffer too large")
@@ -142,13 +142,13 @@ func PKCS1v15CryptPad(buf []byte, size int) ([]byte, error) {
 	n := size - len(buf) - 3
 
 	buf = append([]byte{0x00}, buf...)
-	buf = append(RandomNonzeroBytes(n), buf...)
+	buf = append(randomNonzeroBytes(n), buf...)
 	buf = append([]byte{0x00, 0x02}, buf...)
 
 	return buf, nil
 }
 
-// PKCS1v15CryptUnpad returns a checksum with PKCS #1 v1.5 signature padding removed.
+// PKCS1v15CryptUnpad returns a checksum with PKCS #1 v1.5 encryption padding removed.
 func PKCS1v15CryptUnpad(buf []byte) ([]byte, error) {
 	errInvalidPadding := errors.New("PKCS1v15CryptUnpad: invalid padding")
 	if buf[0] != 0x00 {
