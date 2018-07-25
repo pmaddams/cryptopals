@@ -188,11 +188,11 @@ func RSADecryptPKCS1v15(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 
 func rsaPaddingOracle(priv *RSAPrivateKey) func([]byte) bool {
 	return func(ciphertext []byte) bool {
-		_, err := RSADecryptPKCS1v15(priv, ciphertext)
+		buf, err := RSADecrypt(priv, ciphertext)
 		if err != nil {
-			return false
+			panic(err)
 		}
-		return true
+		return buf[0] == 0x00 && buf[1] == 0x02
 	}
 }
 
