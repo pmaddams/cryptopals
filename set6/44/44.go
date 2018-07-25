@@ -150,8 +150,8 @@ func possibleK(pair messagePair, pub *dsa.PublicKey) *big.Int {
 	return k
 }
 
-// maybeBreakDSA returns either nil or the private key used to sign a checksum.
-func maybeBreakDSA(pub *dsa.PublicKey, msg *message, k *big.Int) *dsa.PrivateKey {
+// tryBreakDSA returns either nil or the private key used to sign a checksum.
+func tryBreakDSA(pub *dsa.PublicKey, msg *message, k *big.Int) *dsa.PrivateKey {
 	z1 := new(big.Int).Mul(msg.s, k)
 	z1.Sub(z1, msg.m)
 	z2 := new(big.Int).ModInverse(msg.r, pub.Q)
@@ -211,8 +211,7 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 	}
 	for pair := range messagePairs(msgs) {
 		k := possibleK(pair, pub)
-		priv := maybeBreakDSA(pub, pair.fst, k)
-		if priv != nil {
+		if tryBreakDSA(pub, pair.fst, k) != nil {
 			fmt.Println("success")
 			return
 		}
