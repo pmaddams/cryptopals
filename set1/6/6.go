@@ -57,8 +57,8 @@ func NormalizedDistance(buf []byte, blockSize int) (float64, error) {
 	return f, nil
 }
 
-// findKeySize returns the probable key size of a buffer encrypted with repeating XOR.
-func findKeySize(buf []byte) (int, error) {
+// keySize returns the probable key size of a buffer encrypted with repeating XOR.
+func keySize(buf []byte) (int, error) {
 	// Guess lower and upper bounds.
 	const (
 		lower = 2
@@ -155,19 +155,19 @@ func Lengths(bufs [][]byte) []int {
 	return nums
 }
 
-// Transpose takes a slice of equal-length buffers and returns
-// a slice of new buffers with the rows and columns swapped.
+// Transpose takes equal-length buffers and returns them with the rows and columns swapped.
 func Transpose(bufs [][]byte) ([][]byte, error) {
 	nums := Lengths(bufs)
 	if len(nums) == 0 {
 		return nil, errors.New("Transpose: no data")
 	}
-	for _, n := range nums[1:] {
-		if n != nums[0] {
-			return nil, errors.New("Transpose: buffers must have equal length")
+	n := nums[0]
+	for i := range nums[1:] {
+		if nums[i] != n {
+			return nil, errors.New("Transpose: buffers must have equal lengths")
 		}
 	}
-	res := make([][]byte, nums[0])
+	res := make([][]byte, n)
 	for i := range res {
 		res[i] = make([]byte, len(bufs))
 		for j := range res[i] {
@@ -179,25 +179,27 @@ func Transpose(bufs [][]byte) ([][]byte, error) {
 
 // breakXOR returns the key used to encrypt a buffer with repeating XOR.
 func breakXOR(buf []byte, score func([]byte) int) ([]byte, error) {
-	keySize, err := findKeySize(buf)
+	blockSize, err := keySize(buf)
 	if err != nil {
 		return nil, err
 	}
-	blocks, err := Transpose(Blocks(buf, keySize))
+	bufs, err := Transpose(Blocks(buf, blockSize))
 	if err != nil {
 		return nil, err
 	}
-	key := make([]byte, keySize)
-	var wg sync.WaitGroup
+	key := make([]byte, blockSize)
 
-	for i := range blocks {
+	var wg sync.WaitGroup
+	for i := range bufs {
 		wg.Add(1)
+		// Capture the value of the loop variable.
 		go func(i int) {
-			key[i] = breakSingleXOR(blocks[i], score)
+			key[i] = breakSingleXOR(bufs[i], score)
 			wg.Done()
 		}(i)
 	}
 	wg.Wait()
+
 	return key, nil
 }
 
