@@ -16,24 +16,19 @@ import (
 const secret = "YELLOW SUBMARINE"
 
 // ecbDecrypter represents an ECB decryption block mode.
-type ecbDecrypter struct{ c cipher.Block }
+type ecbDecrypter struct{ cipher.Block }
 
-// NewECBDecrypter returns a block mode for ECB Decryption.
+// NewECBDecrypter returns a block mode for ECB decryption.
 func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
 	return ecbDecrypter{c}
 }
 
-// BlockSize returns the cipher block size.
-func (mode ecbDecrypter) BlockSize() int {
-	return mode.c.BlockSize()
-}
-
 // CryptBlocks decrypts a buffer in ECB mode.
-func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
+func (x ecbDecrypter) CryptBlocks(dst, src []byte) {
 	// The src buffer length must be a multiple of the block size,
 	// and the dst buffer must be at least the length of src.
-	for n := mode.BlockSize(); len(src) > 0; {
-		mode.c.Decrypt(dst[:n], src[:n])
+	for n := x.BlockSize(); len(src) > 0; {
+		x.Decrypt(dst[:n], src[:n])
 		dst = dst[n:]
 		src = src[n:]
 	}
@@ -78,8 +73,8 @@ func decryptECB(in io.Reader) ([]byte, error) {
 	return buf, nil
 }
 
-// CTREditor permits random-access CTR editing.
-type CTREditor struct {
+// ctrEditor permits random-access CTR editing.
+type ctrEditor struct {
 	c          cipher.Block
 	iv         []byte
 	ciphertext []byte
@@ -94,8 +89,8 @@ func RandomBytes(n int) []byte {
 	return buf
 }
 
-// NewCTREditor takes a buffer and creates a CTR editor with a random key.
-func NewCTREditor(buf []byte) (*CTREditor, error) {
+// newCTREditor takes a buffer and creates a CTR editor with a random key.
+func newCTREditor(buf []byte) (*ctrEditor, error) {
 	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		return nil, err
@@ -104,43 +99,43 @@ func NewCTREditor(buf []byte) (*CTREditor, error) {
 	stream := cipher.NewCTR(c, iv)
 	stream.XORKeyStream(buf, buf)
 
-	return &CTREditor{c, iv, buf}, nil
+	return &ctrEditor{c, iv, buf}, nil
 }
 
-// Edit takes new plaintext and an offset, and edits the ciphertext.
-func (e *CTREditor) Edit(plaintext []byte, offset int) error {
-	if offset < 0 || offset > len(e.ciphertext) {
-		return errors.New("Edit: invalid offset")
+// edit takes new plaintext and an offset, and edits the ciphertext.
+func (x *ctrEditor) edit(plaintext []byte, offset int) error {
+	if offset < 0 || offset > len(x.ciphertext) {
+		return errors.New("edit: invalid offset")
 	}
 	// Decrypt before copying the new data.
-	stream := cipher.NewCTR(e.c, e.iv)
-	stream.XORKeyStream(e.ciphertext, e.ciphertext)
+	stream := cipher.NewCTR(x.c, x.iv)
+	stream.XORKeyStream(x.ciphertext, x.ciphertext)
 
-	if len(e.ciphertext) < offset+len(plaintext) {
-		e.ciphertext = append(e.ciphertext[:offset], plaintext...)
+	if len(x.ciphertext) < offset+len(plaintext) {
+		x.ciphertext = append(x.ciphertext[:offset], plaintext...)
 	} else {
-		copy(e.ciphertext[offset:], plaintext)
+		copy(x.ciphertext[offset:], plaintext)
 	}
-	target := e.ciphertext[offset : offset+len(plaintext)]
+	target := x.ciphertext[offset : offset+len(plaintext)]
 
 	// Regenerate the stream cipher.
-	stream = cipher.NewCTR(e.c, e.iv)
+	stream = cipher.NewCTR(x.c, x.iv)
 	stream.XORKeyStream(target, target)
 	return nil
 }
 
-// Show returns a read-only copy of the ciphertext.
-func (e *CTREditor) Show() []byte {
-	return append([]byte{}, e.ciphertext...)
+// show returns a read-only copy of the ciphertext.
+func (x *ctrEditor) show() []byte {
+	return append([]byte{}, x.ciphertext...)
 }
 
 // breakCTR decrypts and returns the ciphertext.
-func breakCTR(e *CTREditor) ([]byte, error) {
-	ciphertext := e.Show()
-	if err := e.Edit(ciphertext, 0); err != nil {
+func breakCTR(x *ctrEditor) ([]byte, error) {
+	ciphertext := x.show()
+	if err := x.edit(ciphertext, 0); err != nil {
 		return nil, err
 	}
-	return e.Show(), nil
+	return x.show(), nil
 }
 
 // decryptCTR generates a CTR editor from base64-encoded,
@@ -150,11 +145,11 @@ func decryptCTR(in io.Reader) error {
 	if err != nil {
 		return err
 	}
-	e, err := NewCTREditor(buf)
+	x, err := newCTREditor(buf)
 	if err != nil {
 		return err
 	}
-	buf, err = breakCTR(e)
+	buf, err = breakCTR(x)
 	if err != nil {
 		return err
 	}

@@ -34,13 +34,8 @@ func XORBytes(dst, b1, b2 []byte) int {
 
 // cbc represents a generic CBC block mode.
 type cbc struct {
-	c  cipher.Block
+	cipher.Block
 	iv []byte
-}
-
-// BlockSize returns the cipher block size.
-func (x cbc) BlockSize() int {
-	return x.c.BlockSize()
 }
 
 // cbcEncrypter represents a CBC encryption block mode.
@@ -60,13 +55,13 @@ func NewCBCEncrypter(c cipher.Block, iv []byte) cipher.BlockMode {
 }
 
 // cbcEncrypter.CryptBlocks encrypts a buffer in CBC mode.
-func (mode cbcEncrypter) CryptBlocks(dst, src []byte) {
+func (x cbcEncrypter) CryptBlocks(dst, src []byte) {
 	// The src buffer length must be a multiple of the block size,
 	// and the dst buffer must be at least the length of src.
-	for n := mode.BlockSize(); len(src) > 0; {
-		XORBytes(dst, src, mode.iv)
-		mode.c.Encrypt(dst[:n], src[:n])
-		copy(mode.iv, dst[:n])
+	for n := x.BlockSize(); len(src) > 0; {
+		XORBytes(dst, src, x.iv)
+		x.Encrypt(dst[:n], src[:n])
+		copy(x.iv, dst[:n])
 		dst, src = dst[n:], src[n:]
 	}
 }
@@ -83,8 +78,8 @@ func NewCBCDecrypter(c cipher.Block, iv []byte) cipher.BlockMode {
 }
 
 // cbcDecrypter.CryptBlocks decrypts a buffer in CBC mode.
-func (mode cbcDecrypter) CryptBlocks(dst, src []byte) {
-	n := mode.BlockSize()
+func (x cbcDecrypter) CryptBlocks(dst, src []byte) {
+	n := x.BlockSize()
 	tmp := make([]byte, n)
 
 	// The src buffer length must be a multiple of the block size,
@@ -92,9 +87,9 @@ func (mode cbcDecrypter) CryptBlocks(dst, src []byte) {
 	for len(src) > 0 {
 		// Save the ciphertext as the new initialization vector.
 		copy(tmp, src[:n])
-		mode.c.Decrypt(dst[:n], src[:n])
-		XORBytes(dst, dst, mode.iv)
-		copy(mode.iv, tmp)
+		x.Decrypt(dst[:n], src[:n])
+		XORBytes(dst, dst, x.iv)
+		copy(x.iv, tmp)
 		dst, src = dst[n:], src[n:]
 	}
 }

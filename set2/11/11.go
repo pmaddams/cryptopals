@@ -13,24 +13,19 @@ import (
 func init() { weak.Seed(time.Now().UnixNano()) }
 
 // ecbEncrypter represents an ECB encryption block mode.
-type ecbEncrypter struct{ c cipher.Block }
+type ecbEncrypter struct{ cipher.Block }
 
 // NewECBEncrypter returns a block mode for ECB encryption.
 func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
 	return ecbEncrypter{c}
 }
 
-// BlockSize returns the cipher block size.
-func (mode ecbEncrypter) BlockSize() int {
-	return mode.c.BlockSize()
-}
-
 // CryptBlocks encrypts a buffer in ECB mode.
-func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
+func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
 	// The src buffer length must be a multiple of the block size,
 	// and the dst buffer must be at least the length of src.
-	for n := mode.BlockSize(); len(src) > 0; {
-		mode.c.Encrypt(dst[:n], src[:n])
+	for n := x.BlockSize(); len(src) > 0; {
+		x.Encrypt(dst[:n], src[:n])
 		dst = dst[n:]
 		src = src[n:]
 	}

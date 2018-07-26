@@ -34,7 +34,7 @@ func Uint64sToBytes(nums []uint64) []byte {
 
 // ctr represents a CTR mode stream cipher.
 type ctr struct {
-	c   cipher.Block
+	cipher.Block
 	ctr []uint64
 	pos int
 }
@@ -44,35 +44,35 @@ func NewCTR(c cipher.Block, iv []byte) cipher.Stream {
 	if c.BlockSize() != len(iv) {
 		panic("NewCTR: initialization vector length must equal block size")
 	}
-	return ctr{c, BytesToUint64s(iv), 0}
+	return &ctr{c, BytesToUint64s(iv), 0}
 }
 
 // inc increments the counter.
-func (stream ctr) inc() {
-	for i := len(stream.ctr) - 1; i >= 0; i-- {
-		stream.ctr[i]++
-		if stream.ctr[i] != 0 {
+func (x *ctr) inc() {
+	for i := len(x.ctr) - 1; i >= 0; i-- {
+		x.ctr[i]++
+		if x.ctr[i] != 0 {
 			break
 		}
 	}
 }
 
 // XORKeyStream encrypts a buffer with the CTR keystream.
-func (stream ctr) XORKeyStream(dst, src []byte) {
+func (x *ctr) XORKeyStream(dst, src []byte) {
 	for {
-		tmp := make([]byte, stream.c.BlockSize())
-		stream.c.Encrypt(tmp, Uint64sToBytes(stream.ctr))
+		tmp := make([]byte, x.BlockSize())
+		x.Encrypt(tmp, Uint64sToBytes(x.ctr))
 
 		// Panic if dst is smaller than src.
-		for len(src) > 0 && stream.pos < stream.c.BlockSize() {
-			dst[0] = src[0] ^ tmp[stream.pos]
+		for len(src) > 0 && x.pos < x.BlockSize() {
+			dst[0] = src[0] ^ tmp[x.pos]
 			dst = dst[1:]
 			src = src[1:]
-			stream.pos++
+			x.pos++
 		}
-		if stream.pos == stream.c.BlockSize() {
-			stream.pos = 0
-			stream.inc()
+		if x.pos == x.BlockSize() {
+			x.pos = 0
+			x.inc()
 		} else {
 			break
 		}

@@ -16,12 +16,7 @@ import (
 const secret = "YELLOW SUBMARINE"
 
 // ecb represents a generic ECB block mode.
-type ecb struct{ c cipher.Block }
-
-// BlockSize returns the cipher block size.
-func (x ecb) BlockSize() int {
-	return x.c.BlockSize()
-}
+type ecb struct{ cipher.Block }
 
 // cryptBlocks encrypts or decrypts a buffer in ECB mode.
 func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
@@ -43,8 +38,8 @@ func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
 }
 
 // ecbEncrypter.CryptBlocks encrypts a buffer in ECB mode.
-func (mode ecbEncrypter) CryptBlocks(dst, src []byte) {
-	mode.cryptBlocks(dst, src, mode.c.Encrypt)
+func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
+	x.cryptBlocks(dst, src, x.Encrypt)
 }
 
 // ecbDecrypter represents an ECB decryption block mode.
@@ -56,8 +51,8 @@ func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
 }
 
 // ecbDecrypter.CryptBlocks decrypts a buffer in ECB mode.
-func (mode ecbDecrypter) CryptBlocks(dst, src []byte) {
-	mode.cryptBlocks(dst, src, mode.c.Decrypt)
+func (x ecbDecrypter) CryptBlocks(dst, src []byte) {
+	x.cryptBlocks(dst, src, x.Decrypt)
 }
 
 // dup returns a copy of a buffer.
