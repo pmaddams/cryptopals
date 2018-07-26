@@ -211,19 +211,17 @@ type xorCipher struct {
 
 // NewXORCipher creates a new repeating XOR cipher.
 func NewXORCipher(key []byte) cipher.Stream {
-	return &xorCipher{key, 0}
+	return &xorCipher{key: key}
 }
 
 // XORKeyStream encrypts a buffer with repeating XOR.
-func (stream *xorCipher) XORKeyStream(dst, src []byte) {
+func (x *xorCipher) XORKeyStream(dst, src []byte) {
 	// Panic if dst is smaller than src.
 	for i := range src {
-		dst[i] = src[i] ^ stream.key[stream.pos]
-		stream.pos++
-
-		// At the end of the key, reset position.
-		if stream.pos == len(stream.key) {
-			stream.pos = 0
+		dst[i] = src[i] ^ x.key[x.pos]
+		x.pos++
+		if x.pos == len(x.key) {
+			x.pos = 0
 		}
 	}
 }
