@@ -132,8 +132,8 @@ func breakSingleXOR(buf []byte, score func([]byte) int) byte {
 	// Don't modify the original data.
 	tmp := make([]byte, len(buf))
 	var (
-		best int
 		key  byte
+		best int
 	)
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i <= 0xff; i++ {

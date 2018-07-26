@@ -206,10 +206,10 @@ func breakServer(url string, buf []byte, name string, size int) []byte {
 		for j := 0; j <= 0xff; j++ {
 			res[i] = byte(j)
 			sig := hex.EncodeToString(res)
-			if t, err := timedUpload(url, buf, name, sig); err != nil {
+			if n, err := timedUpload(url, buf, name, sig); err != nil {
 				log.Fatal(err)
-			} else if t > best {
-				best = t
+			} else if n > best {
+				best = n
 				b = byte(j)
 			}
 		}
