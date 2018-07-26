@@ -131,12 +131,12 @@ func (x *ecbBreaker) detectParameters() error {
 }
 
 // Blocks divides a buffer into blocks.
-func Blocks(buf []byte, n int) [][]byte {
+func Blocks(buf []byte, blockSize int) [][]byte {
 	var bufs [][]byte
-	for len(buf) >= n {
+	for len(buf) >= blockSize {
 		// Return pointers, not copies.
-		bufs = append(bufs, buf[:n])
-		buf = buf[n:]
+		bufs = append(bufs, buf[:blockSize])
+		buf = buf[blockSize:]
 	}
 	return bufs
 }
