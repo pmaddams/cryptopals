@@ -9,33 +9,45 @@ import (
 	"os"
 )
 
-// sample is a file with symbol frequencies similar to the expected plaintext.
+// sample is a file similar to the expected plaintext.
 const sample = "alice.txt"
 
-// scoreBytes must be generated at runtime from the sample file.
-var scoreBytes func([]byte) float64
-
-// SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
-func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
+// Symbols reads text and returns a map of UTF-8 symbol counts.
+func Symbols(in io.Reader) (map[rune]int, error) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[rune]float64)
-	runes := []rune(string(buf))
-	for _, r := range runes {
-		m[r] += 1.0 / float64(len(runes))
+	m := make(map[rune]int)
+	for _, r := range string(buf) {
+		m[r]++
 	}
 	return m, nil
 }
 
-// ScoreBytesWithMap takes a buffer and map of symbol frequencies, and returns a score.
-func ScoreBytesWithMap(buf []byte, m map[rune]float64) float64 {
-	var f float64
-	for _, r := range []rune(string(buf)) {
-		f += m[r]
+// Score takes a buffer and map of symbol counts, and returns a score.
+func Score(buf []byte, m map[rune]int) int {
+	var n int
+	for _, r := range string(buf) {
+		n += m[r]
 	}
-	return f
+	return n
+}
+
+// scoreFunc takes a sample file and returns a score function.
+func scoreFunc(name string) (func([]byte) int, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	m, err := Symbols(f)
+	if err != nil {
+		return nil, err
+	}
+	return func(buf []byte) int {
+		return Score(buf, m)
+	}, nil
 }
 
 // XORSingleByte produces the XOR combination of a buffer with a single byte.
@@ -46,27 +58,27 @@ func XORSingleByte(dst, src []byte, b byte) {
 	}
 }
 
-// breakSingleXOR returns the key used to encrypt a buffer with single byte XOR.
-func breakSingleXOR(buf []byte) byte {
-	// Don't stomp on the original data.
+// breakSingleXOR takes a buffer and score function, and returns the single-byte XOR key.
+func breakSingleXOR(buf []byte, score func([]byte) int) byte {
+	// Don't modify the original data.
 	tmp := make([]byte, len(buf))
 	var (
-		b    byte
-		best float64
+		best int
+		key  byte
 	)
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i <= 0xff; i++ {
 		XORSingleByte(tmp, buf, byte(i))
-		if score := scoreBytes(tmp); score > best {
-			best = score
-			b = byte(i)
+		if n := score(tmp); n > best {
+			best = n
+			key = byte(i)
 		}
 	}
-	return b
+	return key
 }
 
 // decryptSingleXOR reads hex-encoded ciphertext and prints plaintext.
-func decryptSingleXOR(in io.Reader) error {
+func decryptSingleXOR(in io.Reader, score func([]byte) int) error {
 	input := bufio.NewScanner(in)
 	var buf []byte
 	for input.Scan() {
@@ -79,36 +91,23 @@ func decryptSingleXOR(in io.Reader) error {
 	if err := input.Err(); err != nil {
 		return err
 	}
-	key := breakSingleXOR(buf)
+	key := breakSingleXOR(buf, score)
 	XORSingleByte(buf, buf, key)
 	fmt.Println(string(buf))
 
 	return nil
 }
 
-func init() {
-	// Generate scoreBytes from the sample file.
-	f, err := os.Open(sample)
-	defer f.Close()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	m, err := SymbolFrequencies(f)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	scoreBytes = func(buf []byte) float64 {
-		return ScoreBytesWithMap(buf, m)
-	}
-}
-
 func main() {
+	score, err := scoreFunc(sample)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := decryptSingleXOR(os.Stdin); err != nil {
+		if err := decryptSingleXOR(os.Stdin, score); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -119,7 +118,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := decryptSingleXOR(f); err != nil {
+		if err := decryptSingleXOR(f, score); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
