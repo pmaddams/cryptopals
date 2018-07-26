@@ -20,13 +20,13 @@ const (
 	temperMask2 = 0xefc60000
 )
 
-// MT represents an MT19937 (32-bit Mersenne Twister) PRNG.
+// MT represents an MT19937 PRNG.
 type MT struct {
 	state [arraySize]uint32
 	pos   int
 }
 
-// NewMT initializes and returns a new MT19937 PRNG.
+// NewMT initializes and returns a new PRNG.
 func NewMT(seed uint32) *MT {
 	var mt MT
 	mt.state[0] = seed
@@ -39,7 +39,7 @@ func NewMT(seed uint32) *MT {
 	return &mt
 }
 
-// twist scrambles the MT19937 state array.
+// twist scrambles the state array.
 func (mt *MT) twist() {
 	for i := range mt.state {
 		n := (mt.state[i] & upperMask) | (mt.state[(i+1)%len(mt.state)] & lowerMask)
@@ -50,7 +50,7 @@ func (mt *MT) twist() {
 	}
 }
 
-// temper applies the MT19937 tempering transformation.
+// temper applies the tempering transformation.
 func temper(n uint32) uint32 {
 	n ^= n >> 11
 	n ^= (n << 7) & temperMask1
@@ -85,7 +85,7 @@ type mtCipher struct {
 	*MT
 }
 
-// NewMTCipher creates a new MT19937 stream cipher.
+// NewMTCipher creates a new MT19937 cipher.
 func NewMTCipher(seed uint32) cipher.Stream {
 	return mtCipher{NewMT(seed)}
 }
