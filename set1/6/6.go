@@ -12,39 +12,47 @@ import (
 	"sync"
 )
 
-// sample is a file with symbol frequencies similar to the expected plaintext.
+// sample is a file similar to the expected plaintext.
 const sample = "alice.txt"
 
-// scoreBytes must be generated at runtime from the sample file.
-var scoreBytes func([]byte) float64
-
-// HammingDistance returns the number of differing bits between two equal-length buffers.
-func HammingDistance(b1, b2 []byte) (int, error) {
-	if len(b1) != len(b2) {
-		return 0, errors.New("HammingDistance: buffer lengths must be equal")
+// EditDistance returns the number of differing bits between two buffers.
+func EditDistance(b1, b2 []byte) int {
+	var short, long []byte
+	if len(b1) < len(b2) {
+		short, long = b1, b2
+	} else {
+		short, long = b2, b1
 	}
 	var n int
-	for i := range b1 {
-		n += bits.OnesCount8(b1[i] ^ b2[i])
+	for i := range short {
+		n += bits.OnesCount8(short[i] ^ long[i])
 	}
-	return n, nil
+	n += 8 * (len(long) - len(short))
+
+	return n
+}
+
+// Blocks divides a buffer into blocks.
+func Blocks(buf []byte, blockSize int) [][]byte {
+	var bufs [][]byte
+	for len(buf) >= blockSize {
+		// Return pointers, not copies.
+		bufs = append(bufs, buf[:blockSize])
+		buf = buf[blockSize:]
+	}
+	return bufs
 }
 
 // NormalizedDistance returns the normalized edit distance between pairs of blocks.
 func NormalizedDistance(buf []byte, blockSize int) (float64, error) {
-	// We need at least 2 blocks.
-	if len(buf) < 2*blockSize {
-		return 0, errors.New("NormalizedDistance: need at least 2 blocks")
+	bufs := Blocks(buf, blockSize)
+	if len(bufs) < 2 {
+		return 0, errors.New("NormalizedDistance: need 2 or more blocks")
 	}
 	var f float64
-	numPairs := len(buf)/blockSize - 1
-	for len(buf) >= 2*blockSize {
-		distance, err := HammingDistance(buf[:blockSize], buf[blockSize:2*blockSize])
-		if err != nil {
-			return 0, err
-		}
-		buf = buf[blockSize:]
-		f += float64(distance) / float64(blockSize) / float64(numPairs)
+	for i := 0; i < len(bufs)-1; i++ {
+		n := EditDistance(bufs[i], bufs[i+1])
+		f += float64(n) / float64(blockSize) / float64(len(bufs)-1)
 	}
 	return f, nil
 }
@@ -73,27 +81,42 @@ func findKeySize(buf []byte) (int, error) {
 	return n, nil
 }
 
-// SymbolFrequencies reads text and returns a map of UTF-8 symbol frequencies.
-func SymbolFrequencies(in io.Reader) (map[rune]float64, error) {
+// Symbols reads text and returns a map of UTF-8 symbol counts.
+func Symbols(in io.Reader) (map[rune]int, error) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[rune]float64)
-	runes := []rune(string(buf))
-	for _, r := range runes {
-		m[r] += 1.0 / float64(len(runes))
+	m := make(map[rune]int)
+	for _, r := range string(buf) {
+		m[r]++
 	}
 	return m, nil
 }
 
-// ScoreBytesWithMap takes a buffer and map of symbol frequencies, and returns a score.
-func ScoreBytesWithMap(buf []byte, m map[rune]float64) float64 {
-	var f float64
-	for _, r := range []rune(string(buf)) {
-		f += m[r]
+// Score takes a buffer and map of symbol counts, and returns a score.
+func Score(buf []byte, m map[rune]int) int {
+	var n int
+	for _, r := range string(buf) {
+		n += m[r]
 	}
-	return f
+	return n
+}
+
+// scoreFunc takes a sample file and returns a score function.
+func scoreFunc(name string) (func([]byte) int, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	m, err := Symbols(f)
+	if err != nil {
+		return nil, err
+	}
+	return func(buf []byte) int {
+		return Score(buf, m)
+	}, nil
 }
 
 // XORSingleByte produces the XOR combination of a buffer with a single byte.
@@ -104,34 +127,23 @@ func XORSingleByte(dst, src []byte, b byte) {
 	}
 }
 
-// breakSingleXOR returns the key used to encrypt a buffer with single byte XOR.
-func breakSingleXOR(buf []byte) byte {
-	// Don't stomp on the original data.
+// breakSingleXOR takes a buffer and score function, and returns the single-byte XOR key.
+func breakSingleXOR(buf []byte, score func([]byte) int) byte {
+	// Don't modify the original data.
 	tmp := make([]byte, len(buf))
 	var (
-		b    byte
-		best float64
+		best int
+		key  byte
 	)
 	// Use an integer as the loop variable to avoid overflow.
 	for i := 0; i <= 0xff; i++ {
 		XORSingleByte(tmp, buf, byte(i))
-		if score := scoreBytes(tmp); score > best {
-			best = score
-			b = byte(i)
+		if n := score(tmp); n > best {
+			best = n
+			key = byte(i)
 		}
 	}
-	return b
-}
-
-// Blocks divides a buffer into blocks.
-func Blocks(buf []byte, n int) [][]byte {
-	var bufs [][]byte
-	for len(buf) >= n {
-		// Return pointers, not copies.
-		bufs = append(bufs, buf[:n])
-		buf = buf[n:]
-	}
-	return bufs
+	return key
 }
 
 // Lengths returns a slice of integer buffer lengths.
@@ -165,8 +177,8 @@ func Transpose(bufs [][]byte) ([][]byte, error) {
 	return res, nil
 }
 
-// breakRepeatingXOR returns the key used to encrypt a buffer with repeating XOR.
-func breakRepeatingXOR(buf []byte) ([]byte, error) {
+// breakXOR returns the key used to encrypt a buffer with repeating XOR.
+func breakXOR(buf []byte, score func([]byte) int) ([]byte, error) {
 	keySize, err := findKeySize(buf)
 	if err != nil {
 		return nil, err
@@ -181,7 +193,7 @@ func breakRepeatingXOR(buf []byte) ([]byte, error) {
 	for i := range blocks {
 		wg.Add(1)
 		go func(i int) {
-			key[i] = breakSingleXOR(blocks[i])
+			key[i] = breakSingleXOR(blocks[i], score)
 			wg.Done()
 		}(i)
 	}
@@ -215,12 +227,12 @@ func (stream *xorCipher) XORKeyStream(dst, src []byte) {
 }
 
 // decryptXOR reads base64-encoded ciphertext and prints plaintext.
-func decryptXOR(in io.Reader) error {
+func decryptXOR(in io.Reader, score func([]byte) int) error {
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
 	if err != nil {
 		return err
 	}
-	key, err := breakRepeatingXOR(buf)
+	key, err := breakXOR(buf, score)
 	if err != nil {
 		return err
 	}
@@ -231,29 +243,16 @@ func decryptXOR(in io.Reader) error {
 	return nil
 }
 
-func init() {
-	// Generate scoreBytes from the sample file.
-	f, err := os.Open(sample)
-	defer f.Close()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	m, err := SymbolFrequencies(f)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	scoreBytes = func(buf []byte) float64 {
-		return ScoreBytesWithMap(buf, m)
-	}
-}
-
 func main() {
+	score, err := scoreFunc(sample)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := decryptXOR(os.Stdin); err != nil {
+		if err := decryptXOR(os.Stdin, score); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -263,7 +262,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := decryptXOR(f); err != nil {
+		if err := decryptXOR(f, score); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

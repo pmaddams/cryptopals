@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestHammingDistance(t *testing.T) {
+func TestEditDistance(t *testing.T) {
 	cases := []struct {
 		b1, b2 []byte
 		want   int
@@ -24,14 +24,13 @@ func TestHammingDistance(t *testing.T) {
 			1 + 1 + 1 + 1,
 		},
 		{
-			[]byte{1, 2, 3, 4},
-			[]byte{2, 3, 4, 5},
-			2 + 1 + 3 + 1,
+			[]byte{1, 2, 3, 4, 5},
+			[]byte{6, 7, 8, 9},
+			3 + 2 + 3 + 3 + 8,
 		},
 	}
 	for _, c := range cases {
-		got, _ := HammingDistance(c.b1, c.b2)
-		if got != c.want {
+		if got := EditDistance(c.b1, c.b2); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
@@ -66,65 +65,65 @@ func TestNormalizedDistance(t *testing.T) {
 	}
 }
 
-func TestSymbolFrequencies(t *testing.T) {
+func TestSymbols(t *testing.T) {
 	cases := []struct {
 		s    string
-		want map[rune]float64
+		want map[rune]int
 	}{
 		{
 			"hello world",
-			map[rune]float64{
-				'h': 1.0 / 11.0,
-				'e': 1.0 / 11.0,
-				'l': 3.0 / 11.0,
-				'o': 2.0 / 11.0,
-				' ': 1.0 / 11.0,
-				'w': 1.0 / 11.0,
-				'r': 1.0 / 11.0,
-				'd': 1.0 / 11.0,
+			map[rune]int{
+				'h': 1,
+				'e': 1,
+				'l': 3,
+				'o': 2,
+				' ': 1,
+				'w': 1,
+				'r': 1,
+				'd': 1,
 			},
 		},
 		{
 			"你好世界",
-			map[rune]float64{
-				'你': 1.0 / 4.0,
-				'好': 1.0 / 4.0,
-				'世': 1.0 / 4.0,
-				'界': 1.0 / 4.0,
+			map[rune]int{
+				'你': 1,
+				'好': 1,
+				'世': 1,
+				'界': 1,
 			},
 		},
 	}
 	for _, c := range cases {
-		got, _ := SymbolFrequencies(strings.NewReader(c.s))
+		got, _ := Symbols(strings.NewReader(c.s))
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
 
-func TestScoreBytesWithMap(t *testing.T) {
-	symbolFrequencies := func(s string) map[rune]float64 {
-		m, _ := SymbolFrequencies(strings.NewReader(s))
+func TestScore(t *testing.T) {
+	symbols := func(s string) map[rune]int {
+		m, _ := Symbols(strings.NewReader(s))
 		return m
 	}
 	cases := []struct {
 		s    string
-		m    map[rune]float64
-		want float64
+		m    map[rune]int
+		want int
 	}{
 		{
 			"hola",
-			symbolFrequencies("hello world"),
-			1.0/11.0 + 2.0/11.0 + 3.0/11.0,
+			symbols("hello world"),
+			6,
 		},
 		{
 			"世界再见",
-			symbolFrequencies("你好世界"),
-			1.0/4.0 + 1.0/4.0,
+			symbols("你好世界"),
+			2,
 		},
 	}
 	for _, c := range cases {
-		got := ScoreBytesWithMap([]byte(c.s), c.m)
+		got := Score([]byte(c.s), c.m)
 		if got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
