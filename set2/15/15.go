@@ -25,11 +25,12 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	}
 	// Examine the value of the last byte.
 	b := buf[len(buf)-1]
+	n := len(buf) - int(b)
 	if int(b) == 0 || int(b) > blockSize ||
-		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[len(buf)-int(b):]) {
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
 		return nil, errInvalidPadding
 	}
-	return dup(buf)[:len(buf)-int(b)], nil
+	return dup(buf[:n]), nil
 }
 
 // stripPKCS7 prints lines of PKCS#7 padded input with padding removed.
