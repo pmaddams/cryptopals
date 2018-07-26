@@ -175,10 +175,11 @@ func (x *ecbBreaker) scanBlocks() [][]byte {
 	// Each block enables decryption of a single byte.
 	blocks := make([][]byte, x.secretLen)
 	initLen := len(x.oracle([]byte{}))
-	var wg sync.WaitGroup
 
+	var wg sync.WaitGroup
 	for i := range blocks {
 		wg.Add(1)
+		// Capture the value of the loop variable.
 		go func(i int) {
 			probe := bytes.Repeat([]byte{x.a}, initLen-1-i)
 			ciphertext := x.oracle(probe)
@@ -188,6 +189,7 @@ func (x *ecbBreaker) scanBlocks() [][]byte {
 		}(i)
 	}
 	wg.Wait()
+
 	return blocks
 }
 
