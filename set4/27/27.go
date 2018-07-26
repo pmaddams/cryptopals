@@ -81,8 +81,8 @@ func Blocks(buf []byte, blockSize int) [][]byte {
 	return bufs
 }
 
-// validate returns an error containing the plaintext, if it is invalid.
-func validate(buf []byte, dec cipher.BlockMode) error {
+// validateCBC returns an error containing the plaintext, if it is invalid.
+func validateCBC(buf []byte, dec cipher.BlockMode) error {
 	out := make([]byte, len(buf))
 	dec.CryptBlocks(out, buf)
 	_, err := PKCS7Unpad(out, dec.BlockSize())
@@ -132,7 +132,7 @@ func main() {
 	copy(blocks[2], blocks[0])
 	clear(blocks[1])
 
-	err = validate(ciphertext, dec)
+	err = validateCBC(ciphertext, dec)
 	if err == nil {
 		fmt.Fprintln(os.Stderr, "no error")
 		return
