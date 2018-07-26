@@ -153,8 +153,6 @@ func decryptCBC(in io.Reader, mode cipher.BlockMode) error {
 	return nil
 }
 
-var e = flag.Bool("e", false, "encrypt")
-
 func main() {
 	c, err := aes.NewCipher([]byte(secret))
 	if err != nil {
@@ -162,11 +160,13 @@ func main() {
 	}
 	iv := make([]byte, c.BlockSize())
 	var (
+		e    bool
 		fn   func(io.Reader, cipher.BlockMode) error
 		mode cipher.BlockMode
 	)
+	flag.BoolVar(&e, "e", false, "encrypt")
 	flag.Parse()
-	if *e {
+	if e {
 		fn = encryptCBC
 		mode = NewCBCEncrypter(c, iv)
 	} else {

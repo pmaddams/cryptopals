@@ -104,8 +104,6 @@ func decryptCTR(in io.Reader, stream cipher.Stream) error {
 	return nil
 }
 
-var e = flag.Bool("e", false, "encrypt")
-
 func main() {
 	c, err := aes.NewCipher([]byte(secret))
 	if err != nil {
@@ -113,10 +111,13 @@ func main() {
 	}
 	iv := make([]byte, c.BlockSize())
 	stream := NewCTR(c, iv)
-
-	var fn func(io.Reader, cipher.Stream) error
+	var (
+		e  bool
+		fn func(io.Reader, cipher.Stream) error
+	)
+	flag.BoolVar(&e, "e", false, "encrypt")
 	flag.Parse()
-	if *e {
+	if e {
 		fn = encryptCTR
 	} else {
 		fn = decryptCTR

@@ -68,12 +68,14 @@ func decryptXOR(in io.Reader, stream cipher.Stream) error {
 	return nil
 }
 
-var d = flag.Bool("d", false, "decrypt")
-
 func main() {
-	var fn func(io.Reader, cipher.Stream) error
+	var (
+		d  bool
+		fn func(io.Reader, cipher.Stream) error
+	)
+	flag.BoolVar(&d, "d", false, "decrypt")
 	flag.Parse()
-	if *d {
+	if d {
 		fn = decryptXOR
 	} else {
 		fn = encryptXOR

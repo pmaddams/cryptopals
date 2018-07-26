@@ -121,12 +121,14 @@ func decryptECB(in io.Reader, c cipher.Block) error {
 	return nil
 }
 
-var e = flag.Bool("e", false, "encrypt")
-
 func main() {
-	var fn func(io.Reader, cipher.Block) error
+	var (
+		e  bool
+		fn func(io.Reader, cipher.Block) error
+	)
+	flag.BoolVar(&e, "e", false, "encrypt")
 	flag.Parse()
-	if *e {
+	if e {
 		fn = encryptECB
 	} else {
 		fn = decryptECB
