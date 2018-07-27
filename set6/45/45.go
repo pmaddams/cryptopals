@@ -32,7 +32,7 @@ func equal(z1, z2 *big.Int) bool {
 	return z1.Cmp(z2) == 0
 }
 
-// magicSignature returns a DSA signature that will verify anything.
+// magicSignature returns a DSA signature that verifies anything.
 func magicSignature(pub *dsa.PublicKey) (*big.Int, *big.Int, error) {
 	if !equal(pub.G, new(big.Int).Add(pub.P, one)) {
 		return nil, nil, errors.New("magicSignature: invalid generator")
@@ -52,8 +52,8 @@ func magicSignature(pub *dsa.PublicKey) (*big.Int, *big.Int, error) {
 	return r, s, nil
 }
 
-// verifyAnything reads lines of input and verifies them with a fake signature.
-func verifyAnything(in io.Reader, pub *dsa.PublicKey) error {
+// verifyAll reads lines of input and verifies them with a fake signature.
+func verifyAll(in io.Reader, pub *dsa.PublicKey) error {
 	r, s, err := magicSignature(pub)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func verifyAnything(in io.Reader, pub *dsa.PublicKey) error {
 		h.Write(input.Bytes())
 		sum := h.Sum([]byte{})
 		if !dsa.Verify(pub, sum, r, s) {
-			return errors.New("verifyAnything: verification failed")
+			return errors.New("verifyAll: verification failed")
 		}
 		fmt.Printf("verified %q\n", input.Text())
 	}
@@ -114,7 +114,7 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := verifyAnything(os.Stdin, pub); err != nil {
+		if err := verifyAll(os.Stdin, pub); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -125,7 +125,7 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := verifyAnything(f, pub); err != nil {
+		if err := verifyAll(f, pub); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
