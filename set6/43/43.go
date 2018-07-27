@@ -182,11 +182,10 @@ bb283e6633451e535c45513b2d33c99ea17`, 16)
 	sum := h.Sum([]byte{})
 
 	k := new(big.Int)
-	for i := 0; i < 65536; i++ {
+	for i := 0; i <= 0xffff; i++ {
 		k.SetInt64(int64(i))
 		priv := breakDSA(pub, sum, r, s, k)
-		newY := k.Exp(priv.g, priv.x, priv.p)
-		if equal(y, newY) {
+		if equal(priv.y, k.Exp(priv.g, priv.x, priv.p)) {
 			fmt.Println("success")
 			return
 		}
