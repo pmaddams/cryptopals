@@ -65,14 +65,14 @@ type handler struct {
 	*sync.Mutex
 }
 
-// NewHandler takes a hash and returns an HTTP handler.
-func NewHandler(h hash.Hash) http.Handler {
-	return handler{h, new(sync.Mutex)}
+// NewHandler takes an HMAC hash and returns an HTTP handler.
+func NewHandler(hm hash.Hash) http.Handler {
+	return handler{hm, new(sync.Mutex)}
 }
 
 // ServeHTTP responds to upload requests with 200 OK if the file HMAC
 // matches its signature, and 500 Internal Server Error otherwise.
-func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (x handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	f, _, err := req.FormFile("file")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -84,13 +84,13 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// Acquire a lock to prevent concurrent hashing.
-	h.Lock()
+	x.Lock()
 
-	h.Reset()
-	io.Copy(h, f)
-	sum := h.Sum([]byte{})
+	x.Reset()
+	io.Copy(x, f)
+	sum := x.Sum([]byte{})
 
-	h.Unlock()
+	x.Unlock()
 	if !insecureCompare(sig, sum) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -161,12 +161,12 @@ func breakServer(url string, buf []byte, name string, size int) []byte {
 }
 
 // breakHMAC prints a valid HMAC and attempts to break the server.
-func breakHMAC(h hash.Hash, url string, buf []byte, name string) error {
-	h.Reset()
-	h.Write(buf)
-	fmt.Printf("attempting to upload %s...\n%x\n", name, h.Sum([]byte{}))
+func breakHMAC(hm hash.Hash, url string, buf []byte, name string) error {
+	hm.Reset()
+	hm.Write(buf)
+	fmt.Printf("attempting to upload %s...\n%x\n", name, hm.Sum([]byte{}))
 
-	sig := hex.EncodeToString(breakServer(url, buf, name, h.Size()))
+	sig := hex.EncodeToString(breakServer(url, buf, name, hm.Size()))
 	resp, err := upload(url, buf, name, sig)
 	if err != nil {
 		return err

@@ -91,10 +91,10 @@ func NewMTCipher(seed uint32) cipher.Stream {
 }
 
 // XORKeyStream encrypts a buffer with MT19937.
-func (stream mtCipher) XORKeyStream(dst, src []byte) {
+func (x mtCipher) XORKeyStream(dst, src []byte) {
 	// Panic if dst is smaller than src.
 	for i := range src {
-		dst[i] = src[i] ^ byte(stream.Uint32()&0xff)
+		dst[i] = src[i] ^ byte(x.Uint32()&0xff)
 	}
 }
 

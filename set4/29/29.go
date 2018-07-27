@@ -71,16 +71,16 @@ type mac struct {
 }
 
 // NewMAC takes a hash and key, and returns a new MAC hash.
-func NewMAC(h func() hash.Hash, key []byte) hash.Hash {
-	m := mac{h(), key}
-	m.Reset()
-	return m
+func NewMAC(fn func() hash.Hash, key []byte) hash.Hash {
+	x := mac{fn(), key}
+	x.Reset()
+	return x
 }
 
 // Reset resets the hash.
-func (m mac) Reset() {
-	m.Hash.Reset()
-	if _, err := m.Hash.Write(m.key); err != nil {
+func (x mac) Reset() {
+	x.Hash.Reset()
+	if _, err := x.Hash.Write(x.key); err != nil {
 		panic(err)
 	}
 }

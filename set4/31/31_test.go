@@ -48,17 +48,17 @@ func TestHMAC(t *testing.T) {
 		weak.Read(buf)
 
 		// Test multiple writes.
-		h := reference.New(sha1.New, key)
-		h.Write(buf)
-		h.Write(buf)
-		h.Write(buf)
-		want := h.Sum([]byte{})
+		hm := reference.New(sha1.New, key)
+		hm.Write(buf)
+		hm.Write(buf)
+		hm.Write(buf)
+		want := hm.Sum([]byte{})
 
-		h = NewHMAC(sha1.New, key)
-		h.Write(buf)
-		h.Write(buf)
-		h.Write(buf)
-		got := h.Sum([]byte{})
+		hm = NewHMAC(sha1.New, key)
+		hm.Write(buf)
+		hm.Write(buf)
+		hm.Write(buf)
+		got := hm.Sum([]byte{})
 		if !bytes.Equal(got, want) {
 			t.Errorf("got %v, want %v", got, want)
 		}
