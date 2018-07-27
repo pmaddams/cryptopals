@@ -41,8 +41,8 @@ func Score(buf []byte, m map[rune]int) int {
 }
 
 // scoreFunc takes a sample file and returns a score function.
-func scoreFunc(name string) (func([]byte) int, error) {
-	f, err := os.Open(name)
+func scoreFunc(file string) (func([]byte) int, error) {
+	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
@@ -241,8 +241,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
-	for _, name := range files {
-		f, err := os.Open(name)
+	for _, file := range files {
+		f, err := os.Open(file)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue

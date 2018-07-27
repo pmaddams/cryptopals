@@ -17,8 +17,8 @@ import (
 func init() { weak.Seed(time.Now().UnixNano()) }
 
 // randomLine returns a random line from a file containing base64-encoded strings.
-func randomLine(filename string) ([]byte, error) {
-	f, err := os.Open(filename)
+func randomLine(file string) ([]byte, error) {
+	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +86,8 @@ func RandomBytes(n int) []byte {
 
 // encryptedRandomLine returns an encrypted random line and corresponding
 // initialization vector from a file containing base64-encoded strings.
-func encryptedRandomLine(filename string, c cipher.Block) ([]byte, []byte, error) {
-	buf, err := randomLine(filename)
+func encryptedRandomLine(file string, c cipher.Block) ([]byte, []byte, error) {
+	buf, err := randomLine(file)
 	if err != nil {
 		return nil, nil, err
 	}

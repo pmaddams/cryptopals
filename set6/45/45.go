@@ -119,8 +119,8 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 		}
 		return
 	}
-	for _, name := range files {
-		f, err := os.Open(name)
+	for _, file := range files {
+		f, err := os.Open(file)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue

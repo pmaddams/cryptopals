@@ -422,8 +422,8 @@ func main() {
 		}
 		return
 	}
-	for _, name := range files {
-		f, err := os.Open(name)
+	for _, file := range files {
+		f, err := os.Open(file)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue

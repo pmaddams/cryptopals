@@ -99,11 +99,11 @@ func (x handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 // upload uploads a file and hex-encoded signature, and returns the response.
-func upload(url string, buf []byte, name, sig string) (*http.Response, error) {
+func upload(url string, buf []byte, file, sig string) (*http.Response, error) {
 	tmp := new(bytes.Buffer)
 	m := multipart.NewWriter(tmp)
 
-	part, err := m.CreateFormFile("file", name)
+	part, err := m.CreateFormFile("file", file)
 	if err != nil {
 		return nil, err
 	}
@@ -118,16 +118,16 @@ func upload(url string, buf []byte, name, sig string) (*http.Response, error) {
 }
 
 // timedUpload sends a request and returns the time it takes to receive a response.
-func timedUpload(url string, buf []byte, name, sig string) (int64, error) {
+func timedUpload(url string, buf []byte, file, sig string) (int64, error) {
 	start := time.Now()
-	if _, err := upload(url, buf, name, sig); err != nil {
+	if _, err := upload(url, buf, file, sig); err != nil {
 		return 0, err
 	}
 	return time.Since(start).Nanoseconds(), nil
 }
 
 // breakServer returns a valid HMAC for uploading an arbitrary file.
-func breakServer(url string, buf []byte, name string, size int) []byte {
+func breakServer(url string, buf []byte, file string, size int) []byte {
 	res := make([]byte, size)
 	loop := func(i int) byte {
 		var (
@@ -137,7 +137,7 @@ func breakServer(url string, buf []byte, name string, size int) []byte {
 		for j := 0; j <= 0xff; j++ {
 			res[i] = byte(j)
 			sig := hex.EncodeToString(res)
-			if n, err := timedUpload(url, buf, name, sig); err != nil {
+			if n, err := timedUpload(url, buf, file, sig); err != nil {
 				log.Fatal(err)
 			} else if n > best {
 				best = n
@@ -161,18 +161,18 @@ func breakServer(url string, buf []byte, name string, size int) []byte {
 }
 
 // breakHMAC prints a valid HMAC and attempts to break the server.
-func breakHMAC(hm hash.Hash, url string, buf []byte, name string) error {
+func breakHMAC(hm hash.Hash, url string, buf []byte, file string) error {
 	hm.Reset()
 	hm.Write(buf)
-	fmt.Printf("attempting to upload %s...\n%x\n", name, hm.Sum([]byte{}))
+	fmt.Printf("attempting to upload %s...\n%x\n", file, hm.Sum([]byte{}))
 
-	sig := hex.EncodeToString(breakServer(url, buf, name, hm.Size()))
-	resp, err := upload(url, buf, name, sig)
+	sig := hex.EncodeToString(breakServer(url, buf, file, hm.Size()))
+	resp, err := upload(url, buf, file, sig)
 	if err != nil {
 		return err
 	}
 	if resp.StatusCode == http.StatusOK {
-		fmt.Printf("successfully uploaded %s\n", name)
+		fmt.Printf("successfully uploaded %s\n", file)
 	}
 	return nil
 }
@@ -203,14 +203,14 @@ func main() {
 		}
 		return
 	}
-	for _, name := range files {
-		f, err := os.Open(name)
+	for _, file := range files {
+		f, err := os.Open(file)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
 		io.Copy(buf, f)
-		err = breakHMAC(h, url, buf.Bytes(), name)
+		err = breakHMAC(h, url, buf.Bytes(), file)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
