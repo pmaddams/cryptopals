@@ -146,8 +146,8 @@ func breakCTR(bufs [][]byte, score func([]byte) int) ([]byte, error) {
 		return nil, err
 	}
 	keystream := make([]byte, n)
-	var wg sync.WaitGroup
 
+	var wg sync.WaitGroup
 	for i := range blocks {
 		wg.Add(1)
 		go func(i int) {
@@ -156,6 +156,7 @@ func breakCTR(bufs [][]byte, score func([]byte) int) ([]byte, error) {
 		}(i)
 	}
 	wg.Wait()
+
 	return keystream, nil
 }
 
