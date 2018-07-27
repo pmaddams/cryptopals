@@ -57,16 +57,6 @@ func equal(z1, z2 *big.Int) bool {
 	return z1.Cmp(z2) == 0
 }
 
-// ceilingDiv performs ceiling division of z1 by z2.
-func ceilingDiv(res, z1, z2 *big.Int) *big.Int {
-	tmp := new(big.Int)
-	res.DivMod(z1, z2, tmp)
-	if !equal(tmp, zero) {
-		res.Add(res, one)
-	}
-	return res
-}
-
 // newRSABreaker takes a public key, oracle, and ciphertext, and returns a breaker.
 func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) bool, ciphertext []byte) (*rsaBreaker, error) {
 	x := new(rsaBreaker)
@@ -115,6 +105,16 @@ func (x *rsaBreaker) findS(sMin, sMax *big.Int) (*big.Int, error) {
 		}
 		s.Add(s, one)
 	}
+}
+
+// ceilingDiv performs ceiling division of z1 by z2.
+func ceilingDiv(res, z1, z2 *big.Int) *big.Int {
+	tmp := new(big.Int)
+	res.DivMod(z1, z2, tmp)
+	if !equal(tmp, zero) {
+		res.Add(res, one)
+	}
+	return res
 }
 
 // intervalRValues returns the bounds for generating the next set of intervals.
