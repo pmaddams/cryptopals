@@ -14,7 +14,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 )
 
 const (
@@ -65,19 +64,81 @@ func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
 	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
 }
 
+// srpListener represents a socket ready to accept SRP connections.
+type srpListener struct {
+	net.Listener
+	srv *SRPServer
+}
+
+// Accept accepts an SRP connection on a listening socket.
+func (x *srpListener) Accept() (net.Conn, error) {
+	c, err := x.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return &srpConn{c, x.srv, false, new(sync.Mutex)}, nil
+}
+
+// srpConn represents the state of an SRP connection.
+type srpConn struct {
+	net.Conn
+	config interface{}
+	auth   bool
+	*sync.Mutex
+}
+
+// handshake checks if the current SRP connection is authenticated.
+// If not, it attempts to execute the authentication protocol.
+// If the handshake fails, it closes the connection.
+func (x *srpConn) handshake() error {
+	x.Lock()
+	defer x.Unlock()
+	if x.auth {
+		return nil
+	} else if srv, ok := x.config.(*SRPServer); ok {
+		if err := srpServerHandshake(x.Conn, srv); err != nil {
+			x.Close()
+			return err
+		}
+	} else if clt, ok := x.config.(*SRPClient); ok {
+		if err := srpClientHandshake(x.Conn, clt); err != nil {
+			x.Close()
+			return err
+		}
+	} else {
+		x.Close()
+		return errors.New("handshake: invalid configuration")
+	}
+	x.auth = true
+	return nil
+}
+
+// Read reads data from an SRP connection.
+func (x *srpConn) Read(buf []byte) (int, error) {
+	if err := x.handshake(); err != nil {
+		return 0, err
+	}
+	return x.Conn.Read(buf)
+}
+
+// Write writes data to an SRP connection.
+func (x *srpConn) Write(buf []byte) (int, error) {
+	if err := x.handshake(); err != nil {
+		return 0, err
+	}
+	return x.Conn.Write(buf)
+}
+
 // record represents a database record of a user's login information.
 type record struct {
 	v    *big.Int
 	salt []byte
 }
 
-// database represents a database of users.
-type database map[string]record
-
 // SRPServer represents a server implementing SRP (Secure Remote Password).
 type SRPServer struct {
 	*DHPrivateKey
-	db database
+	db map[string]record
 }
 
 // NewSRPServer returns a new SRP server.
@@ -101,8 +162,8 @@ func (srv *SRPServer) CreateUser(email, password string) {
 	h := sha256.New()
 	h.Write(salt)
 	h.Write([]byte(password))
-	x := new(big.Int).SetBytes(h.Sum([]byte{}))
-	v := x.Exp(srv.g, x, srv.p)
+	sum := new(big.Int).SetBytes(h.Sum([]byte{}))
+	v := sum.Exp(srv.g, sum, srv.p)
 
 	// Don't store the password.
 	srv.db[email] = record{v, salt}
@@ -114,26 +175,81 @@ func (srv *SRPServer) Listen(network, addr string) (net.Listener, error) {
 	if err != nil {
 		return nil, err
 	}
-	return srpListener{l, srv}, nil
+	return &srpListener{l, srv}, nil
 }
 
-// srpListener represents a socket ready to accept SRP connections.
-type srpListener struct {
-	inner net.Listener
-	srv   *SRPServer
+// srpServerState contains state stored by the server
+// in order to execute the authentication protocol.
+type srpServerState struct {
+	rec       record
+	clientPub *big.Int
+	u         *big.Int
 }
 
-// Accept accepts an SRP connection on a listening socket.
-func (l srpListener) Accept() (net.Conn, error) {
-	c, err := l.inner.Accept()
-	if err != nil {
-		return nil, err
+// srpServerHandshake executes the authentication protocol for the server.
+func srpServerHandshake(c net.Conn, srv *SRPServer) error {
+	x := new(srpServerState)
+	if err := x.receiveLoginAndSendResponse(c, srv); err != nil {
+		return err
+	} else if err = x.receiveHMACAndSendOK(c, srv); err != nil {
+		return err
 	}
-	return &srpConn{inner: c, config: l.srv, mux: new(sync.Mutex)}, nil
+	return nil
 }
 
-func (l srpListener) Close() error   { return l.inner.Close() }
-func (l srpListener) Addr() net.Addr { return l.inner.Addr() }
+// receiveLoginAndSendResponse receives login information and sends back a salt and session key.
+func (x *srpServerState) receiveLoginAndSendResponse(c net.Conn, srv *SRPServer) error {
+	var email, clientPub string
+	if _, err := fmt.Fscanf(c, "email: %s\npublic key: %s\n", &email, &clientPub); err != nil {
+		return err
+	}
+	var ok bool
+	if x.rec, ok = srv.db[email]; !ok {
+		return errors.New("receiveLoginAndSendResponse: user not found")
+	}
+	if x.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
+		return errors.New("receiveLoginAndSendResponse: invalid public key")
+	}
+	sessionPub := big.NewInt(3)
+	sessionPub.Mul(sessionPub, x.rec.v)
+	sessionPub.Add(sessionPub, srv.y)
+
+	h := sha256.New()
+	h.Write(x.clientPub.Bytes())
+	h.Write(sessionPub.Bytes())
+	x.u = new(big.Int).SetBytes(h.Sum([]byte{}))
+
+	if _, err := fmt.Fprintf(c, "salt: %s\npublic key: %s\n",
+		hex.EncodeToString(x.rec.salt), hex.EncodeToString(sessionPub.Bytes())); err != nil {
+		return err
+	}
+	return nil
+}
+
+// receiveHMACAndSendOK receives an HMAC and sends back an OK message.
+func (x *srpServerState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) error {
+	var s string
+	if _, err := fmt.Fscanf(c, "hmac: %s\n", &s); err != nil {
+		return err
+	}
+	clientHMAC, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	secret := new(big.Int).Exp(x.rec.v, x.u, srv.p)
+	secret.Mul(x.clientPub, secret)
+	secret.Exp(secret, srv.x, srv.p)
+
+	k := sha256.Sum256(secret.Bytes())
+	h := hmac.New(sha256.New, x.rec.salt)
+	h.Write(k[:])
+	if !hmac.Equal(clientHMAC, h.Sum([]byte{})) {
+		return errors.New("SendOK: invalid hmac")
+	}
+	fmt.Fprintln(c, "ok")
+
+	return nil
+}
 
 // SRPClient represents a client implementing SRP (Secure Remote Password).
 type SRPClient struct {
@@ -153,114 +269,7 @@ func (clt *SRPClient) Dial(network, addr string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &srpConn{inner: c, config: clt, mux: new(sync.Mutex)}, nil
-}
-
-// srpConn represents the state of an SRP connection.
-type srpConn struct {
-	inner  net.Conn
-	config interface{}
-	mux    *sync.Mutex
-	auth   bool
-}
-
-// handshake checks if the current SRP connection is authenticated.
-// If not, it attempts to execute the authentication protocol.
-// If the handshake fails, it closes the connection.
-func (c *srpConn) handshake() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	if c.auth {
-		return nil
-	} else if srv, ok := c.config.(*SRPServer); ok {
-		if err := srpServerHandshake(c.inner, srv); err != nil {
-			c.Close()
-			return err
-		}
-	} else if clt, ok := c.config.(*SRPClient); ok {
-		if err := srpClientHandshake(c.inner, clt); err != nil {
-			c.Close()
-			return err
-		}
-	} else {
-		c.Close()
-		return errors.New("handshake: invalid configuration")
-	}
-	c.auth = true
-	return nil
-}
-
-// srpServerState contains state stored by the server
-// in order to execute the authentication protocol.
-type srpServerState struct {
-	rec       record
-	clientPub *big.Int
-	u         *big.Int
-}
-
-// srpServerHandshake executes the authentication protocol for the server.
-func srpServerHandshake(c net.Conn, srv *SRPServer) error {
-	state := new(srpServerState)
-	if err := state.receiveLoginAndSendResponse(c, srv); err != nil {
-		return err
-	} else if err = state.receiveHMACAndSendOK(c, srv); err != nil {
-		return err
-	}
-	return nil
-}
-
-// receiveLoginAndSendResponse receives login information and sends back a salt and session key.
-func (state *srpServerState) receiveLoginAndSendResponse(c net.Conn, srv *SRPServer) error {
-	var email, clientPub string
-	if _, err := fmt.Fscanf(c, "email: %s\npublic key: %s\n", &email, &clientPub); err != nil {
-		return err
-	}
-	var ok bool
-	if state.rec, ok = srv.db[email]; !ok {
-		return errors.New("receiveLoginAndSendResponse: user not found")
-	}
-	if state.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
-		return errors.New("receiveLoginAndSendResponse: invalid public key")
-	}
-	sessionPub := big.NewInt(3)
-	sessionPub.Mul(sessionPub, state.rec.v)
-	sessionPub.Add(sessionPub, srv.y)
-
-	h := sha256.New()
-	h.Write(state.clientPub.Bytes())
-	h.Write(sessionPub.Bytes())
-	state.u = new(big.Int).SetBytes(h.Sum([]byte{}))
-
-	if _, err := fmt.Fprintf(c, "salt: %s\npublic key: %s\n",
-		hex.EncodeToString(state.rec.salt), hex.EncodeToString(sessionPub.Bytes())); err != nil {
-		return err
-	}
-	return nil
-}
-
-// receiveHMACAndSendOK receives an HMAC and sends back an OK message.
-func (state *srpServerState) receiveHMACAndSendOK(c net.Conn, srv *SRPServer) error {
-	var s string
-	if _, err := fmt.Fscanf(c, "hmac: %s\n", &s); err != nil {
-		return err
-	}
-	clientHMAC, err := hex.DecodeString(s)
-	if err != nil {
-		return err
-	}
-	secret := new(big.Int).Exp(state.rec.v, state.u, srv.p)
-	secret.Mul(state.clientPub, secret)
-	secret.Exp(secret, srv.x, srv.p)
-
-	k := sha256.Sum256(secret.Bytes())
-	h := hmac.New(sha256.New, state.rec.salt)
-	h.Write(k[:])
-	if !hmac.Equal(clientHMAC, h.Sum([]byte{})) {
-		return errors.New("SendOK: invalid hmac")
-	}
-	fmt.Fprintln(c, "ok")
-
-	return nil
+	return &srpConn{c, clt, false, new(sync.Mutex)}, nil
 }
 
 // srpClientState contains state stored by the client
@@ -272,17 +281,17 @@ type srpClientState struct {
 
 // srpClientHandshake executes the authentication protocol for the client.
 func srpClientHandshake(c net.Conn, clt *SRPClient) error {
-	state := new(srpClientState)
-	if err := state.sendLoginAndReceiveResponse(c, clt); err != nil {
+	x := new(srpClientState)
+	if err := x.sendLoginAndReceiveResponse(c, clt); err != nil {
 		return err
-	} else if err = state.sendHMACAndReceiveOK(c, clt); err != nil {
+	} else if err = x.sendHMACAndReceiveOK(c, clt); err != nil {
 		return err
 	}
 	return nil
 }
 
 // sendLoginAndReceiveResponse sends login information and receives back a salt and session key.
-func (state *srpClientState) sendLoginAndReceiveResponse(c net.Conn, clt *SRPClient) error {
+func (x *srpClientState) sendLoginAndReceiveResponse(c net.Conn, clt *SRPClient) error {
 	var err error
 	if _, err = fmt.Fprintf(c, "email: %s\npublic key: %s\n",
 		clt.email, hex.EncodeToString(clt.y.Bytes())); err != nil {
@@ -292,39 +301,39 @@ func (state *srpClientState) sendLoginAndReceiveResponse(c net.Conn, clt *SRPCli
 	if _, err = fmt.Fscanf(c, "salt: %s\npublic key: %s\n", &salt, &sessionPub); err != nil {
 		return err
 	}
-	if state.salt, err = hex.DecodeString(salt); err != nil {
+	if x.salt, err = hex.DecodeString(salt); err != nil {
 		return err
 	}
 	var ok bool
-	if state.sessionPub, ok = new(big.Int).SetString(sessionPub, 16); !ok {
+	if x.sessionPub, ok = new(big.Int).SetString(sessionPub, 16); !ok {
 		return errors.New("ReceiveResponse: invalid public key")
 	}
 	return nil
 }
 
 // sendHMACAndReceiveOK sends an HMAC and receives back an OK message.
-func (state *srpClientState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClient) error {
+func (x *srpClientState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClient) error {
 	h := sha256.New()
 	h.Write(clt.y.Bytes())
-	h.Write(state.sessionPub.Bytes())
+	h.Write(x.sessionPub.Bytes())
 	u := new(big.Int).SetBytes(h.Sum([]byte{}))
 
 	h.Reset()
-	h.Write(state.salt)
+	h.Write(x.salt)
 	h.Write([]byte(clt.password))
-	x := new(big.Int).SetBytes(h.Sum([]byte{}))
+	sum := new(big.Int).SetBytes(h.Sum([]byte{}))
 
-	fst := new(big.Int).Exp(clt.g, x, clt.p)
+	fst := new(big.Int).Exp(clt.g, sum, clt.p)
 	fst.Mul(big.NewInt(3), fst)
-	fst.Sub(state.sessionPub, fst)
-	snd := new(big.Int).Mul(u, x)
+	fst.Sub(x.sessionPub, fst)
+	snd := new(big.Int).Mul(u, sum)
 	snd.Add(clt.x, snd)
 	secret := fst.Exp(fst, snd, clt.p)
 
 	h.Reset()
 	h.Write(secret.Bytes())
 	k := h.Sum([]byte{})
-	h = hmac.New(sha256.New, state.salt)
+	h = hmac.New(sha256.New, x.salt)
 	h.Write(k)
 
 	fmt.Fprintf(c, "hmac: %x\n", h.Sum([]byte{}))
@@ -337,29 +346,6 @@ func (state *srpClientState) sendHMACAndReceiveOK(c net.Conn, clt *SRPClient) er
 	}
 	return nil
 }
-
-// Read reads data from an SRP connection.
-func (c *srpConn) Read(buf []byte) (int, error) {
-	if err := c.handshake(); err != nil {
-		return 0, err
-	}
-	return c.inner.Read(buf)
-}
-
-// Write writes data to an SRP connection.
-func (c *srpConn) Write(buf []byte) (int, error) {
-	if err := c.handshake(); err != nil {
-		return 0, err
-	}
-	return c.inner.Write(buf)
-}
-
-func (c *srpConn) Close() error                       { return c.inner.Close() }
-func (c *srpConn) LocalAddr() net.Addr                { return c.inner.LocalAddr() }
-func (c *srpConn) RemoteAddr() net.Addr               { return c.inner.RemoteAddr() }
-func (c *srpConn) SetDeadline(t time.Time) error      { return c.inner.SetDeadline(t) }
-func (c *srpConn) SetReadDeadline(t time.Time) error  { return c.inner.SetReadDeadline(t) }
-func (c *srpConn) SetWriteDeadline(t time.Time) error { return c.inner.SetWriteDeadline(t) }
 
 // runSRP runs the Secure Remote Password protocol interactively.
 func runSRP(network, addr string, p, g *big.Int) error {
