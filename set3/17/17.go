@@ -107,25 +107,22 @@ func decryptedValidPadding(iv, buf []byte, c cipher.Block) bool {
 }
 
 // cbcPaddingOracle returns a CBC padding oracle.
-func cbcPaddingOracle(c cipher.Block) func([]byte, []byte) error {
-	return func(iv, buf []byte) error {
-		if !decryptedValidPadding(iv, buf, c) {
-			return errors.New("psst...invalid padding")
-		}
-		return nil
+func cbcPaddingOracle(c cipher.Block) func([]byte, []byte) bool {
+	return func(iv, buf []byte) bool {
+		return decryptedValidPadding(iv, buf, c)
 	}
 }
 
 // cbcBreaker contains data necessary to attack the CBC padding oracle.
 type cbcBreaker struct {
-	oracle     func([]byte, []byte) error
+	oracle     func([]byte, []byte) bool
 	iv         []byte
 	ciphertext []byte
 	blockSize  int
 }
 
 // newCBCBreaker takes a CBC padding oracle, IV, and ciphertext, and returns a breaker.
-func newCBCBreaker(oracle func([]byte, []byte) error, iv, ciphertext []byte) *cbcBreaker {
+func newCBCBreaker(oracle func([]byte, []byte) bool, iv, ciphertext []byte) *cbcBreaker {
 	return &cbcBreaker{
 		oracle:     oracle,
 		iv:         iv,
@@ -141,10 +138,7 @@ func (x *cbcBreaker) breakPaddingByte(tmp, buf []byte, v int) (byte, error) {
 	// Iterate backwards to avoid restoring an original padding byte.
 	for i := 0xff; i >= 0; i-- {
 		tmp[x.blockSize-v] = b ^ byte(i)
-
-		// If the oracle does not return an error,
-		// we have found a byte of plaintext.
-		if err := x.oracle(tmp, buf); err == nil {
+		if x.oracle(tmp, buf) {
 			return byte(i), nil
 		}
 	}
