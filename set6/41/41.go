@@ -178,8 +178,8 @@ func (x *unpaddedRSABreaker) breakOracle(ciphertext []byte) ([]byte, error) {
 	return p.Bytes(), nil
 }
 
-// printUnpaddedRSA reads lines of text, encrypts them, and prints the decrypted plaintext.
-func printUnpaddedRSA(in io.Reader, x *unpaddedRSABreaker) error {
+// decryptUnpaddedRSA reads lines of text, encrypts them, and prints the decrypted plaintext.
+func decryptUnpaddedRSA(in io.Reader, x *unpaddedRSABreaker) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		ciphertext, err := RSAEncrypt(x.RSAPublicKey, input.Bytes())
@@ -211,7 +211,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := printUnpaddedRSA(os.Stdin, x); err != nil {
+		if err := decryptUnpaddedRSA(os.Stdin, x); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -222,7 +222,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := printUnpaddedRSA(f, x); err != nil {
+		if err := decryptUnpaddedRSA(f, x); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()

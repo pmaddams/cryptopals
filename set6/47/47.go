@@ -385,8 +385,8 @@ func (x *rsaBreaker) breakOracle() ([]byte, error) {
 	}
 }
 
-// breakRSA reads lines of text, encrypts them, and prints the decrypted plaintext.
-func breakRSA(in io.Reader, pub *RSAPublicKey, oracle func([]byte) bool) error {
+// decryptRSA reads lines of text, encrypts them, and prints the decrypted plaintext.
+func decryptRSA(in io.Reader, pub *RSAPublicKey, oracle func([]byte) bool) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		ciphertext, err := RSAEncryptPKCS1v15(pub, input.Bytes())
@@ -417,7 +417,7 @@ func main() {
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.
 	if len(files) == 0 {
-		if err := breakRSA(os.Stdin, pub, oracle); err != nil {
+		if err := decryptRSA(os.Stdin, pub, oracle); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -428,7 +428,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := breakRSA(f, pub, oracle); err != nil {
+		if err := decryptRSA(f, pub, oracle); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
