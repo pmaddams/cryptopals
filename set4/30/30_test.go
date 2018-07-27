@@ -45,7 +45,7 @@ func TestBitPadding(t *testing.T) {
 }
 
 func TestPrefixedMD4(t *testing.T) {
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		h := md4.New()
 		b1 := make([]byte, weak.Intn(1024))
 		weak.Read(b1)
@@ -78,7 +78,7 @@ func TestMAC(t *testing.T) {
 
 	h := md4.New()
 	mac := NewMAC(md4.New, key)
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		buf := make([]byte, 1+weak.Intn(1024))
 		weak.Read(buf)
 

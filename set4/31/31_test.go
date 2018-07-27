@@ -41,7 +41,7 @@ func TestXORBytes(t *testing.T) {
 }
 
 func TestHMAC(t *testing.T) {
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		key := make([]byte, 1+weak.Intn(16))
 		buf := make([]byte, 1+weak.Intn(1024))
 		weak.Read(key)

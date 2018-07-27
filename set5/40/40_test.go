@@ -45,7 +45,7 @@ func TestRSA(t *testing.T) {
 func TestCbrt(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	max := big.NewInt(math.MaxInt64)
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		want, err := rand.Int(weak, max)
 		if err != nil {
 			panic(err)

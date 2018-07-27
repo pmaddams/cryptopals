@@ -747,7 +747,7 @@ func TestMTRandomRange(t *testing.T) {
 }
 
 func TestMTCipher(t *testing.T) {
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		seed := uint32(time.Now().Unix())
 		s1 := NewMTCipher(seed)
 		s2 := NewMTCipher(seed)

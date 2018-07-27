@@ -15,7 +15,7 @@ func TestMAC(t *testing.T) {
 	weak.Read(key)
 
 	mac := NewMAC(sha1.New, key)
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		buf := make([]byte, 1+weak.Intn(1024))
 		weak.Read(buf)
 
