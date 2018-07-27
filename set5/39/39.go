@@ -10,10 +10,7 @@ import (
 	"os"
 )
 
-const (
-	rsaDefaultE    = 65537
-	rsaDefaultBits = 2048
-)
+const rsaExponent = 65537
 
 var one = big.NewInt(1)
 
@@ -138,7 +135,7 @@ func printRSA(in io.Reader, priv *RSAPrivateKey) error {
 
 func main() {
 	fmt.Print("generating RSA key...")
-	priv, err := RSAGenerateKey(rsaDefaultE, rsaDefaultBits)
+	priv, err := RSAGenerateKey(rsaExponent, 1024)
 	if err != nil {
 		panic(err)
 	}

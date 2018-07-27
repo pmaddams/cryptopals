@@ -12,7 +12,7 @@ import (
 	"unicode"
 )
 
-const rsaDefaultE = 65537
+const rsaExponent = 65537
 
 var (
 	one = big.NewInt(1)
@@ -204,7 +204,7 @@ func decryptHollywoodStyle(in io.Reader, x *parityBreaker) error {
 
 func main() {
 	fmt.Print("generating RSA key...")
-	priv, err := RSAGenerateKey(rsaDefaultE, 1024)
+	priv, err := RSAGenerateKey(rsaExponent, 1024)
 	if err != nil {
 		panic(err)
 	}

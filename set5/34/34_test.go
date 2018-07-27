@@ -14,11 +14,11 @@ import (
 func init() { weak.Seed(time.Now().UnixNano()) }
 
 func TestDH(t *testing.T) {
-	p, err := ParseBigInt(dhDefaultP, 16)
+	p, err := ParseBigInt(dhPrime, 16)
 	if err != nil {
 		panic(err)
 	}
-	g, err := ParseBigInt(dhDefaultG, 16)
+	g, err := ParseBigInt(dhGenerator, 16)
 	if err != nil {
 		panic(err)
 	}

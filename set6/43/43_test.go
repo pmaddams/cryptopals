@@ -15,15 +15,15 @@ import (
 func init() { weak.Seed(time.Now().UnixNano()) }
 
 func TestDSA(t *testing.T) {
-	p, err := ParseBigInt(dsaDefaultP, 16)
+	p, err := ParseBigInt(dsaPrime, 16)
 	if err != nil {
 		panic(err)
 	}
-	q, err := ParseBigInt(dsaDefaultQ, 16)
+	q, err := ParseBigInt(dsaSubprime, 16)
 	if err != nil {
 		panic(err)
 	}
-	g, err := ParseBigInt(dsaDefaultG, 16)
+	g, err := ParseBigInt(dsaGenerator, 16)
 	if err != nil {
 		panic(err)
 	}
