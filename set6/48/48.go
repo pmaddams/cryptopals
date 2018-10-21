@@ -253,11 +253,9 @@ func PKCS1v15CryptUnpad(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-// copyRight copies a source buffer to the right of a destination buffer.
-func copyRight(dst, src []byte) int {
-	dst = dst[len(dst)-len(src):]
-
-	return copy(dst, src)
+// copyR copies a source buffer to the right of a destination buffer.
+func copyR(dst, src []byte) int {
+	return copy(dst[len(dst)-len(src):], src)
 }
 
 // breakOracle breaks the padding oracle and returns the plaintext.
@@ -271,7 +269,7 @@ func (x *rsaBreaker) breakOracle() ([]byte, error) {
 			m := x.ivals[0]
 			if equal(m.lo, m.hi) {
 				buf := make([]byte, size(x.n))
-				copyRight(buf, m.lo.Bytes())
+				copyR(buf, m.lo.Bytes())
 
 				plaintext, err := PKCS1v15CryptUnpad(buf)
 				if err != nil {

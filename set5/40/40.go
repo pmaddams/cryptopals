@@ -80,11 +80,9 @@ func size(z *big.Int) int {
 	return (z.BitLen() + 7) / 8
 }
 
-// copyRight copies a source buffer to the right of a destination buffer.
-func copyRight(dst, src []byte) int {
-	dst = dst[len(dst)-len(src):]
-
-	return copy(dst, src)
+// copyR copies a source buffer to the right of a destination buffer.
+func copyR(dst, src []byte) int {
+	return copy(dst[len(dst)-len(src):], src)
 }
 
 // RSAEncrypt takes a public key and plaintext, and returns ciphertext.
@@ -96,7 +94,7 @@ func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	z.Exp(z, pub.e, pub.n)
 
 	res := make([]byte, size(pub.n))
-	copyRight(res, z.Bytes())
+	copyR(res, z.Bytes())
 
 	return res, nil
 }
@@ -110,7 +108,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	z.Exp(z, priv.d, priv.n)
 
 	res := make([]byte, size(priv.n))
-	copyRight(res, z.Bytes())
+	copyR(res, z.Bytes())
 
 	return res, nil
 }
