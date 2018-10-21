@@ -18,7 +18,7 @@ import (
 // sample is a file similar to the expected plaintext.
 const sample = "alice.txt"
 
-// Symbols reads text and returns a map of UTF-8 symbol counts.
+// Symbols reads sample text and returns a map of UTF-8 symbol counts.
 func Symbols(in io.Reader) (map[rune]int, error) {
 	buf, err := ioutil.ReadAll(in)
 	if err != nil {
@@ -31,28 +31,18 @@ func Symbols(in io.Reader) (map[rune]int, error) {
 	return m, nil
 }
 
-// Score takes a buffer and map of symbol counts, and returns a score.
-func Score(buf []byte, m map[rune]int) int {
-	var n int
-	for _, r := range string(buf) {
-		n += m[r]
-	}
-	return n
-}
-
-// scoreFunc takes a sample file and returns a score function.
-func scoreFunc(file string) (func([]byte) int, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	m, err := Symbols(f)
+// Score reads sample text and returns a scoring function.
+func Score(in io.Reader) (func([]byte) int, error) {
+	m, err := Symbols(in)
 	if err != nil {
 		return nil, err
 	}
 	return func(buf []byte) int {
-		return Score(buf, m)
+		var n int
+		for _, r := range string(buf) {
+			n += m[r]
+		}
+		return n
 	}, nil
 }
 
@@ -219,16 +209,23 @@ func decryptCTR(bufs [][]byte, score func([]byte) int) error {
 }
 
 func main() {
-	score, err := scoreFunc(sample)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
 	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
 		panic(err)
 	}
 	iv := RandomBytes(c.BlockSize())
+
+	f, err := os.Open(sample)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	score, err := Score(f)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	f.Close()
 
 	files := os.Args[1:]
 	// If no files are specified, read from standard input.

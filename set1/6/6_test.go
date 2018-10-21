@@ -102,29 +102,28 @@ func TestSymbols(t *testing.T) {
 }
 
 func TestScore(t *testing.T) {
-	symbols := func(s string) map[rune]int {
-		m, _ := Symbols(strings.NewReader(s))
-		return m
-	}
 	cases := []struct {
-		s    string
-		m    map[rune]int
-		want int
+		sample string
+		s      string
+		want   int
 	}{
 		{
 			"hola",
-			symbols("hello world"),
+			"hello world",
 			6,
 		},
 		{
 			"世界再见",
-			symbols("你好世界"),
+			"你好世界",
 			2,
 		},
 	}
 	for _, c := range cases {
-		got := Score([]byte(c.s), c.m)
-		if got != c.want {
+		score, err := Score(strings.NewReader(c.sample))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := score([]byte(c.s)); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
