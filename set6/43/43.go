@@ -129,6 +129,10 @@ func breakDSA(pub *DSAPublicKey, sum []byte, r, s, k *big.Int) *DSAPrivateKey {
 	x := z1.Mul(z1, z2)
 	x.Mod(x, pub.q)
 
+	y := z2.Exp(pub.g, x, pub.p)
+	if !equal(y, pub.y) {
+		return nil
+	}
 	return &DSAPrivateKey{*pub, x}
 }
 
@@ -184,8 +188,7 @@ bb283e6633451e535c45513b2d33c99ea17`, 16)
 	k := new(big.Int)
 	for i := 0; i <= 0xffff; i++ {
 		k.SetInt64(int64(i))
-		priv := breakDSA(pub, sum, r, s, k)
-		if equal(priv.y, k.Exp(priv.g, priv.x, priv.p)) {
+		if breakDSA(pub, sum, r, s, k) != nil {
 			fmt.Println("success")
 			return
 		}

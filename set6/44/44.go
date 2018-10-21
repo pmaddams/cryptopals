@@ -32,9 +32,9 @@ b4deb50aa18ee9e132bfa85ac4374d7f9091abc3d015efc87
 
 // message represents a message signed with DSA.
 type message struct {
-	s *big.Int
-	r *big.Int
-	m *big.Int
+	sum []byte
+	r   *big.Int
+	s   *big.Int
 }
 
 // scanAfterPrefix reads a line and returns the string after a prefix.
@@ -87,12 +87,10 @@ func scanMessage(input *bufio.Scanner) (*message, error) {
 	if s, err = scanAfterPrefix(input, "m: "); err != nil {
 		return nil, err
 	}
-	if sum, err := hex.DecodeString(s); err != nil {
+	if msg.sum, err = hex.DecodeString(s); err != nil {
 		return nil, err
-	} else if !bytes.Equal(sum, array[:]) {
+	} else if !bytes.Equal(msg.sum, array[:]) {
 		return nil, errors.New("scanMessage: invalid checksum")
-	} else {
-		msg.m = new(big.Int).SetBytes(sum)
 	}
 	return msg, nil
 }
@@ -140,21 +138,23 @@ func equal(z1, z2 *big.Int) bool {
 
 // possibleK returns a possible k value for a pair of messages.
 func possibleK(pair messagePair, pub *dsa.PublicKey) *big.Int {
-	z1 := new(big.Int).Sub(pair.fst.m, pair.snd.m)
-	z2 := new(big.Int).Sub(pair.fst.s, pair.snd.s)
+	z1 := new(big.Int).SetBytes(pair.fst.sum)
+	z2 := new(big.Int).SetBytes(pair.snd.sum)
+
+	z1.Sub(z1, z2)
+	z2.Sub(pair.fst.s, pair.snd.s)
 	z2.ModInverse(z2, pub.Q)
-
 	k := z1.Mul(z1, z2)
-	k.Mod(k, pub.Q)
 
-	return k
+	return k.Mod(k, pub.Q)
 }
 
-// tryBreakDSA returns either nil or the private key used to sign a checksum.
-func tryBreakDSA(pub *dsa.PublicKey, msg *message, k *big.Int) *dsa.PrivateKey {
-	z1 := new(big.Int).Mul(msg.s, k)
-	z1.Sub(z1, msg.m)
-	z2 := new(big.Int).ModInverse(msg.r, pub.Q)
+// breakDSA returns the private key used to sign a checksum.
+func breakDSA(pub *dsa.PublicKey, sum []byte, r, s, k *big.Int) *dsa.PrivateKey {
+	z1 := new(big.Int).Mul(s, k)
+	z2 := new(big.Int).SetBytes(sum)
+	z1.Sub(z1, z2)
+	z2.ModInverse(r, pub.Q)
 
 	x := z1.Mul(z1, z2)
 	x.Mod(x, pub.Q)
@@ -211,7 +211,8 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 	}
 	for pair := range messagePairs(msgs) {
 		k := possibleK(pair, pub)
-		if tryBreakDSA(pub, pair.fst, k) != nil {
+		msg := pair.fst
+		if breakDSA(pub, msg.sum, msg.r, msg.s, k) != nil {
 			fmt.Println("success")
 			return
 		}
