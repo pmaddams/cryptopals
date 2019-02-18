@@ -1,3 +1,5 @@
+// 32. Break HMAC-SHA1 with a slightly less artificial timing leak
+
 package main
 
 import (

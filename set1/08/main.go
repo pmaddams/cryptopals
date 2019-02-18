@@ -1,3 +1,5 @@
+// 8. Detect AES in ECB mode
+
 package main
 
 import (

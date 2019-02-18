@@ -1,3 +1,5 @@
+// 18. Implement CTR, the stream cipher mode
+
 package main
 
 import (

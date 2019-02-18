@@ -1,3 +1,5 @@
+// 27. Recover the key from CBC with IV=Key
+
 package main
 
 import (

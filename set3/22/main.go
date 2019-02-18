@@ -1,3 +1,5 @@
+// 22. Crack an MT19937 seed
+
 package main
 
 import (

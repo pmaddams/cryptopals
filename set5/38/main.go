@@ -1,3 +1,5 @@
+// 38. Offline dictionary attack on simplified SRP
+
 package main
 
 import (

@@ -1,3 +1,5 @@
+// 4. Detect single-character XOR
+
 package main
 
 import (

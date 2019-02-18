@@ -1,3 +1,5 @@
+// 23. Clone an MT19937 RNG from its output
+
 package main
 
 import (

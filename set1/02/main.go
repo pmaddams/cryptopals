@@ -1,3 +1,5 @@
+// 2. Fixed XOR
+
 package main
 
 import (

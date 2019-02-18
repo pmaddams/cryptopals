@@ -1,3 +1,5 @@
+// 3. Single-byte XOR cipher
+
 package main
 
 import (
