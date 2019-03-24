@@ -200,7 +200,7 @@ func rsaPaddingOracle(priv *RSAPrivateKey) func([]byte) bool {
 	}
 }
 
-// interval represents an range of possible plaintexts.
+// interval represents a range of possible plaintexts.
 type interval struct {
 	lo *big.Int
 	hi *big.Int
