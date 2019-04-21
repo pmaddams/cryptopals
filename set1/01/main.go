@@ -11,17 +11,29 @@ import (
 	"os"
 )
 
-// HexToBase64 converts a hex-encoded string to base64.
-func HexToBase64(s string) (string, error) {
-	buf, err := hex.DecodeString(s)
-	if err != nil {
-		return "", err
+func main() {
+	files := os.Args[1:]
+	if len(files) == 0 {
+		if err := convert(os.Stdin); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		return
 	}
-	return base64.StdEncoding.EncodeToString(buf), nil
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := convert(f); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
 }
 
-// convertHex reads hex-encoded input and prints base64.
-func convertHex(in io.Reader) error {
+// convert reads hex-encoded input and prints base64.
+func convert(in io.Reader) error {
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		s, err := HexToBase64(input.Text())
@@ -33,24 +45,11 @@ func convertHex(in io.Reader) error {
 	return input.Err()
 }
 
-func main() {
-	files := os.Args[1:]
-	// If no files are specified, read from standard input.
-	if len(files) == 0 {
-		if err := convertHex(os.Stdin); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		return
+// HexToBase64 converts a hex-encoded string to base64.
+func HexToBase64(s string) (string, error) {
+	buf, err := hex.DecodeString(s)
+	if err != nil {
+		return "", err
 	}
-	for _, file := range files {
-		f, err := os.Open(file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		if err := convertHex(f); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		f.Close()
-	}
+	return base64.StdEncoding.EncodeToString(buf), nil
 }
