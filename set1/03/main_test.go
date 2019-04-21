@@ -7,7 +7,35 @@ import (
 	"testing"
 )
 
-func TestSymbols(t *testing.T) {
+func TestScoreFunc(t *testing.T) {
+	cases := []struct {
+		sample string
+		s      string
+		want   int
+	}{
+		{
+			"hola",
+			"hello world",
+			6,
+		},
+		{
+			"世界再见",
+			"你好世界",
+			2,
+		},
+	}
+	for _, c := range cases {
+		score, err := ScoreFunc(strings.NewReader(c.sample))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := score([]byte(c.s)); got != c.want {
+			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
+
+func TestSymbolCounts(t *testing.T) {
 	cases := []struct {
 		s    string
 		want map[rune]int
@@ -36,36 +64,8 @@ func TestSymbols(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got, _ := Symbols(strings.NewReader(c.s))
+		got, _ := SymbolCounts(strings.NewReader(c.s))
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
-func TestScore(t *testing.T) {
-	cases := []struct {
-		sample string
-		s      string
-		want   int
-	}{
-		{
-			"hola",
-			"hello world",
-			6,
-		},
-		{
-			"世界再见",
-			"你好世界",
-			2,
-		},
-	}
-	for _, c := range cases {
-		score, err := Score(strings.NewReader(c.sample))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := score([]byte(c.s)); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
