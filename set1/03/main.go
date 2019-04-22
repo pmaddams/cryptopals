@@ -68,7 +68,7 @@ func decrypt(in io.Reader, score func([]byte) int) error {
 	return nil
 }
 
-// breakSingleXOR takes a buffer and scoring function, and returns the key.
+// breakSingleXOR returns the key used to encrypt a buffer with single-byte XOR.
 func breakSingleXOR(buf []byte, score func([]byte) int) byte {
 	var (
 		key  byte

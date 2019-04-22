@@ -56,15 +56,13 @@ func XORSingleByte(dst, src []byte, b byte) {
 	}
 }
 
-// breakSingleXOR takes a buffer and score function, and returns the single-byte XOR key.
+// breakSingleXOR returns the key used to encrypt a buffer with single-byte XOR.
 func breakSingleXOR(buf []byte, score func([]byte) int) byte {
-	// Don't modify the original data.
-	tmp := make([]byte, len(buf))
 	var (
 		key  byte
 		best int
 	)
-	// Use an integer as the loop variable to avoid overflow.
+	tmp := make([]byte, len(buf))
 	for i := 0; i <= 0xff; i++ {
 		XORSingleByte(tmp, buf, byte(i))
 		if n := score(tmp); n > best {
