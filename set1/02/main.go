@@ -11,7 +11,7 @@ import (
 func main() {
 	files := os.Args[1:]
 	if len(files) == 0 {
-		if err := xorLines(os.Stdin); err != nil {
+		if err := xor2(os.Stdin); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -22,15 +22,15 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := xorLines(f); err != nil {
+		if err := xor2(f); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
 	}
 }
 
-// xorLines reads two hex-encoded lines and prints their XOR combination.
-func xorLines(in io.Reader) error {
+// xor2 reads two hex-encoded lines and prints their XOR combination.
+func xor2(in io.Reader) error {
 	b1, err := readHex(in)
 	if err != nil {
 		return err
