@@ -73,7 +73,7 @@ func detect(in io.Reader, score func([]byte) int) error {
 	return nil
 }
 
-// bestSingleXOR takes a buffer and score function, and returns a possible key and score.
+// bestSingleXOR takes a buffer and scoring function, and returns a possible key and score.
 func bestSingleXOR(buf []byte, score func([]byte) int) (byte, int) {
 	var (
 		key  byte
