@@ -8,6 +8,70 @@ import (
 	"testing"
 )
 
+func TestScoreFunc(t *testing.T) {
+	cases := []struct {
+		sample string
+		s      string
+		want   int
+	}{
+		{
+			"hola",
+			"hello world",
+			6,
+		},
+		{
+			"世界再见",
+			"你好世界",
+			2,
+		},
+	}
+	for _, c := range cases {
+		score, err := ScoreFunc(strings.NewReader(c.sample))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := score([]byte(c.s)); got != c.want {
+			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
+
+func TestSymbolCounts(t *testing.T) {
+	cases := []struct {
+		s    string
+		want map[rune]int
+	}{
+		{
+			"hello world",
+			map[rune]int{
+				'h': 1,
+				'e': 1,
+				'l': 3,
+				'o': 2,
+				' ': 1,
+				'w': 1,
+				'r': 1,
+				'd': 1,
+			},
+		},
+		{
+			"你好世界",
+			map[rune]int{
+				'你': 1,
+				'好': 1,
+				'世': 1,
+				'界': 1,
+			},
+		},
+	}
+	for _, c := range cases {
+		got, _ := SymbolCounts(strings.NewReader(c.s))
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
+
 func TestAverageDistance(t *testing.T) {
 	cases := []struct {
 		buf       []byte
@@ -67,8 +131,8 @@ func TestHammingDistance(t *testing.T) {
 
 func TestTranspose(t *testing.T) {
 	cases := []struct {
-		blocks [][]byte
-		want   [][]byte
+		bufs [][]byte
+		want [][]byte
 	}{
 		{
 			[][]byte{
@@ -104,7 +168,7 @@ func TestTranspose(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got, _ := Transpose(c.blocks)
+		got, _ := Transpose(c.bufs)
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
@@ -142,70 +206,6 @@ func TestSubdivide(t *testing.T) {
 	}
 	for _, c := range cases {
 		got := Subdivide(c.buf, c.n)
-		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
-func TestScoreFunc(t *testing.T) {
-	cases := []struct {
-		sample string
-		s      string
-		want   int
-	}{
-		{
-			"hola",
-			"hello world",
-			6,
-		},
-		{
-			"世界再见",
-			"你好世界",
-			2,
-		},
-	}
-	for _, c := range cases {
-		score, err := ScoreFunc(strings.NewReader(c.sample))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := score([]byte(c.s)); got != c.want {
-			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
-func TestSymbolCounts(t *testing.T) {
-	cases := []struct {
-		s    string
-		want map[rune]int
-	}{
-		{
-			"hello world",
-			map[rune]int{
-				'h': 1,
-				'e': 1,
-				'l': 3,
-				'o': 2,
-				' ': 1,
-				'w': 1,
-				'r': 1,
-				'd': 1,
-			},
-		},
-		{
-			"你好世界",
-			map[rune]int{
-				'你': 1,
-				'好': 1,
-				'世': 1,
-				'界': 1,
-			},
-		},
-	}
-	for _, c := range cases {
-		got, _ := SymbolCounts(strings.NewReader(c.s))
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("got %v, want %v", got, c.want)
 		}

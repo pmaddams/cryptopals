@@ -116,65 +116,6 @@ func keySize(buf []byte) (int, error) {
 	return n, nil
 }
 
-// AverageDistance returns the average Hamming distance between adjacent blocks.
-func AverageDistance(buf []byte, size int) (float64, error) {
-	blocks := Subdivide(buf, size)
-	if len(blocks) < 2 {
-		return 0, errors.New("AverageDistance: need 2 or more blocks")
-	}
-	var f float64
-	for i := 0; i < len(blocks)-1; i++ {
-		n := HammingDistance(blocks[i], blocks[i+1])
-		f += float64(n) / float64(size) / float64(len(blocks)-1)
-	}
-	return f, nil
-}
-
-// HammingDistance returns the number of differing bits between two buffers.
-func HammingDistance(b1, b2 []byte) int {
-	var short, long []byte
-	if len(b1) < len(b2) {
-		short, long = b1, b2
-	} else {
-		short, long = b2, b1
-	}
-	var n int
-	for i := range short {
-		n += bits.OnesCount8(short[i] ^ long[i])
-	}
-	n += 8 * (len(long) - len(short))
-
-	return n
-}
-
-// Transpose takes a slice of blocks and returns buffers swapping the rows and columns.
-func Transpose(blocks [][]byte) ([][]byte, error) {
-	for i := 0; i < len(blocks); i++ {
-		if len(blocks[i]) != len(blocks[0]) {
-			return nil, errors.New("Transpose: blocks must have equal length")
-		}
-	}
-	bufs := make([][]byte, len(blocks[0]))
-	for i := 0; i < len(blocks[0]); i++ {
-		bufs[i] = make([]byte, len(blocks))
-		for j := 0; j < len(blocks); j++ {
-			bufs[i][j] = blocks[j][i]
-		}
-	}
-	return bufs, nil
-}
-
-// Subdivide divides a buffer into blocks.
-func Subdivide(buf []byte, size int) [][]byte {
-	var blocks [][]byte
-	for len(buf) >= size {
-		// Return pointers, not copies.
-		blocks = append(blocks, buf[:size])
-		buf = buf[size:]
-	}
-	return blocks
-}
-
 // breakSingleXOR returns the key used to encrypt a buffer with single-byte XOR.
 func breakSingleXOR(buf []byte, score func([]byte) int) byte {
 	var (
@@ -218,6 +159,65 @@ func SymbolCounts(in io.Reader) (map[rune]int, error) {
 		m[r]++
 	}
 	return m, nil
+}
+
+// AverageDistance returns the average Hamming distance between adjacent blocks.
+func AverageDistance(buf []byte, size int) (float64, error) {
+	blocks := Subdivide(buf, size)
+	if len(blocks) < 2 {
+		return 0, errors.New("AverageDistance: need 2 or more blocks")
+	}
+	var f float64
+	for i := 0; i < len(blocks)-1; i++ {
+		n := HammingDistance(blocks[i], blocks[i+1])
+		f += float64(n) / float64(size) / float64(len(blocks)-1)
+	}
+	return f, nil
+}
+
+// HammingDistance returns the number of differing bits between two buffers.
+func HammingDistance(b1, b2 []byte) int {
+	var short, long []byte
+	if len(b1) < len(b2) {
+		short, long = b1, b2
+	} else {
+		short, long = b2, b1
+	}
+	var n int
+	for i := range short {
+		n += bits.OnesCount8(short[i] ^ long[i])
+	}
+	n += 8 * (len(long) - len(short))
+
+	return n
+}
+
+// Transpose takes a slice of buffers and returns buffers with the rows and columns swapped.
+func Transpose(bufs [][]byte) ([][]byte, error) {
+	for i := 0; i < len(bufs); i++ {
+		if len(bufs[i]) != len(bufs[0]) {
+			return nil, errors.New("Transpose: buffers must have equal length")
+		}
+	}
+	res := make([][]byte, len(bufs[0]))
+	for i := 0; i < len(bufs[0]); i++ {
+		res[i] = make([]byte, len(bufs))
+		for j := 0; j < len(bufs); j++ {
+			res[i][j] = bufs[j][i]
+		}
+	}
+	return res, nil
+}
+
+// Subdivide divides a buffer into blocks.
+func Subdivide(buf []byte, size int) [][]byte {
+	var blocks [][]byte
+	for len(buf) >= size {
+		// Return pointers, not copies.
+		blocks = append(blocks, buf[:size])
+		buf = buf[size:]
+	}
+	return blocks
 }
 
 // XORSingleByte produces the XOR combination of a buffer with a single byte.
