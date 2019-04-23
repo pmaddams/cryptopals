@@ -20,40 +20,107 @@ import (
 // sample is a file similar to the expected plaintext.
 const sample = "alice.txt"
 
-// Symbols reads sample text and returns a map of UTF-8 symbol counts.
-func Symbols(in io.Reader) (map[rune]int, error) {
-	buf, err := ioutil.ReadAll(in)
+func main() {
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	m := make(map[rune]int)
-	for _, r := range string(buf) {
-		m[r]++
-	}
-	return m, nil
-}
+	iv := RandomBytes(c.BlockSize())
 
-// Score reads sample text and returns a scoring function.
-func Score(in io.Reader) (func([]byte) int, error) {
-	m, err := Symbols(in)
+	f, err := os.Open(sample)
 	if err != nil {
-		return nil, err
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-	return func(buf []byte) int {
-		var n int
-		for _, r := range string(buf) {
-			n += m[r]
+	score, err := ScoreFunc(f)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	f.Close()
+
+	files := os.Args[1:]
+	if len(files) == 0 {
+		lines, err := encrypt(os.Stdin, c, iv)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
 		}
-		return n
-	}, nil
+		if err := decrypt(lines, score); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	}
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		lines, err := encrypt(f, c, iv)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := decrypt(lines, score); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
 }
 
-// XORSingleByte produces the XOR combination of a buffer with a single byte.
-func XORSingleByte(dst, src []byte, b byte) {
-	// Panic if dst is smaller than src.
-	for i := range src {
-		dst[i] = src[i] ^ b
+// encrypt reads lines of base64-encoded text and encrypts them with an identical CTR keystream.
+func encrypt(in io.Reader, c cipher.Block, iv []byte) ([][]byte, error) {
+	input := bufio.NewScanner(in)
+	var res [][]byte
+	for input.Scan() {
+		line, err := base64.StdEncoding.DecodeString(input.Text())
+		if err != nil {
+			return nil, err
+		}
+		stream := cipher.NewCTR(c, iv)
+		stream.XORKeyStream(line, line)
+		res = append(res, line)
 	}
+	if err := input.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// decrypt decrypts and prints buffers encrypted with an identical CTR keystream.
+func decrypt(bufs [][]byte, score func([]byte) int) error {
+	keystream, err := breakCTR(bufs, score)
+	if err != nil {
+		return err
+	}
+	for _, buf := range bufs {
+		n := XORBytes(buf, buf, keystream)
+		fmt.Println(string(buf[:n]))
+	}
+	return nil
+}
+
+// breakCTR returns the keystream used to encrypt buffers with identical CTR.
+func breakCTR(bufs [][]byte, score func([]byte) int) ([]byte, error) {
+	size := Median(Lengths(bufs))
+	bufs, err := Transpose(Truncate(bufs, size))
+	if err != nil {
+		return nil, err
+	}
+	keystream := make([]byte, size)
+
+	var wg sync.WaitGroup
+	wg.Add(size)
+	for i := range keystream {
+		// Capture the value of the loop variable.
+		go func(i int) {
+			keystream[i] = breakSingleXOR(bufs[i], score)
+			wg.Done()
+		}(i)
+	}
+	wg.Wait()
+
+	return keystream, nil
 }
 
 // breakSingleXOR returns the key used to encrypt a buffer with single-byte XOR.
@@ -73,29 +140,56 @@ func breakSingleXOR(buf []byte, score func([]byte) int) byte {
 	return key
 }
 
-// Lengths returns a slice of integer buffer lengths.
-func Lengths(bufs [][]byte) []int {
-	var nums []int
-	for _, buf := range bufs {
-		nums = append(nums, len(buf))
+// ScoreFunc reads sample text and returns a scoring function.
+func ScoreFunc(in io.Reader) (func([]byte) int, error) {
+	m, err := SymbolCounts(in)
+	if err != nil {
+		return nil, err
 	}
-	return nums
+	return func(buf []byte) int {
+		var n int
+		for _, r := range string(buf) {
+			n += m[r]
+		}
+		return n
+	}, nil
 }
 
-// Median returns the median value of a slice of integers.
-func Median(nums []int) (int, error) {
-	if len(nums) == 0 {
-		return 0, errors.New("Median: no data")
+// SymbolCounts reads sample text and returns a map of UTF-8 symbol counts.
+func SymbolCounts(in io.Reader) (map[rune]int, error) {
+	buf, err := ioutil.ReadAll(in)
+	if err != nil {
+		return nil, err
 	}
-	sort.Ints(nums)
-	return nums[len(nums)/2], nil
+	m := make(map[rune]int)
+	for _, r := range string(buf) {
+		m[r]++
+	}
+	return m, nil
 }
 
-// Truncate returns a slice of buffers truncated to n bytes long.
+// Transpose takes a slice of buffers and returns buffers with the rows and columns swapped.
+func Transpose(bufs [][]byte) ([][]byte, error) {
+	for i := 0; i < len(bufs); i++ {
+		if len(bufs[i]) != len(bufs[0]) {
+			return nil, errors.New("Transpose: buffers must have equal length")
+		}
+	}
+	res := make([][]byte, len(bufs[0]))
+	for i := 0; i < len(bufs[0]); i++ {
+		res[i] = make([]byte, len(bufs))
+		for j := 0; j < len(bufs); j++ {
+			res[i][j] = bufs[j][i]
+		}
+	}
+	return res, nil
+}
+
+// Truncate returns a slice of buffers truncated to n bytes.
 func Truncate(bufs [][]byte, n int) [][]byte {
 	var res [][]byte
 	for _, buf := range bufs {
-		// Discard buffers fewer than n bytes long.
+		// Discard buffers shorter than n bytes.
 		if len(buf) >= n {
 			res = append(res, buf[:n])
 		}
@@ -103,87 +197,19 @@ func Truncate(bufs [][]byte, n int) [][]byte {
 	return res
 }
 
-// Transpose takes equal-length buffers and returns them with the rows and columns swapped.
-func Transpose(bufs [][]byte) ([][]byte, error) {
-	nums := Lengths(bufs)
-	if len(nums) == 0 {
-		return nil, errors.New("Transpose: no data")
-	}
-	n := nums[0]
-	for i := range nums[1:] {
-		if nums[i] != n {
-			return nil, errors.New("Transpose: buffers must have equal lengths")
-		}
-	}
-	res := make([][]byte, n)
-	for i := range res {
-		res[i] = make([]byte, len(bufs))
-		for j := range res[i] {
-			res[i][j] = bufs[j][i]
-		}
-	}
-	return res, nil
+// Median returns the median value of a slice of integers.
+func Median(nums []int) int {
+	sort.Ints(nums)
+	return nums[len(nums)/2]
 }
 
-// breakCTR returns the keystream used to encrypt buffers with identical CTR.
-func breakCTR(bufs [][]byte, score func([]byte) int) ([]byte, error) {
-	n, err := Median(Lengths(bufs))
-	if err != nil {
-		return nil, err
+// Lengths returns a slice of buffer lengths.
+func Lengths(bufs [][]byte) []int {
+	nums := make([]int, len(bufs))
+	for i := range nums {
+		nums[i] = len(bufs[i])
 	}
-	blocks, err := Transpose(Truncate(bufs, n))
-	if err != nil {
-		return nil, err
-	}
-	keystream := make([]byte, n)
-
-	var wg sync.WaitGroup
-	for i := range blocks {
-		wg.Add(1)
-		go func(i int) {
-			keystream[i] = breakSingleXOR(blocks[i], score)
-			wg.Done()
-		}(i)
-	}
-	wg.Wait()
-
-	return keystream, nil
-}
-
-// RandomBytes returns a random buffer of the desired length.
-func RandomBytes(n int) []byte {
-	buf := make([]byte, n)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
-	return buf
-}
-
-// encryptCTR reads lines of base64-encoded text and encrypts them with an identical CTR keystream.
-func encryptCTR(in io.Reader, c cipher.Block, iv []byte) ([][]byte, error) {
-	input := bufio.NewScanner(in)
-	var res [][]byte
-	for input.Scan() {
-		line, err := base64.StdEncoding.DecodeString(input.Text())
-		if err != nil {
-			return nil, err
-		}
-		stream := cipher.NewCTR(c, iv)
-		stream.XORKeyStream(line, line)
-		res = append(res, line)
-	}
-	if err := input.Err(); err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
-	}
-	return m
+	return nums
 }
 
 // XORBytes produces the XOR combination of two buffers.
@@ -195,64 +221,27 @@ func XORBytes(dst, b1, b2 []byte) int {
 	return n
 }
 
-// decryptCTR decrypts and prints buffers encrypted with an identical CTR keystream.
-func decryptCTR(bufs [][]byte, score func([]byte) int) error {
-	keystream, err := breakCTR(bufs, score)
-	if err != nil {
-		return err
+// XORSingleByte produces the XOR combination of a buffer with a single byte.
+func XORSingleByte(dst, src []byte, b byte) {
+	// Panic if dst is smaller than src.
+	for i := range src {
+		dst[i] = src[i] ^ b
 	}
-	for _, buf := range bufs {
-		n := XORBytes(buf, buf, keystream)
-		fmt.Println(string(buf[:n]))
-	}
-	return nil
 }
 
-func main() {
-	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
-	if err != nil {
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	iv := RandomBytes(c.BlockSize())
+	return buf
+}
 
-	f, err := os.Open(sample)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+// min returns the smaller of two integers.
+func min(n, m int) int {
+	if n < m {
+		return n
 	}
-	score, err := Score(f)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	f.Close()
-
-	files := os.Args[1:]
-	// If no files are specified, read from standard input.
-	if len(files) == 0 {
-		lines, err := encryptCTR(os.Stdin, c, iv)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
-		if err := decryptCTR(lines, score); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-	}
-	for _, file := range files {
-		f, err := os.Open(file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		lines, err := encryptCTR(f, c, iv)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		if err := decryptCTR(lines, score); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		f.Close()
-	}
+	return m
 }
