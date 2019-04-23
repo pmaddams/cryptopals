@@ -79,8 +79,8 @@ func breakRepeatingXOR(buf []byte, score func([]byte) int) ([]byte, error) {
 	key := make([]byte, size)
 
 	var wg sync.WaitGroup
-	for i := range bufs {
-		wg.Add(1)
+	wg.Add(size)
+	for i := range key {
 		// Capture the value of the loop variable.
 		go func(i int) {
 			key[i] = breakSingleXOR(bufs[i], score)
