@@ -7,7 +7,35 @@ import (
 	"testing"
 )
 
-func TestSymbols(t *testing.T) {
+func TestScoreFunc(t *testing.T) {
+	cases := []struct {
+		sample string
+		s      string
+		want   int
+	}{
+		{
+			"hola",
+			"hello world",
+			6,
+		},
+		{
+			"世界再见",
+			"你好世界",
+			2,
+		},
+	}
+	for _, c := range cases {
+		score, err := ScoreFunc(strings.NewReader(c.sample))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := score([]byte(c.s)); got != c.want {
+			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
+
+func TestSymbolCounts(t *testing.T) {
 	cases := []struct {
 		s    string
 		want map[rune]int
@@ -36,124 +64,54 @@ func TestSymbols(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got, _ := Symbols(strings.NewReader(c.s))
+		got, _ := SymbolCounts(strings.NewReader(c.s))
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
 
-func TestScore(t *testing.T) {
-	cases := []struct {
-		sample string
-		s      string
-		want   int
-	}{
-		{
-			"hola",
-			"hello world",
-			6,
-		},
-		{
-			"世界再见",
-			"你好世界",
-			2,
-		},
-	}
-	for _, c := range cases {
-		score, err := Score(strings.NewReader(c.sample))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got := score([]byte(c.s)); got != c.want {
-			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
-func TestXORSingleByte(t *testing.T) {
-	cases := []struct {
-		src  []byte
-		b    byte
-		want []byte
-	}{
-		{
-			[]byte{0, 1, 2, 3, 4, 5},
-			1,
-			[]byte{1, 0, 3, 2, 5, 4},
-		},
-		{
-			[]byte{0, 1, 2, 3, 4, 5},
-			2,
-			[]byte{2, 3, 0, 1, 6, 7},
-		},
-		{
-			[]byte{0, 1, 2, 3, 4, 5},
-			3,
-			[]byte{3, 2, 1, 0, 7, 6},
-		},
-	}
-	dst := make([]byte, 6)
-	for _, c := range cases {
-		XORSingleByte(dst, c.src, c.b)
-		if !bytes.Equal(dst, c.want) {
-			t.Errorf("got %v, want %v", dst, c.want)
-		}
-	}
-}
-
-func TestLengths(t *testing.T) {
+func TestTranspose(t *testing.T) {
 	cases := []struct {
 		bufs [][]byte
-		want []int
+		want [][]byte
 	}{
 		{
-			[][]byte{},
-			nil,
+			[][]byte{
+				{0, 1},
+				{2, 3},
+			},
+			[][]byte{
+				{0, 2},
+				{1, 3},
+			},
 		},
 		{
 			[][]byte{
-				{},
+				{0, 1},
+				{2, 3},
+				{4, 5},
 			},
-			[]int{0},
+			[][]byte{
+				{0, 2, 4},
+				{1, 3, 5},
+			},
 		},
 		{
 			[][]byte{
-				{1},
-				{1, 2},
-				{1, 2, 3},
+				{0, 1, 2},
+				{3, 4, 5},
 			},
-			[]int{1, 2, 3},
+			[][]byte{
+				{0, 3},
+				{1, 4},
+				{2, 5},
+			},
 		},
 	}
 	for _, c := range cases {
-		got := Lengths(c.bufs)
+		got, _ := Transpose(c.bufs)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
-func TestMedian(t *testing.T) {
-	cases := []struct {
-		nums []int
-		want int
-	}{
-		{
-			[]int{1, 2, 3},
-			2,
-		},
-		{
-			[]int{1, 3, 3},
-			3,
-		},
-		{
-			[]int{1, 1, 1, 1, 2, 2, 3},
-			1,
-		},
-	}
-	for _, c := range cases {
-		if got, _ := Median(c.nums); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
@@ -210,60 +168,59 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-func TestTranspose(t *testing.T) {
+func TestMedian(t *testing.T) {
 	cases := []struct {
-		bufs [][]byte
-		want [][]byte
+		nums []int
+		want int
 	}{
 		{
-			[][]byte{
-				{0, 1},
-				{2, 3},
-			},
-			[][]byte{
-				{0, 2},
-				{1, 3},
-			},
+			[]int{1, 2, 3},
+			2,
 		},
 		{
-			[][]byte{
-				{0, 1},
-				{2, 3},
-				{4, 5},
-			},
-			[][]byte{
-				{0, 2, 4},
-				{1, 3, 5},
-			},
+			[]int{1, 3, 3},
+			3,
 		},
 		{
-			[][]byte{
-				{0, 1, 2},
-				{3, 4, 5},
-			},
-			[][]byte{
-				{0, 3},
-				{1, 4},
-				{2, 5},
-			},
+			[]int{1, 1, 1, 1, 2, 2, 3},
+			1,
 		},
 	}
 	for _, c := range cases {
-		got, _ := Transpose(c.bufs)
-		if !reflect.DeepEqual(got, c.want) {
+		if got := Median(c.nums); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
 
-func TestRandomBytes(t *testing.T) {
-	var bufs [][]byte
-	for i := 0; i < 5; i++ {
-		bufs = append(bufs, RandomBytes(16))
-		for j := 0; j < i; j++ {
-			if bytes.Equal(bufs[i], bufs[j]) {
-				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
-			}
+func TestLengths(t *testing.T) {
+	cases := []struct {
+		bufs [][]byte
+		want []int
+	}{
+		{
+			[][]byte{},
+			[]int{},
+		},
+		{
+			[][]byte{
+				{},
+			},
+			[]int{0},
+		},
+		{
+			[][]byte{
+				{1},
+				{1, 2},
+				{1, 2, 3},
+			},
+			[]int{1, 2, 3},
+		},
+	}
+	for _, c := range cases {
+		got := Lengths(c.bufs)
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
@@ -293,6 +250,49 @@ func TestXORBytes(t *testing.T) {
 		got := c.b1[:n]
 		if !bytes.Equal(got, c.want) {
 			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
+
+func TestXORSingleByte(t *testing.T) {
+	cases := []struct {
+		src  []byte
+		b    byte
+		want []byte
+	}{
+		{
+			[]byte{0, 1, 2, 3, 4, 5},
+			1,
+			[]byte{1, 0, 3, 2, 5, 4},
+		},
+		{
+			[]byte{0, 1, 2, 3, 4, 5},
+			2,
+			[]byte{2, 3, 0, 1, 6, 7},
+		},
+		{
+			[]byte{0, 1, 2, 3, 4, 5},
+			3,
+			[]byte{3, 2, 1, 0, 7, 6},
+		},
+	}
+	dst := make([]byte, 6)
+	for _, c := range cases {
+		XORSingleByte(dst, c.src, c.b)
+		if !bytes.Equal(dst, c.want) {
+			t.Errorf("got %v, want %v", dst, c.want)
+		}
+	}
+}
+
+func TestRandomBytes(t *testing.T) {
+	var bufs [][]byte
+	for i := 0; i < 5; i++ {
+		bufs = append(bufs, RandomBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
 		}
 	}
 }
