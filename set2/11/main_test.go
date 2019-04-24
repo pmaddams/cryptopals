@@ -118,7 +118,7 @@ func TestSubdivide(t *testing.T) {
 	}
 }
 
-func TestIdenticalBlocks(t *testing.T) {
+func TestHasIdenticalBlocks(t *testing.T) {
 	cases := []struct {
 		buf       []byte
 		blockSize int
@@ -141,7 +141,7 @@ func TestIdenticalBlocks(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		if got := IdenticalBlocks(c.buf, c.blockSize); got != c.want {
+		if got := HasIdenticalBlocks(c.buf, c.blockSize); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}

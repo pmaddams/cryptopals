@@ -139,8 +139,8 @@ func Subdivide(buf []byte, size int) [][]byte {
 	return blocks
 }
 
-// IdenticalBlocks returns true if any block in the buffer appears more than once.
-func IdenticalBlocks(buf []byte, blockSize int) bool {
+// HasIdenticalBlocks returns true if any block in the buffer appears more than once.
+func HasIdenticalBlocks(buf []byte, blockSize int) bool {
 	m := make(map[string]bool)
 	for _, block := range Subdivide(buf, blockSize) {
 		s := string(block)
@@ -162,7 +162,7 @@ func (x *ecbBreaker) detectECB() error {
 	if x.blockSize == 0 {
 		return errors.New("detectECB: invalid block size")
 	}
-	if !IdenticalBlocks(x.oracle(x.ecbProbe()), x.blockSize) {
+	if !HasIdenticalBlocks(x.oracle(x.ecbProbe()), x.blockSize) {
 		return errors.New("detectECB: ECB mode not detected")
 	}
 	return nil

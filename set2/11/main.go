@@ -102,8 +102,8 @@ func Subdivide(buf []byte, size int) [][]byte {
 	return blocks
 }
 
-// IdenticalBlocks returns true if any block in the buffer appears more than once.
-func IdenticalBlocks(buf []byte, blockSize int) bool {
+// HasIdenticalBlocks returns true if any block in the buffer appears more than once.
+func HasIdenticalBlocks(buf []byte, blockSize int) bool {
 	m := make(map[string]bool)
 	for _, block := range Subdivide(buf, blockSize) {
 		s := string(block)
@@ -122,7 +122,7 @@ func ecbProbe() []byte {
 
 // detectECB returns true if the mode oracle is using ECB mode.
 func detectECB(oracle func([]byte) []byte) bool {
-	return IdenticalBlocks(oracle(ecbProbe()), aes.BlockSize)
+	return HasIdenticalBlocks(oracle(ecbProbe()), aes.BlockSize)
 }
 
 func main() {
