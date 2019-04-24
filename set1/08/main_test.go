@@ -5,6 +5,35 @@ import (
 	"testing"
 )
 
+func TestHasIdenticalBlocks(t *testing.T) {
+	cases := []struct {
+		buf       []byte
+		blockSize int
+		want      bool
+	}{
+		{
+			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3},
+			3,
+			true,
+		},
+		{
+			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 4, 5, 6},
+			3,
+			true,
+		},
+		{
+			[]byte{1, 2, 3, 1, 3, 2, 3, 1, 3, 2, 3, 1},
+			3,
+			false,
+		},
+	}
+	for _, c := range cases {
+		if got := HasIdenticalBlocks(c.buf, c.blockSize); got != c.want {
+			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
+
 func TestSubdivide(t *testing.T) {
 	cases := []struct {
 		buf  []byte
@@ -37,35 +66,6 @@ func TestSubdivide(t *testing.T) {
 	for _, c := range cases {
 		got := Subdivide(c.buf, c.n)
 		if !reflect.DeepEqual(got, c.want) {
-			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
-func TestIdenticalBlocks(t *testing.T) {
-	cases := []struct {
-		buf       []byte
-		blockSize int
-		want      bool
-	}{
-		{
-			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3},
-			3,
-			true,
-		},
-		{
-			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 4, 5, 6},
-			3,
-			true,
-		},
-		{
-			[]byte{1, 2, 3, 1, 3, 2, 3, 1, 3, 2, 3, 1},
-			3,
-			false,
-		},
-	}
-	for _, c := range cases {
-		if got := IdenticalBlocks(c.buf, c.blockSize); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}

@@ -11,19 +11,44 @@ import (
 	"os"
 )
 
-// Subdivide divides a buffer into blocks.
-func Subdivide(buf []byte, size int) [][]byte {
-	var blocks [][]byte
-	for len(buf) >= size {
-		// Return pointers, not copies.
-		blocks = append(blocks, buf[:size])
-		buf = buf[size:]
+func main() {
+	files := os.Args[1:]
+	if len(files) == 0 {
+		if err := detect(os.Stdin); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		return
 	}
-	return blocks
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := detect(f); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
 }
 
-// IdenticalBlocks returns true if any block in the buffer appears more than once.
-func IdenticalBlocks(buf []byte, blockSize int) bool {
+// detect reads hex-encoded input, detects ECB, and prints the plaintext.
+func detect(in io.Reader) error {
+	input := bufio.NewScanner(in)
+	for input.Scan() {
+		line, err := hex.DecodeString(input.Text())
+		if err != nil {
+			return err
+		}
+		if HasIdenticalBlocks(line, aes.BlockSize) {
+			fmt.Println(hex.EncodeToString(line))
+		}
+	}
+	return input.Err()
+}
+
+// HasIdenticalBlocks returns true if any block in the buffer appears more than once.
+func HasIdenticalBlocks(buf []byte, blockSize int) bool {
 	m := make(map[string]bool)
 	for _, block := range Subdivide(buf, blockSize) {
 		s := string(block)
@@ -35,39 +60,13 @@ func IdenticalBlocks(buf []byte, blockSize int) bool {
 	return false
 }
 
-// detectECB reads hex-encoded input and prints lines
-// that appear to have been encrypted with AES in ECB mode.
-func detectECB(in io.Reader) error {
-	input := bufio.NewScanner(in)
-	for input.Scan() {
-		line, err := hex.DecodeString(input.Text())
-		if err != nil {
-			return err
-		}
-		if IdenticalBlocks(line, aes.BlockSize) {
-			fmt.Println(hex.EncodeToString(line))
-		}
+// Subdivide divides a buffer into blocks.
+func Subdivide(buf []byte, size int) [][]byte {
+	var blocks [][]byte
+	for len(buf) >= size {
+		// Return pointers, not copies.
+		blocks = append(blocks, buf[:size])
+		buf = buf[size:]
 	}
-	return input.Err()
-}
-
-func main() {
-	files := os.Args[1:]
-	if len(files) == 0 {
-		if err := detectECB(os.Stdin); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		return
-	}
-	for _, file := range files {
-		f, err := os.Open(file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		if err := detectECB(f); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		f.Close()
-	}
+	return blocks
 }
