@@ -136,7 +136,7 @@ func TestXORBytes(t *testing.T) {
 	}
 }
 
-func TestBlocks(t *testing.T) {
+func TestSubdivide(t *testing.T) {
 	cases := []struct {
 		buf  []byte
 		n    int
@@ -166,7 +166,7 @@ func TestBlocks(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		got := Blocks(c.buf, c.n)
+		got := Subdivide(c.buf, c.n)
 		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("got %v, want %v", got, c.want)
 		}

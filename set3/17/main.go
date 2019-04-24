@@ -186,20 +186,20 @@ func (x *cbcBreaker) breakBlock(iv, buf []byte) ([]byte, error) {
 	return res, nil
 }
 
-// Blocks divides a buffer into blocks.
-func Blocks(buf []byte, blockSize int) [][]byte {
-	var bufs [][]byte
-	for len(buf) >= blockSize {
+// Subdivide divides a buffer into blocks.
+func Subdivide(buf []byte, size int) [][]byte {
+	var blocks [][]byte
+	for len(buf) >= size {
 		// Return pointers, not copies.
-		bufs = append(bufs, buf[:blockSize])
-		buf = buf[blockSize:]
+		blocks = append(blocks, buf[:size])
+		buf = buf[size:]
 	}
-	return bufs
+	return blocks
 }
 
 // breakOracle breaks the padding oracle and returns the plaintext.
 func (x *cbcBreaker) breakOracle() ([]byte, error) {
-	blocks := Blocks(x.ciphertext, x.blockSize)
+	blocks := Subdivide(x.ciphertext, x.blockSize)
 	buf, err := x.breakBlock(x.iv, blocks[0])
 	if err != nil {
 		return nil, err

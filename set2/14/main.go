@@ -141,21 +141,21 @@ func (x *ecbBreaker) detectBlockSize() error {
 	}
 }
 
-// Blocks divides a buffer into blocks.
-func Blocks(buf []byte, blockSize int) [][]byte {
-	var bufs [][]byte
-	for len(buf) >= blockSize {
+// Subdivide divides a buffer into blocks.
+func Subdivide(buf []byte, size int) [][]byte {
+	var blocks [][]byte
+	for len(buf) >= size {
 		// Return pointers, not copies.
-		bufs = append(bufs, buf[:blockSize])
-		buf = buf[blockSize:]
+		blocks = append(blocks, buf[:size])
+		buf = buf[size:]
 	}
-	return bufs
+	return blocks
 }
 
 // IdenticalBlocks returns true if any block in the buffer appears more than once.
 func IdenticalBlocks(buf []byte, blockSize int) bool {
 	m := make(map[string]bool)
-	for _, block := range Blocks(buf, blockSize) {
+	for _, block := range Subdivide(buf, blockSize) {
 		s := string(block)
 		if m[s] {
 			return true

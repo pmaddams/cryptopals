@@ -72,15 +72,15 @@ func encryptedUserData(s string, enc cipher.BlockMode) []byte {
 	return buf
 }
 
-// Blocks divides a buffer into blocks.
-func Blocks(buf []byte, blockSize int) [][]byte {
-	var bufs [][]byte
-	for len(buf) >= blockSize {
+// Subdivide divides a buffer into blocks.
+func Subdivide(buf []byte, size int) [][]byte {
+	var blocks [][]byte
+	for len(buf) >= size {
 		// Return pointers, not copies.
-		bufs = append(bufs, buf[:blockSize])
-		buf = buf[blockSize:]
+		blocks = append(blocks, buf[:size])
+		buf = buf[size:]
 	}
-	return bufs
+	return blocks
 }
 
 // validateCBC returns an error containing the plaintext, if it is invalid.
@@ -130,7 +130,7 @@ func main() {
 	dec := cipher.NewCBCDecrypter(c, key)
 
 	ciphertext := encryptedUserData("", enc)
-	blocks := Blocks(ciphertext, aes.BlockSize)
+	blocks := Subdivide(ciphertext, aes.BlockSize)
 	copy(blocks[2], blocks[0])
 	clear(blocks[1])
 
@@ -144,7 +144,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	blocks = Blocks([]byte(plaintext), aes.BlockSize)
+	blocks = Subdivide([]byte(plaintext), aes.BlockSize)
 	XORBytes(blocks[0], blocks[0], blocks[2])
 	fmt.Println(strconv.Quote(string(blocks[0])))
 }
