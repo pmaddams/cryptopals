@@ -1,4 +1,4 @@
-// 19. Break fixed-nonce CTR mode using substitutions
+// 20. Break fixed-nonce CTR statistically
 
 package main
 
