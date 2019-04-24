@@ -42,11 +42,11 @@ func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
-// RandomRange returns a pseudo-random non-negative integer in [lo, hi].
+// RandomInRange returns a pseudo-random non-negative integer in [lo, hi].
 // The output should not be used in a security-sensitive context.
-func RandomRange(lo, hi int) int {
+func RandomInRange(lo, hi int) int {
 	if lo < 0 || lo > hi {
-		panic("RandomRange: invalid range")
+		panic("RandomInRange: invalid range")
 	}
 	return lo + weak.Intn(hi-lo+1)
 }
@@ -99,7 +99,7 @@ func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
 		panic(err)
 	}
 	mode := NewECBEncrypter(c)
-	prefix := RandomBytes(RandomRange(5, 10))
+	prefix := RandomBytes(RandomInRange(5, 10))
 	decoded, err := base64.StdEncoding.DecodeString(secret)
 	if err != nil {
 		panic(err)

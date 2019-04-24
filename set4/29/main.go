@@ -87,11 +87,11 @@ func (x mac) Reset() {
 	}
 }
 
-// RandomRange returns a pseudo-random non-negative integer in [lo, hi].
+// RandomInRange returns a pseudo-random non-negative integer in [lo, hi].
 // The output should not be used in a security-sensitive context.
-func RandomRange(lo, hi int) int {
+func RandomInRange(lo, hi int) int {
 	if lo < 0 || lo > hi {
-		panic("RandomRange: invalid range")
+		panic("RandomInRange: invalid range")
 	}
 	return lo + weak.Intn(hi-lo+1)
 }
@@ -110,7 +110,7 @@ func main() {
 		prefix = "comment1=cooking%20MCs;userdata=foo;comment2=%20like%20a%20pound%20of%20bacon"
 		suffix = ";admin=true"
 	)
-	key := RandomBytes(RandomRange(8, 64))
+	key := RandomBytes(RandomInRange(8, 64))
 	mac := NewMAC(sha1.New, key)
 
 	io.WriteString(mac, prefix)

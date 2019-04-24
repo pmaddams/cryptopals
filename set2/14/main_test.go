@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestRandomRange(t *testing.T) {
+func TestRandomInRange(t *testing.T) {
 	cases := []struct {
 		lo, hi int
 	}{
@@ -16,7 +16,7 @@ func TestRandomRange(t *testing.T) {
 	}
 	for _, c := range cases {
 		for i := 0; i < 100; i++ {
-			got := RandomRange(c.lo, c.hi)
+			got := RandomInRange(c.lo, c.hi)
 			if got < c.lo || got > c.hi {
 				t.Errorf("got %v, want range [%v, %v]", got, c.lo, c.hi)
 			}

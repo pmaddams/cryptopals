@@ -100,10 +100,10 @@ func (x mtCipher) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// MTRandomRange returns a pseudo-random unsigned 32-bit integer in [lo, hi].
-func MTRandomRange(lo, hi uint32) uint32 {
+// MTRandomInRange returns a pseudo-random unsigned 32-bit integer in [lo, hi].
+func MTRandomInRange(lo, hi uint32) uint32 {
 	if lo > hi {
-		panic("MTRandomRange: invalid range")
+		panic("MTRandomInRange: invalid range")
 	}
 	mt := NewMT(uint32(time.Now().Unix()))
 	return lo + mt.Uint32n(hi-lo+1)
@@ -119,7 +119,7 @@ func MTRandomBytes(n int) []byte {
 
 // encryptWithPrefix returns an encrypted buffer prefixed with 5-10 random bytes.
 func encryptWithPrefix(stream cipher.Stream, buf []byte) []byte {
-	res := append(MTRandomBytes(int(MTRandomRange(5, 10))), buf...)
+	res := append(MTRandomBytes(int(MTRandomInRange(5, 10))), buf...)
 	stream.XORKeyStream(res, res)
 	return res
 }

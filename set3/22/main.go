@@ -80,10 +80,10 @@ func (mt *MT) Uint32n(n uint32) uint32 {
 		float64(n-1) / float64(^uint32(0)))
 }
 
-// MTRandomRange returns a pseudo-random unsigned 32-bit integer in [lo, hi].
-func MTRandomRange(lo, hi uint32) uint32 {
+// MTRandomInRange returns a pseudo-random unsigned 32-bit integer in [lo, hi].
+func MTRandomInRange(lo, hi uint32) uint32 {
 	if lo > hi {
-		panic("MTRandomRange: invalid range")
+		panic("MTRandomInRange: invalid range")
 	}
 	mt := NewMT(uint32(time.Now().Unix()))
 	return lo + mt.Uint32n(hi-lo+1)
@@ -103,7 +103,7 @@ func main() {
 	seed := uint32(time.Now().Unix())
 	mt := NewMT(seed)
 
-	n, err := breakMT(mt.Uint32(), seed+MTRandomRange(40, 1000))
+	n, err := breakMT(mt.Uint32(), seed+MTRandomInRange(40, 1000))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return

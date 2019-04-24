@@ -33,11 +33,11 @@ func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
 	}
 }
 
-// RandomRange returns a pseudo-random non-negative integer in [lo, hi].
+// RandomInRange returns a pseudo-random non-negative integer in [lo, hi].
 // The output should not be used in a security-sensitive context.
-func RandomRange(lo, hi int) int {
+func RandomInRange(lo, hi int) int {
 	if lo < 0 || lo > hi {
-		panic("RandomRange: invalid range")
+		panic("RandomInRange: invalid range")
 	}
 	return lo + weak.Intn(hi-lo+1)
 }
@@ -81,8 +81,8 @@ func PKCS7Pad(buf []byte, blockSize int) []byte {
 
 // ecbModeOracle returns an ECB/CBC mode oracle.
 func ecbModeOracle(mode cipher.BlockMode) func([]byte) []byte {
-	prefix := RandomBytes(RandomRange(5, 10))
-	suffix := RandomBytes(RandomRange(5, 10))
+	prefix := RandomBytes(RandomInRange(5, 10))
+	suffix := RandomBytes(RandomInRange(5, 10))
 	return func(buf []byte) []byte {
 		buf = append(prefix, append(buf, suffix...)...)
 		buf = PKCS7Pad(buf, mode.BlockSize())

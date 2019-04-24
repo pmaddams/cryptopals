@@ -727,7 +727,7 @@ func TestUint32n(t *testing.T) {
 	}
 }
 
-func TestMTRandomRange(t *testing.T) {
+func TestMTRandomInRange(t *testing.T) {
 	cases := []struct {
 		lo, hi uint32
 	}{
@@ -737,7 +737,7 @@ func TestMTRandomRange(t *testing.T) {
 	}
 	for _, c := range cases {
 		for i := 0; i < 100; i++ {
-			got := MTRandomRange(c.lo, c.hi)
+			got := MTRandomInRange(c.lo, c.hi)
 			if got < c.lo || got > c.hi {
 				t.Errorf("got %v, want range [%v, %v]", got, c.lo, c.hi)
 			}
