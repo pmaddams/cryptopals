@@ -187,12 +187,12 @@ func (x *cbcBreaker) breakBlock(iv, buf []byte) ([]byte, error) {
 }
 
 // Subdivide divides a buffer into blocks.
-func Subdivide(buf []byte, size int) [][]byte {
+func Subdivide(buf []byte, blockSize int) [][]byte {
 	var blocks [][]byte
-	for len(buf) >= size {
+	for len(buf) >= blockSize {
 		// Return pointers, not copies.
-		blocks = append(blocks, buf[:size])
-		buf = buf[size:]
+		blocks = append(blocks, buf[:blockSize])
+		buf = buf[blockSize:]
 	}
 	return blocks
 }

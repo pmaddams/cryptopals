@@ -162,15 +162,15 @@ func SymbolCounts(in io.Reader) (map[rune]int, error) {
 }
 
 // AverageDistance returns the average Hamming distance between adjacent blocks.
-func AverageDistance(buf []byte, size int) (float64, error) {
-	blocks := Subdivide(buf, size)
+func AverageDistance(buf []byte, blockSize int) (float64, error) {
+	blocks := Subdivide(buf, blockSize)
 	if len(blocks) < 2 {
 		return 0, errors.New("AverageDistance: need 2 or more blocks")
 	}
 	var f float64
 	for i := 0; i < len(blocks)-1; i++ {
 		n := HammingDistance(blocks[i], blocks[i+1])
-		f += float64(n) / float64(size) / float64(len(blocks)-1)
+		f += float64(n) / float64(blockSize) / float64(len(blocks)-1)
 	}
 	return f, nil
 }
@@ -210,12 +210,12 @@ func Transpose(bufs [][]byte) ([][]byte, error) {
 }
 
 // Subdivide divides a buffer into blocks.
-func Subdivide(buf []byte, size int) [][]byte {
+func Subdivide(buf []byte, blockSize int) [][]byte {
 	var blocks [][]byte
-	for len(buf) >= size {
+	for len(buf) >= blockSize {
 		// Return pointers, not copies.
-		blocks = append(blocks, buf[:size])
-		buf = buf[size:]
+		blocks = append(blocks, buf[:blockSize])
+		buf = buf[blockSize:]
 	}
 	return blocks
 }
