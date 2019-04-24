@@ -17,12 +17,98 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
+func main() {
+	c, err := aes.NewCipher([]byte(secret))
+	if err != nil {
+		panic(err)
 	}
-	return m
+	iv := make([]byte, c.BlockSize())
+	var (
+		e    bool
+		fn   func(io.Reader, cipher.BlockMode) error
+		mode cipher.BlockMode
+	)
+	flag.BoolVar(&e, "e", false, "encrypt")
+	flag.Parse()
+	if e {
+		fn = encrypt
+		mode = NewCBCEncrypter(c, iv)
+	} else {
+		fn = decrypt
+		mode = NewCBCDecrypter(c, iv)
+	}
+	files := flag.Args()
+	if len(files) == 0 {
+		if err := fn(os.Stdin, mode); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	}
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := fn(f, mode); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
+}
+
+// encrypt reads plaintext and prints base64-encoded ciphertext.
+func encrypt(in io.Reader, mode cipher.BlockMode) error {
+	buf, err := ioutil.ReadAll(in)
+	if err != nil {
+		return err
+	}
+	buf = PKCS7Pad(buf, mode.BlockSize())
+	mode.CryptBlocks(buf, buf)
+	fmt.Println(base64.StdEncoding.EncodeToString(buf))
+
+	return nil
+}
+
+// decrypt reads base64-encoded ciphertext and prints plaintext.
+func decrypt(in io.Reader, mode cipher.BlockMode) error {
+	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
+	if err != nil {
+		return err
+	}
+	mode.CryptBlocks(buf, buf)
+	if buf, err = PKCS7Unpad(buf, mode.BlockSize()); err != nil {
+		return err
+	}
+	fmt.Print(string(buf))
+
+	return nil
+}
+
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
+func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
+	}
+	// Find the number (and value) of padding bytes.
+	n := blockSize - (len(buf) % blockSize)
+
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
+}
+
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
+	if len(buf) < blockSize {
+		return nil, errInvalidPadding
+	}
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	n := len(buf) - int(b)
+	if int(b) == 0 || int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
+		return nil, errInvalidPadding
+	}
+	return dup(buf[:n]), nil
 }
 
 // XORBytes produces the XOR combination of two buffers.
@@ -34,6 +120,19 @@ func XORBytes(dst, b1, b2 []byte) int {
 	return n
 }
 
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
+// min returns the smaller of two integers.
+func min(n, m int) int {
+	if n < m {
+		return n
+	}
+	return m
+}
+
 // cbc represents a generic CBC block mode.
 type cbc struct {
 	cipher.Block
@@ -42,11 +141,6 @@ type cbc struct {
 
 // cbcEncrypter represents a CBC encryption block mode.
 type cbcEncrypter struct{ cbc }
-
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
-}
 
 // NewCBCEncrypter returns a block mode for CBC encryption.
 func NewCBCEncrypter(c cipher.Block, iv []byte) cipher.BlockMode {
@@ -93,99 +187,5 @@ func (x cbcDecrypter) CryptBlocks(dst, src []byte) {
 		XORBytes(dst, dst, x.iv)
 		copy(x.iv, tmp)
 		dst, src = dst[n:], src[n:]
-	}
-}
-
-// PKCS7Pad returns a buffer with PKCS#7 padding added.
-func PKCS7Pad(buf []byte, blockSize int) []byte {
-	if blockSize < 0 || blockSize > 0xff {
-		panic("PKCS7Pad: invalid block size")
-	}
-	// Find the number (and value) of padding bytes.
-	n := blockSize - (len(buf) % blockSize)
-
-	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
-}
-
-// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
-func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
-	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
-	if len(buf) < blockSize {
-		return nil, errInvalidPadding
-	}
-	// Examine the value of the last byte.
-	b := buf[len(buf)-1]
-	n := len(buf) - int(b)
-	if int(b) == 0 || int(b) > blockSize ||
-		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
-		return nil, errInvalidPadding
-	}
-	return dup(buf[:n]), nil
-}
-
-// encryptCBC reads plaintext and prints base64-encoded ciphertext.
-func encryptCBC(in io.Reader, mode cipher.BlockMode) error {
-	buf, err := ioutil.ReadAll(in)
-	if err != nil {
-		return err
-	}
-	buf = PKCS7Pad(buf, mode.BlockSize())
-	mode.CryptBlocks(buf, buf)
-	fmt.Println(base64.StdEncoding.EncodeToString(buf))
-
-	return nil
-}
-
-// decryptCBC reads base64-encoded ciphertext and prints plaintext.
-func decryptCBC(in io.Reader, mode cipher.BlockMode) error {
-	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, in))
-	if err != nil {
-		return err
-	}
-	mode.CryptBlocks(buf, buf)
-	if buf, err = PKCS7Unpad(buf, mode.BlockSize()); err != nil {
-		return err
-	}
-	fmt.Print(string(buf))
-
-	return nil
-}
-
-func main() {
-	c, err := aes.NewCipher([]byte(secret))
-	if err != nil {
-		panic(err)
-	}
-	iv := make([]byte, c.BlockSize())
-	var (
-		e    bool
-		fn   func(io.Reader, cipher.BlockMode) error
-		mode cipher.BlockMode
-	)
-	flag.BoolVar(&e, "e", false, "encrypt")
-	flag.Parse()
-	if e {
-		fn = encryptCBC
-		mode = NewCBCEncrypter(c, iv)
-	} else {
-		fn = decryptCBC
-		mode = NewCBCDecrypter(c, iv)
-	}
-	files := flag.Args()
-	if len(files) == 0 {
-		if err := fn(os.Stdin, mode); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-	}
-	for _, file := range files {
-		f, err := os.Open(file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		if err := fn(f, mode); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		f.Close()
 	}
 }
