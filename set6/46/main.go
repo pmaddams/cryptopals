@@ -213,7 +213,6 @@ func main() {
 	x := newParityBreaker(priv.Public(), oracle)
 
 	files := os.Args[1:]
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := decryptHollywoodStyle(os.Stdin, x); err != nil {
 			fmt.Fprintln(os.Stderr, err)

@@ -209,7 +209,6 @@ func main() {
 	x := newUnpaddedRSABreaker(priv.Public(), oracle)
 
 	files := os.Args[1:]
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := decryptUnpaddedRSA(os.Stdin, x); err != nil {
 			fmt.Fprintln(os.Stderr, err)

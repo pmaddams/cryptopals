@@ -114,7 +114,6 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 		Y: y,
 	}
 	files := os.Args[1:]
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := verifyAll(os.Stdin, pub); err != nil {
 			fmt.Fprintln(os.Stderr, err)

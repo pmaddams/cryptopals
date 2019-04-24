@@ -71,7 +71,6 @@ func main() {
 		return
 	}
 	files := flag.Args()
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := stripPKCS7(os.Stdin, blockSize); err != nil {
 			fmt.Fprintln(os.Stderr, err)

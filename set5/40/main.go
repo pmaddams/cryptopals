@@ -208,7 +208,6 @@ func decryptBroadcast(in io.Reader) error {
 
 func main() {
 	files := os.Args[1:]
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := decryptBroadcast(os.Stdin); err != nil {
 			fmt.Fprintln(os.Stderr, err)

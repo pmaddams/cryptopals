@@ -316,7 +316,6 @@ func main() {
 	oracle := rsaPaddingOracle(priv)
 
 	files := os.Args[1:]
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := decryptRSA(os.Stdin, pub, oracle); err != nil {
 			fmt.Fprintln(os.Stderr, err)

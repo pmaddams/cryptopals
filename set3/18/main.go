@@ -125,7 +125,6 @@ func main() {
 		fn = decryptCTR
 	}
 	files := flag.Args()
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := fn(os.Stdin, stream); err != nil {
 			fmt.Fprintln(os.Stderr, err)

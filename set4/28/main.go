@@ -83,7 +83,6 @@ func main() {
 	mac := NewMAC(sha1.New, key)
 
 	files := os.Args[1:]
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := printMAC(os.Stdin, mac, key); err != nil {
 			fmt.Fprintln(os.Stderr, err)

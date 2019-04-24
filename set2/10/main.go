@@ -172,7 +172,6 @@ func main() {
 		mode = NewCBCDecrypter(c, iv)
 	}
 	files := flag.Args()
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := fn(os.Stdin, mode); err != nil {
 			fmt.Fprintln(os.Stderr, err)

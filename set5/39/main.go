@@ -141,7 +141,6 @@ func main() {
 	}
 	fmt.Println("done.")
 	files := os.Args[1:]
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		if err := printRSA(os.Stdin, priv); err != nil {
 			fmt.Fprintln(os.Stderr, err)

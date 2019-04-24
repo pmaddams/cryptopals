@@ -265,7 +265,6 @@ func main() {
 	buf := new(bytes.Buffer)
 
 	files := os.Args[1:]
-	// If no files are specified, read from standard input.
 	if len(files) == 0 {
 		io.Copy(buf, os.Stdin)
 		err := breakHMAC(hm, url, buf.Bytes(), "user input")
