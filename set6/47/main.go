@@ -206,7 +206,7 @@ type interval struct {
 	hi *big.Int
 }
 
-// rsaBreaker contains data necessary to attack the PKCS #1 v1.5 padding oracle.
+// rsaBreaker contains state for attacking the PKCS #1 v1.5 padding oracle.
 type rsaBreaker struct {
 	oracle func([]byte) bool
 	e      *big.Int

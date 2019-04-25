@@ -138,7 +138,7 @@ func unpaddedRSAOracle(priv *RSAPrivateKey) func([]byte) ([]byte, error) {
 	}
 }
 
-// unpaddedRSABreaker contains data necessary to attack the unpadded RSA oracle.
+// unpaddedRSABreaker contains state for attacking the unpadded RSA oracle.
 type unpaddedRSABreaker struct {
 	*RSAPublicKey
 	oracle func([]byte) ([]byte, error)

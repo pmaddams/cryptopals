@@ -115,7 +115,7 @@ func cbcPaddingOracle(c cipher.Block) func([]byte, []byte) bool {
 	}
 }
 
-// cbcBreaker contains data necessary to attack the CBC padding oracle.
+// cbcBreaker contains state for attacking the CBC padding oracle.
 type cbcBreaker struct {
 	oracle     func([]byte, []byte) bool
 	iv         []byte

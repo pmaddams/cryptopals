@@ -14,7 +14,6 @@ import (
 	"sync"
 )
 
-// sample is a file similar to the expected plaintext.
 const sample = "alice.txt"
 
 func main() {
@@ -116,7 +115,7 @@ func keySize(buf []byte) (int, error) {
 	return n, nil
 }
 
-// breakSingleXOR returns the key used to encrypt a buffer with single-byte XOR.
+// breakSingleXOR takes a buffer and scoring function, and returns the probable key.
 func breakSingleXOR(buf []byte, score func([]byte) int) byte {
 	var (
 		key  byte

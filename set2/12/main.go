@@ -37,7 +37,7 @@ func main() {
 	fmt.Print(string(buf))
 }
 
-// ecbBreaker contains data necessary to attack the ECB encryption oracle.
+// ecbBreaker contains state for attacking the ECB encryption oracle.
 type ecbBreaker struct {
 	oracle    func([]byte) []byte
 	blockSize int

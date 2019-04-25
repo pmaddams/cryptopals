@@ -11,7 +11,6 @@ import (
 	"os"
 )
 
-// sample is a file similar to the expected plaintext.
 const sample = "alice.txt"
 
 func main() {
@@ -68,7 +67,7 @@ func decrypt(in io.Reader, score func([]byte) int) error {
 	return nil
 }
 
-// breakSingleXOR returns the key used to encrypt a buffer with single-byte XOR.
+// breakSingleXOR takes a buffer and scoring function, and returns the probable key.
 func breakSingleXOR(buf []byte, score func([]byte) int) byte {
 	var (
 		key  byte

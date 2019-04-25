@@ -134,7 +134,7 @@ func parityOracle(priv *RSAPrivateKey) func([]byte) (bool, error) {
 	}
 }
 
-// parityBreaker contains data necessary to attack the parity oracle.
+// parityBreaker contains state for attacking the parity oracle.
 type parityBreaker struct {
 	*RSAPublicKey
 	oracle func([]byte) (bool, error)

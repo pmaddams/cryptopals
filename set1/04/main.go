@@ -11,7 +11,6 @@ import (
 	"os"
 )
 
-// sample is a file similar to the expected plaintext.
 const sample = "alice.txt"
 
 func main() {
@@ -73,7 +72,7 @@ func detect(in io.Reader, score func([]byte) int) error {
 	return nil
 }
 
-// bestSingleXOR takes a buffer and scoring function, and returns a possible key and score.
+// bestSingleXOR takes a buffer and scoring function, and returns the probable key and score.
 func bestSingleXOR(buf []byte, score func([]byte) int) (byte, int) {
 	var (
 		key  byte
