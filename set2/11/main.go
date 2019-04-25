@@ -14,6 +14,114 @@ import (
 
 func init() { weak.Seed(time.Now().UnixNano()) }
 
+func main() {
+	var mode cipher.BlockMode
+	if detect(ecbModeOracle(&mode)) {
+		fmt.Print("detected ECB mode...")
+		if _, ok := mode.(ecbEncrypter); ok {
+			fmt.Println("correct.")
+		} else {
+			fmt.Println("incorrect.")
+		}
+	} else {
+		fmt.Print("detected CBC mode...")
+		if _, ok := mode.(ecbEncrypter); ok {
+			fmt.Println("incorrect.")
+		} else {
+			fmt.Println("correct.")
+		}
+	}
+}
+
+// detect returns true if the mode oracle is using ECB mode.
+func detect(oracle func([]byte) []byte) bool {
+	return HasIdenticalBlocks(oracle(ecbProbe()), aes.BlockSize)
+}
+
+// ecbProbe returns a buffer that can be used to detect ECB mode.
+func ecbProbe() []byte {
+	return bytes.Repeat([]byte{'a'}, 3*aes.BlockSize)
+}
+
+// ecbModeOracle returns an ECB/CBC mode oracle.
+func ecbModeOracle(mode *cipher.BlockMode) func([]byte) []byte {
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	if err != nil {
+		panic(err)
+	}
+	if weak.Intn(2) == 0 {
+		*mode = NewECBEncrypter(c)
+	} else {
+		*mode = cipher.NewCBCEncrypter(c, RandomBytes(c.BlockSize()))
+	}
+	prefix := RandomBytes(RandomInRange(5, 10))
+	suffix := RandomBytes(RandomInRange(5, 10))
+	return func(buf []byte) []byte {
+		buf = append(prefix, append(buf, suffix...)...)
+		buf = PKCS7Pad(buf, (*mode).BlockSize())
+		(*mode).CryptBlocks(buf, buf)
+		return buf
+	}
+}
+
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
+func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
+	}
+	// Find the number (and value) of padding bytes.
+	n := blockSize - (len(buf) % blockSize)
+
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
+}
+
+// HasIdenticalBlocks returns true if any block in the buffer appears more than once.
+func HasIdenticalBlocks(buf []byte, blockSize int) bool {
+	m := make(map[string]bool)
+	for _, block := range Subdivide(buf, blockSize) {
+		s := string(block)
+		if m[s] {
+			return true
+		}
+		m[s] = true
+	}
+	return false
+}
+
+// Subdivide divides a buffer into blocks.
+func Subdivide(buf []byte, blockSize int) [][]byte {
+	var blocks [][]byte
+	for len(buf) >= blockSize {
+		// Return pointers, not copies.
+		blocks = append(blocks, buf[:blockSize])
+		buf = buf[blockSize:]
+	}
+	return blocks
+}
+
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		panic(err)
+	}
+	return buf
+}
+
+// RandomInRange returns a pseudo-random non-negative integer in [lo, hi].
+// The output should not be used in a security-sensitive context.
+func RandomInRange(lo, hi int) int {
+	if lo < 0 || lo > hi {
+		panic("RandomInRange: invalid range")
+	}
+	return lo + weak.Intn(hi-lo+1)
+}
+
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
 // ecbEncrypter represents an ECB encryption block mode.
 type ecbEncrypter struct{ cipher.Block }
 
@@ -30,116 +138,5 @@ func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
 		x.Encrypt(dst[:n], src[:n])
 		dst = dst[n:]
 		src = src[n:]
-	}
-}
-
-// RandomInRange returns a pseudo-random non-negative integer in [lo, hi].
-// The output should not be used in a security-sensitive context.
-func RandomInRange(lo, hi int) int {
-	if lo < 0 || lo > hi {
-		panic("RandomInRange: invalid range")
-	}
-	return lo + weak.Intn(hi-lo+1)
-}
-
-// RandomBytes returns a random buffer of the desired length.
-func RandomBytes(n int) []byte {
-	buf := make([]byte, n)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
-	return buf
-}
-
-// RandomEncrypter returns either ECB or CBC encryption mode with a random key.
-func RandomEncrypter() cipher.BlockMode {
-	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
-	if err != nil {
-		panic(err)
-	}
-	if weak.Intn(2) == 0 {
-		return NewECBEncrypter(c)
-	}
-	return cipher.NewCBCEncrypter(c, RandomBytes(c.BlockSize()))
-}
-
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
-}
-
-// PKCS7Pad returns a buffer with PKCS#7 padding added.
-func PKCS7Pad(buf []byte, blockSize int) []byte {
-	if blockSize < 0 || blockSize > 0xff {
-		panic("PKCS7Pad: invalid block size")
-	}
-	// Find the number (and value) of padding bytes.
-	n := blockSize - (len(buf) % blockSize)
-
-	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
-}
-
-// ecbModeOracle returns an ECB/CBC mode oracle.
-func ecbModeOracle(mode cipher.BlockMode) func([]byte) []byte {
-	prefix := RandomBytes(RandomInRange(5, 10))
-	suffix := RandomBytes(RandomInRange(5, 10))
-	return func(buf []byte) []byte {
-		buf = append(prefix, append(buf, suffix...)...)
-		buf = PKCS7Pad(buf, mode.BlockSize())
-		mode.CryptBlocks(buf, buf)
-		return buf
-	}
-}
-
-// Subdivide divides a buffer into blocks.
-func Subdivide(buf []byte, blockSize int) [][]byte {
-	var blocks [][]byte
-	for len(buf) >= blockSize {
-		// Return pointers, not copies.
-		blocks = append(blocks, buf[:blockSize])
-		buf = buf[blockSize:]
-	}
-	return blocks
-}
-
-// HasIdenticalBlocks returns true if any block in the buffer appears more than once.
-func HasIdenticalBlocks(buf []byte, blockSize int) bool {
-	m := make(map[string]bool)
-	for _, block := range Subdivide(buf, blockSize) {
-		s := string(block)
-		if m[s] {
-			return true
-		}
-		m[s] = true
-	}
-	return false
-}
-
-// ecbProbe returns a buffer that can be used to detect ECB mode.
-func ecbProbe() []byte {
-	return bytes.Repeat([]byte{'a'}, 3*aes.BlockSize)
-}
-
-// detectECB returns true if the mode oracle is using ECB mode.
-func detectECB(oracle func([]byte) []byte) bool {
-	return HasIdenticalBlocks(oracle(ecbProbe()), aes.BlockSize)
-}
-
-func main() {
-	mode := RandomEncrypter()
-	if detectECB(ecbModeOracle(mode)) {
-		fmt.Print("detected ECB mode...")
-		if _, ok := mode.(ecbEncrypter); ok {
-			fmt.Println("correct.")
-		} else {
-			fmt.Println("incorrect.")
-		}
-	} else {
-		fmt.Print("detected CBC mode...")
-		if _, ok := mode.(ecbEncrypter); ok {
-			fmt.Println("incorrect.")
-		} else {
-			fmt.Println("correct.")
-		}
 	}
 }
