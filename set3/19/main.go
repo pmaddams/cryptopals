@@ -111,7 +111,7 @@ func breakCTR(bufs [][]byte, score func([]byte) int) ([]byte, error) {
 
 	var wg sync.WaitGroup
 	wg.Add(size)
-	for i := range keystream {
+	for i := 0; i < size; i++ {
 		// Capture the value of the loop variable.
 		go func(i int) {
 			keystream[i] = breakSingleXOR(bufs[i], score)

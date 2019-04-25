@@ -236,8 +236,8 @@ func (x *ecbBreaker) scanBlocks() [][]byte {
 	initLen := len(x.oracle([]byte{}))
 
 	var wg sync.WaitGroup
-	for i := range blocks {
-		wg.Add(1)
+	wg.Add(x.secretLen)
+	for i := 0; i < x.secretLen; i++ {
 		// Capture the value of the loop variable.
 		go func(i int) {
 			probe := bytes.Repeat([]byte{x.a}, initLen-1-i)
