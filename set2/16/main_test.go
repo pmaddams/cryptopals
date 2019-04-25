@@ -29,7 +29,7 @@ func TestUserData(t *testing.T) {
 	}
 }
 
-func TestAdminTrue(t *testing.T) {
+func TestIsAdmin(t *testing.T) {
 	cases := []struct {
 		s    string
 		want bool
@@ -48,20 +48,8 @@ func TestAdminTrue(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		if got := AdminTrue(c.s); got != c.want {
+		if got := IsAdmin(c.s); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
-func TestRandomBytes(t *testing.T) {
-	var bufs [][]byte
-	for i := 0; i < 5; i++ {
-		bufs = append(bufs, RandomBytes(16))
-		for j := 0; j < i; j++ {
-			if bytes.Equal(bufs[i], bufs[j]) {
-				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
-			}
 		}
 	}
 }
@@ -122,6 +110,18 @@ func TestPKCS7Unpad(t *testing.T) {
 		got, _ := PKCS7Unpad(c.buf, c.blockSize)
 		if !bytes.Equal(got, c.want) {
 			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
+
+func TestRandomBytes(t *testing.T) {
+	var bufs [][]byte
+	for i := 0; i < 5; i++ {
+		bufs = append(bufs, RandomBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
 		}
 	}
 }
