@@ -23,101 +23,38 @@ aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq
 dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
 YnkK`
 
-// ecbEncrypter represents an ECB encryption block mode.
-type ecbEncrypter struct{ cipher.Block }
-
-// NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{c}
-}
-
-// CryptBlocks encrypts a buffer in ECB mode.
-func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
-	// The src buffer length must be a multiple of the block size,
-	// and the dst buffer must be at least the length of src.
-	for n := x.BlockSize(); len(src) > 0; {
-		x.Encrypt(dst[:n], src[:n])
-		dst = dst[n:]
-		src = src[n:]
+func main() {
+	x := newECBBreaker(ecbEncryptionOracleWithPrefix())
+	if err := x.detectBlockSize(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-}
-
-// RandomInRange returns a pseudo-random non-negative integer in [lo, hi].
-// The output should not be used in a security-sensitive context.
-func RandomInRange(lo, hi int) int {
-	if lo < 0 || lo > hi {
-		panic("RandomInRange: invalid range")
+	if err := x.detectECB(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-	return lo + weak.Intn(hi-lo+1)
-}
-
-// RandomBytes returns a random buffer of the desired length.
-func RandomBytes(n int) []byte {
-	buf := make([]byte, n)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
+	if err := x.removeOraclePrefix(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-	return buf
-}
-
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
-}
-
-// PKCS7Pad returns a buffer with PKCS#7 padding added.
-func PKCS7Pad(buf []byte, blockSize int) []byte {
-	if blockSize < 0 || blockSize > 0xff {
-		panic("PKCS7Pad: invalid block size")
+	if err := x.detectSecretLength(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-	// Find the number (and value) of padding bytes.
-	n := blockSize - (len(buf) % blockSize)
-
-	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
-}
-
-// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
-func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
-	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
-	if len(buf) < blockSize {
-		return nil, errInvalidPadding
-	}
-	// Examine the value of the last byte.
-	b := buf[len(buf)-1]
-	n := len(buf) - int(b)
-	if int(b) == 0 || int(b) > blockSize ||
-		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
-		return nil, errInvalidPadding
-	}
-	return dup(buf[:n]), nil
-}
-
-// ecbEncryptionOracleWithPrefix returns an ECB encryption oracle with prefix.
-func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
-	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	buf, err := x.breakOracle()
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		return
 	}
-	mode := NewECBEncrypter(c)
-	prefix := RandomBytes(RandomInRange(5, 10))
-	decoded, err := base64.StdEncoding.DecodeString(secret)
-	if err != nil {
-		panic(err)
-	}
-	return func(buf []byte) []byte {
-		res := append(prefix, append(dup(buf), decoded...)...)
-		res = PKCS7Pad(res, mode.BlockSize())
-		mode.CryptBlocks(res, res)
-		return res
-	}
+	fmt.Print(string(buf))
 }
 
 // ecbBreaker contains state for attacking the ECB encryption oracle.
 type ecbBreaker struct {
 	oracle    func([]byte) []byte
-	a         byte
 	blockSize int
 	secretLen int
+	a         byte
 }
 
 // newECBBreaker takes an ECB encryption oracle and returns a breaker.
@@ -141,35 +78,6 @@ func (x *ecbBreaker) detectBlockSize() error {
 	}
 }
 
-// Subdivide divides a buffer into blocks.
-func Subdivide(buf []byte, blockSize int) [][]byte {
-	var blocks [][]byte
-	for len(buf) >= blockSize {
-		// Return pointers, not copies.
-		blocks = append(blocks, buf[:blockSize])
-		buf = buf[blockSize:]
-	}
-	return blocks
-}
-
-// HasIdenticalBlocks returns true if any block in the buffer appears more than once.
-func HasIdenticalBlocks(buf []byte, blockSize int) bool {
-	m := make(map[string]bool)
-	for _, block := range Subdivide(buf, blockSize) {
-		s := string(block)
-		if m[s] {
-			return true
-		}
-		m[s] = true
-	}
-	return false
-}
-
-// ecbProbe returns a buffer that can be used to detect ECB mode.
-func (x *ecbBreaker) ecbProbe() []byte {
-	return bytes.Repeat([]byte{x.a}, 3*x.blockSize)
-}
-
 // detectECB returns an error if the encryption oracle is not using ECB mode.
 func (x *ecbBreaker) detectECB() error {
 	if x.blockSize == 0 {
@@ -179,6 +87,11 @@ func (x *ecbBreaker) detectECB() error {
 		return errors.New("detectECB: ECB mode not detected")
 	}
 	return nil
+}
+
+// ecbProbe returns a buffer that can be used to detect ECB mode.
+func (x *ecbBreaker) ecbProbe() []byte {
+	return bytes.Repeat([]byte{x.a}, 3*x.blockSize)
 }
 
 // removeOraclePrefix replaces the oracle with a wrapper that removes the prefix.
@@ -229,6 +142,30 @@ func (x *ecbBreaker) detectSecretLength() error {
 	return errors.New("detectSecretLength: invalid length")
 }
 
+// breakOracle breaks the encryption oracle and returns the secret.
+func (x *ecbBreaker) breakOracle() ([]byte, error) {
+	if x.blockSize == 0 {
+		return nil, errors.New("breakOracle: invalid block size")
+	} else if x.secretLen == 0 {
+		return nil, errors.New("breakOracle: invalid secret length")
+	}
+	var buf []byte
+	probe := bytes.Repeat([]byte{x.a}, x.blockSize-1)
+	for _, block := range x.scanBlocks() {
+		b, err := x.breakByte(probe, block)
+		if err != nil {
+			return nil, err
+		}
+		buf = append(buf, b)
+		probe = append(probe[1:], b)
+	}
+	res, err := PKCS7Unpad(buf, x.blockSize)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 // scanBlocks generates a sequence of blocks for decrypting the secret.
 func (x *ecbBreaker) scanBlocks() [][]byte {
 	// Each block enables decryption of a single byte.
@@ -264,52 +201,115 @@ func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
 	return 0, errors.New("breakByte: invalid block")
 }
 
-// breakOracle breaks the encryption oracle and returns the secret.
-func (x *ecbBreaker) breakOracle() ([]byte, error) {
-	if x.blockSize == 0 {
-		return nil, errors.New("scanBlocks: invalid block size")
-	} else if x.secretLen == 0 {
-		return nil, errors.New("scanBlocks: invalid secret length")
-	}
-	var buf []byte
-	probe := bytes.Repeat([]byte{x.a}, x.blockSize-1)
-	for _, block := range x.scanBlocks() {
-		b, err := x.breakByte(probe, block)
-		if err != nil {
-			return nil, err
-		}
-		buf = append(buf, b)
-		probe = append(probe[1:], b)
-	}
-	res, err := PKCS7Unpad(buf, x.blockSize)
+// ecbEncryptionOracleWithPrefix returns an ECB encryption oracle with prefix.
+func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return res, nil
+	mode := NewECBEncrypter(c)
+	prefix := RandomBytes(RandomInRange(5, 10))
+	decoded, err := base64.StdEncoding.DecodeString(secret)
+	if err != nil {
+		panic(err)
+	}
+	return func(buf []byte) []byte {
+		res := append(prefix, append(dup(buf), decoded...)...)
+		res = PKCS7Pad(res, mode.BlockSize())
+		mode.CryptBlocks(res, res)
+		return res
+	}
 }
 
-func main() {
-	x := newECBBreaker(ecbEncryptionOracleWithPrefix())
-	if err := x.detectBlockSize(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
+func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
 	}
-	if err := x.detectECB(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	// Find the number (and value) of padding bytes.
+	n := blockSize - (len(buf) % blockSize)
+
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
+}
+
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
+	if len(buf) < blockSize {
+		return nil, errInvalidPadding
 	}
-	if err := x.removeOraclePrefix(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	n := len(buf) - int(b)
+	if int(b) == 0 || int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
+		return nil, errInvalidPadding
 	}
-	if err := x.detectSecretLength(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	return dup(buf[:n]), nil
+}
+
+// HasIdenticalBlocks returns true if any block in the buffer appears more than once.
+func HasIdenticalBlocks(buf []byte, blockSize int) bool {
+	m := make(map[string]bool)
+	for _, block := range Subdivide(buf, blockSize) {
+		s := string(block)
+		if m[s] {
+			return true
+		}
+		m[s] = true
 	}
-	buf, err := x.breakOracle()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
+	return false
+}
+
+// Subdivide divides a buffer into blocks.
+func Subdivide(buf []byte, blockSize int) [][]byte {
+	var blocks [][]byte
+	for len(buf) >= blockSize {
+		// Return pointers, not copies.
+		blocks = append(blocks, buf[:blockSize])
+		buf = buf[blockSize:]
 	}
-	fmt.Print(string(buf))
+	return blocks
+}
+
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		panic(err)
+	}
+	return buf
+}
+
+// RandomInRange returns a pseudo-random non-negative integer in [lo, hi].
+// The output should not be used in a security-sensitive context.
+func RandomInRange(lo, hi int) int {
+	if lo < 0 || lo > hi {
+		panic("RandomInRange: invalid range")
+	}
+	return lo + weak.Intn(hi-lo+1)
+}
+
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
+// ecbEncrypter represents an ECB encryption block mode.
+type ecbEncrypter struct{ cipher.Block }
+
+// NewECBEncrypter returns a block mode for ECB encryption.
+func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{c}
+}
+
+// CryptBlocks encrypts a buffer in ECB mode.
+func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
+	// The src buffer length must be a multiple of the block size,
+	// and the dst buffer must be at least the length of src.
+	for n := x.BlockSize(); len(src) > 0; {
+		x.Encrypt(dst[:n], src[:n])
+		dst = dst[n:]
+		src = src[n:]
+	}
 }

@@ -6,18 +6,6 @@ import (
 	"testing"
 )
 
-func TestRandomBytes(t *testing.T) {
-	var bufs [][]byte
-	for i := 0; i < 5; i++ {
-		bufs = append(bufs, RandomBytes(16))
-		for j := 0; j < i; j++ {
-			if bytes.Equal(bufs[i], bufs[j]) {
-				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
-			}
-		}
-	}
-}
-
 func TestPKCS7Pad(t *testing.T) {
 	cases := []struct {
 		buf       []byte
@@ -78,6 +66,35 @@ func TestPKCS7Unpad(t *testing.T) {
 	}
 }
 
+func TestHasIdenticalBlocks(t *testing.T) {
+	cases := []struct {
+		buf       []byte
+		blockSize int
+		want      bool
+	}{
+		{
+			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3},
+			3,
+			true,
+		},
+		{
+			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 4, 5, 6},
+			3,
+			true,
+		},
+		{
+			[]byte{1, 2, 3, 1, 3, 2, 3, 1, 3, 2, 3, 1},
+			3,
+			false,
+		},
+	}
+	for _, c := range cases {
+		if got := HasIdenticalBlocks(c.buf, c.blockSize); got != c.want {
+			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
+
 func TestSubdivide(t *testing.T) {
 	cases := []struct {
 		buf  []byte
@@ -115,31 +132,14 @@ func TestSubdivide(t *testing.T) {
 	}
 }
 
-func TestHasIdenticalBlocks(t *testing.T) {
-	cases := []struct {
-		buf       []byte
-		blockSize int
-		want      bool
-	}{
-		{
-			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3},
-			3,
-			true,
-		},
-		{
-			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 4, 5, 6},
-			3,
-			true,
-		},
-		{
-			[]byte{1, 2, 3, 1, 3, 2, 3, 1, 3, 2, 3, 1},
-			3,
-			false,
-		},
-	}
-	for _, c := range cases {
-		if got := HasIdenticalBlocks(c.buf, c.blockSize); got != c.want {
-			t.Errorf("got %v, want %v", got, c.want)
+func TestRandomBytes(t *testing.T) {
+	var bufs [][]byte
+	for i := 0; i < 5; i++ {
+		bufs = append(bufs, RandomBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
 		}
 	}
 }
