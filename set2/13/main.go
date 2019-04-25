@@ -19,18 +19,18 @@ func main() {
 	}
 	enc, dec := NewECBEncrypter(c), NewECBDecrypter(c)
 
-	toCut := encryptedProfileFor("XXXXXXXXXXadmin", enc)
-	toPaste := encryptedProfileFor("anonymous.coward@guerrillamail.com", enc)
+	toCut := ecbProfileFor("XXXXXXXXXXadmin", enc)
+	toPaste := ecbProfileFor("anonymous.coward@guerrillamail.com", enc)
 
 	cut := toCut[len(toCut)-aes.BlockSize:]
 	paste := toPaste[:len(toPaste)-aes.BlockSize]
-	if decryptedRoleIsAdmin(append(paste, cut...), dec) {
+	if ecbRoleIsAdmin(append(paste, cut...), dec) {
 		fmt.Println("success")
 	}
 }
 
-// encryptedProfileFor returns an encrypted user profile for an email address.
-func encryptedProfileFor(email string, enc cipher.BlockMode) []byte {
+// ecbProfileFor returns an encrypted user profile for an email address.
+func ecbProfileFor(email string, enc cipher.BlockMode) []byte {
 	buf := PKCS7Pad([]byte(ProfileFor(email)), enc.BlockSize())
 	enc.CryptBlocks(buf, buf)
 	return buf
@@ -44,8 +44,8 @@ func ProfileFor(email string) string {
 	}.Encode()
 }
 
-// decryptedRoleIsAdmin returns true if a decrypted query string contains "role=admin".
-func decryptedRoleIsAdmin(buf []byte, dec cipher.BlockMode) bool {
+// ecbRoleIsAdmin returns true if a decrypted query string contains "role=admin".
+func ecbRoleIsAdmin(buf []byte, dec cipher.BlockMode) bool {
 	tmp := make([]byte, len(buf))
 	dec.CryptBlocks(tmp, buf)
 	tmp, err := PKCS7Unpad(tmp, dec.BlockSize())

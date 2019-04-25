@@ -65,8 +65,8 @@ func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
 	return dup(buf[:n]), nil
 }
 
-// encryptedUserData returns an encrypted string with arbitrary data inserted in the middle.
-func encryptedUserData(s string, enc cipher.BlockMode) []byte {
+// cbcUserData returns an encrypted string with arbitrary data inserted in the middle.
+func cbcUserData(s string, enc cipher.BlockMode) []byte {
 	buf := PKCS7Pad([]byte(UserData(s)), enc.BlockSize())
 	enc.CryptBlocks(buf, buf)
 	return buf
@@ -129,7 +129,7 @@ func main() {
 	enc := cipher.NewCBCEncrypter(c, key)
 	dec := cipher.NewCBCDecrypter(c, key)
 
-	ciphertext := encryptedUserData("", enc)
+	ciphertext := cbcUserData("", enc)
 	blocks := Subdivide(ciphertext, aes.BlockSize)
 	copy(blocks[2], blocks[0])
 	clear(blocks[1])

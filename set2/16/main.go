@@ -27,11 +27,11 @@ func main() {
 	mask := xorMask(data)
 	XORBytes(data, data, mask)
 
-	buf := encryptedUserData(string(data), enc)
+	buf := cbcUserData(string(data), enc)
 	target := buf[aes.BlockSize : 2*aes.BlockSize]
 	XORBytes(target, target, mask)
 
-	if decryptedIsAdmin(buf, dec) {
+	if cbcIsAdmin(buf, dec) {
 		fmt.Println("success")
 	}
 }
@@ -58,8 +58,8 @@ func xorMaskByte(b byte) byte {
 	return res
 }
 
-// encryptedUserData returns an encrypted string with arbitrary data inserted in the middle.
-func encryptedUserData(s string, enc cipher.BlockMode) []byte {
+// cbcUserData returns an encrypted string with arbitrary data inserted in the middle.
+func cbcUserData(s string, enc cipher.BlockMode) []byte {
 	buf := PKCS7Pad([]byte(UserData(s)), enc.BlockSize())
 	enc.CryptBlocks(buf, buf)
 	return buf
@@ -74,8 +74,8 @@ func UserData(s string) string {
 	return prefix + url.QueryEscape(s) + suffix
 }
 
-// decryptedIsAdmin returns true if a decrypted semicolon-separated string contains "admin=true".
-func decryptedIsAdmin(buf []byte, dec cipher.BlockMode) bool {
+// cbcIsAdmin returns true if a decrypted semicolon-separated string contains "admin=true".
+func cbcIsAdmin(buf []byte, dec cipher.BlockMode) bool {
 	tmp := make([]byte, len(buf))
 	dec.CryptBlocks(tmp, buf)
 	tmp, err := PKCS7Unpad(tmp, dec.BlockSize())

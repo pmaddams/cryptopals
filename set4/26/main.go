@@ -20,8 +20,8 @@ func UserData(s string) string {
 	return prefix + url.QueryEscape(s) + suffix
 }
 
-// AdminTrue returns true if a semicolon-separated string contains "admin=true".
-func AdminTrue(s string) bool {
+// IsAdmin returns true if a semicolon-separated string contains "admin=true".
+func IsAdmin(s string) bool {
 	for _, v := range strings.Split(s, ";") {
 		if v == "admin=true" {
 			return true
@@ -39,18 +39,18 @@ func RandomBytes(n int) []byte {
 	return buf
 }
 
-// encryptedUserData returns an encrypted string with arbitrary data inserted in the middle.
-func encryptedUserData(s string, c cipher.Block, iv []byte) []byte {
+// ctrUserData returns an encrypted string with arbitrary data inserted in the middle.
+func ctrUserData(s string, c cipher.Block, iv []byte) []byte {
 	buf := []byte(UserData(s))
 	cipher.NewCTR(c, iv).XORKeyStream(buf, buf)
 	return buf
 }
 
-// decryptedAdminTrue returns true if a decrypted semicolon-separated string contains "admin=true".
-func decryptedAdminTrue(buf []byte, c cipher.Block, iv []byte) bool {
+// ctrIsAdmin returns true if a decrypted semicolon-separated string contains "admin=true".
+func ctrIsAdmin(buf []byte, c cipher.Block, iv []byte) bool {
 	tmp := make([]byte, len(buf))
 	cipher.NewCTR(c, iv).XORKeyStream(tmp, buf)
-	return AdminTrue(string(tmp))
+	return IsAdmin(string(tmp))
 }
 
 // xorMaskByte returns an XOR mask that prevents query escaping for the target byte.
@@ -103,11 +103,11 @@ func main() {
 	mask := xorMask(data)
 	XORBytes(data, data, mask)
 
-	buf := encryptedUserData(string(data), c, iv)
+	buf := ctrUserData(string(data), c, iv)
 	target := buf[2*aes.BlockSize : 3*aes.BlockSize]
 	XORBytes(target, target, mask)
 
-	if decryptedAdminTrue(buf, c, iv) {
+	if ctrIsAdmin(buf, c, iv) {
 		fmt.Println("success")
 	}
 }

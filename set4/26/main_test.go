@@ -29,7 +29,7 @@ func TestUserData(t *testing.T) {
 	}
 }
 
-func TestAdminTrue(t *testing.T) {
+func TestIsAdmin(t *testing.T) {
 	cases := []struct {
 		s    string
 		want bool
@@ -48,7 +48,7 @@ func TestAdminTrue(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		if got := AdminTrue(c.s); got != c.want {
+		if got := IsAdmin(c.s); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
