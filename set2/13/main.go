@@ -12,6 +12,30 @@ import (
 	"net/url"
 )
 
+func main() {
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	if err != nil {
+		panic(err)
+	}
+	enc, dec := NewECBEncrypter(c), NewECBDecrypter(c)
+
+	toCut := encryptedProfileFor("XXXXXXXXXXadmin", enc)
+	toPaste := encryptedProfileFor("anonymous.coward@guerrillamail.com", enc)
+
+	cut := toCut[len(toCut)-aes.BlockSize:]
+	paste := toPaste[:len(toPaste)-aes.BlockSize]
+	if decryptedRoleIsAdmin(append(paste, cut...), dec) {
+		fmt.Println("success")
+	}
+}
+
+// encryptedProfileFor returns an encrypted user profile for an email address.
+func encryptedProfileFor(email string, enc cipher.BlockMode) []byte {
+	buf := PKCS7Pad([]byte(ProfileFor(email)), enc.BlockSize())
+	enc.CryptBlocks(buf, buf)
+	return buf
+}
+
 // ProfileFor returns a query string identifying an email address as a user.
 func ProfileFor(email string) string {
 	return url.Values{
@@ -20,13 +44,65 @@ func ProfileFor(email string) string {
 	}.Encode()
 }
 
-// RoleAdmin returns true if a query string is valid and contains "role=admin".
-func RoleAdmin(query string) bool {
+// decryptedRoleIsAdmin returns true if a decrypted query string contains "role=admin".
+func decryptedRoleIsAdmin(buf []byte, dec cipher.BlockMode) bool {
+	tmp := make([]byte, len(buf))
+	dec.CryptBlocks(tmp, buf)
+	tmp, err := PKCS7Unpad(tmp, dec.BlockSize())
+	if err != nil {
+		return false
+	}
+	return RoleIsAdmin(string(tmp))
+}
+
+// RoleIsAdmin returns true if a query string is valid and contains "role=admin".
+func RoleIsAdmin(query string) bool {
 	v, err := url.ParseQuery(query)
 	if err != nil {
 		return false
 	}
 	return v.Get("role") == "admin"
+}
+
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
+func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
+	}
+	// Find the number (and value) of padding bytes.
+	n := blockSize - (len(buf) % blockSize)
+
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
+}
+
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
+	if len(buf) < blockSize {
+		return nil, errInvalidPadding
+	}
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	n := len(buf) - int(b)
+	if int(b) == 0 || int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
+		return nil, errInvalidPadding
+	}
+	return dup(buf[:n]), nil
+}
+
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		panic(err)
+	}
+	return buf
+}
+
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
 }
 
 // ecb represents a generic ECB block mode.
@@ -67,80 +143,4 @@ func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
 // ecbDecrypter.CryptBlocks decrypts a buffer in ECB mode.
 func (x ecbDecrypter) CryptBlocks(dst, src []byte) {
 	x.cryptBlocks(dst, src, x.Decrypt)
-}
-
-// RandomBytes returns a random buffer of the desired length.
-func RandomBytes(n int) []byte {
-	buf := make([]byte, n)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
-	return buf
-}
-
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
-}
-
-// PKCS7Pad returns a buffer with PKCS#7 padding added.
-func PKCS7Pad(buf []byte, blockSize int) []byte {
-	if blockSize < 0 || blockSize > 0xff {
-		panic("PKCS7Pad: invalid block size")
-	}
-	// Find the number (and value) of padding bytes.
-	n := blockSize - (len(buf) % blockSize)
-
-	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
-}
-
-// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
-func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
-	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
-	if len(buf) < blockSize {
-		return nil, errInvalidPadding
-	}
-	// Examine the value of the last byte.
-	b := buf[len(buf)-1]
-	n := len(buf) - int(b)
-	if int(b) == 0 || int(b) > blockSize ||
-		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
-		return nil, errInvalidPadding
-	}
-	return dup(buf[:n]), nil
-}
-
-// encryptedProfileFor returns an encrypted user profile for an email address.
-func encryptedProfileFor(email string, enc cipher.BlockMode) []byte {
-	buf := PKCS7Pad([]byte(ProfileFor(email)), enc.BlockSize())
-	enc.CryptBlocks(buf, buf)
-	return buf
-}
-
-// decryptedRoleAdmin returns true if a decrypted query string contains "role=admin".
-func decryptedRoleAdmin(buf []byte, dec cipher.BlockMode) bool {
-	tmp := make([]byte, len(buf))
-	dec.CryptBlocks(tmp, buf)
-	tmp, err := PKCS7Unpad(tmp, dec.BlockSize())
-	if err != nil {
-		return false
-	}
-	return RoleAdmin(string(tmp))
-}
-
-func main() {
-	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
-	if err != nil {
-		panic(err)
-	}
-	enc, dec := NewECBEncrypter(c), NewECBDecrypter(c)
-
-	toCut := encryptedProfileFor("XXXXXXXXXXadmin", enc)
-	toPaste := encryptedProfileFor("anonymous.coward@guerrillamail.com", enc)
-
-	cut := toCut[len(toCut)-aes.BlockSize:]
-	paste := toPaste[:len(toPaste)-aes.BlockSize]
-	if decryptedRoleAdmin(append(paste, cut...), dec) {
-		fmt.Println("success")
-	}
 }
