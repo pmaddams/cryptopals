@@ -132,6 +132,29 @@ func breakSingleXOR(buf []byte, score func([]byte) int) byte {
 	return key
 }
 
+// xorCipher represents a repeating XOR stream cipher.
+type xorCipher struct {
+	key []byte
+	pos int
+}
+
+// NewXORCipher creates a new repeating XOR cipher.
+func NewXORCipher(key []byte) cipher.Stream {
+	return &xorCipher{key: key}
+}
+
+// XORKeyStream encrypts a buffer with repeating XOR.
+func (x *xorCipher) XORKeyStream(dst, src []byte) {
+	// Panic if dst is smaller than src.
+	for i := range src {
+		dst[i] = src[i] ^ x.key[x.pos]
+		x.pos++
+		if x.pos == len(x.key) {
+			x.pos = 0
+		}
+	}
+}
+
 // ScoreFunc reads sample text and returns a scoring function.
 func ScoreFunc(in io.Reader) (func([]byte) int, error) {
 	m, err := SymbolCounts(in)
@@ -224,28 +247,5 @@ func XORSingleByte(dst, src []byte, b byte) {
 	// Panic if dst is smaller than src.
 	for i := range src {
 		dst[i] = src[i] ^ b
-	}
-}
-
-// xorCipher represents a repeating XOR stream cipher.
-type xorCipher struct {
-	key []byte
-	pos int
-}
-
-// NewXORCipher creates a new repeating XOR cipher.
-func NewXORCipher(key []byte) cipher.Stream {
-	return &xorCipher{key: key}
-}
-
-// XORKeyStream encrypts a buffer with repeating XOR.
-func (x *xorCipher) XORKeyStream(dst, src []byte) {
-	// Panic if dst is smaller than src.
-	for i := range src {
-		dst[i] = src[i] ^ x.key[x.pos]
-		x.pos++
-		if x.pos == len(x.key) {
-			x.pos = 0
-		}
 	}
 }

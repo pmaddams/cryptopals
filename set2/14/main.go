@@ -221,6 +221,25 @@ func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
 	return 0, errors.New("breakByte: invalid block")
 }
 
+// ecbEncrypter represents an ECB encryption block mode.
+type ecbEncrypter struct{ cipher.Block }
+
+// NewECBEncrypter returns a block mode for ECB encryption.
+func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{c}
+}
+
+// CryptBlocks encrypts a buffer in ECB mode.
+func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
+	// The src buffer length must be a multiple of the block size,
+	// and the dst buffer must be at least the length of src.
+	for n := x.BlockSize(); len(src) > 0; {
+		x.Encrypt(dst[:n], src[:n])
+		dst = dst[n:]
+		src = src[n:]
+	}
+}
+
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
 	if blockSize < 0 || blockSize > 0xff {
@@ -293,23 +312,4 @@ func RandomInRange(lo, hi int) int {
 // dup returns a copy of a buffer.
 func dup(buf []byte) []byte {
 	return append([]byte{}, buf...)
-}
-
-// ecbEncrypter represents an ECB encryption block mode.
-type ecbEncrypter struct{ cipher.Block }
-
-// NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{c}
-}
-
-// CryptBlocks encrypts a buffer in ECB mode.
-func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
-	// The src buffer length must be a multiple of the block size,
-	// and the dst buffer must be at least the length of src.
-	for n := x.BlockSize(); len(src) > 0; {
-		x.Encrypt(dst[:n], src[:n])
-		dst = dst[n:]
-		src = src[n:]
-	}
 }

@@ -64,6 +64,46 @@ func RoleIsAdmin(query string) bool {
 	return v.Get("role") == "admin"
 }
 
+// ecb represents a generic ECB block mode.
+type ecb struct{ cipher.Block }
+
+// cryptBlocks encrypts or decrypts a buffer in ECB mode.
+func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
+	// The src buffer length must be a multiple of the block size,
+	// and the dst buffer must be at least the length of src.
+	for n := x.BlockSize(); len(src) > 0; {
+		crypt(dst[:n], src[:n])
+		dst = dst[n:]
+		src = src[n:]
+	}
+}
+
+// ecbEncrypter represents an ECB encryption block mode.
+type ecbEncrypter struct{ ecb }
+
+// NewECBEncrypter returns a block mode for ECB encryption.
+func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
+	return ecbEncrypter{ecb{c}}
+}
+
+// ecbEncrypter.CryptBlocks encrypts a buffer in ECB mode.
+func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
+	x.cryptBlocks(dst, src, x.Encrypt)
+}
+
+// ecbDecrypter represents an ECB decryption block mode.
+type ecbDecrypter struct{ ecb }
+
+// NewECBDecrypter returns a block mode for ECB decryption.
+func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
+	return ecbDecrypter{ecb{c}}
+}
+
+// ecbDecrypter.CryptBlocks decrypts a buffer in ECB mode.
+func (x ecbDecrypter) CryptBlocks(dst, src []byte) {
+	x.cryptBlocks(dst, src, x.Decrypt)
+}
+
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
 func PKCS7Pad(buf []byte, blockSize int) []byte {
 	if blockSize < 0 || blockSize > 0xff {
@@ -103,44 +143,4 @@ func RandomBytes(n int) []byte {
 // dup returns a copy of a buffer.
 func dup(buf []byte) []byte {
 	return append([]byte{}, buf...)
-}
-
-// ecb represents a generic ECB block mode.
-type ecb struct{ cipher.Block }
-
-// cryptBlocks encrypts or decrypts a buffer in ECB mode.
-func (x ecb) cryptBlocks(dst, src []byte, crypt func([]byte, []byte)) {
-	// The src buffer length must be a multiple of the block size,
-	// and the dst buffer must be at least the length of src.
-	for n := x.BlockSize(); len(src) > 0; {
-		crypt(dst[:n], src[:n])
-		dst = dst[n:]
-		src = src[n:]
-	}
-}
-
-// ecbEncrypter represents an ECB encryption block mode.
-type ecbEncrypter struct{ ecb }
-
-// NewECBEncrypter returns a block mode for ECB encryption.
-func NewECBEncrypter(c cipher.Block) cipher.BlockMode {
-	return ecbEncrypter{ecb{c}}
-}
-
-// ecbEncrypter.CryptBlocks encrypts a buffer in ECB mode.
-func (x ecbEncrypter) CryptBlocks(dst, src []byte) {
-	x.cryptBlocks(dst, src, x.Encrypt)
-}
-
-// ecbDecrypter represents an ECB decryption block mode.
-type ecbDecrypter struct{ ecb }
-
-// NewECBDecrypter returns a block mode for ECB decryption.
-func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
-	return ecbDecrypter{ecb{c}}
-}
-
-// ecbDecrypter.CryptBlocks decrypts a buffer in ECB mode.
-func (x ecbDecrypter) CryptBlocks(dst, src []byte) {
-	x.cryptBlocks(dst, src, x.Decrypt)
 }

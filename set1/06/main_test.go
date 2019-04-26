@@ -8,6 +8,36 @@ import (
 	"testing"
 )
 
+func TestXORCipher(t *testing.T) {
+	cases := []struct {
+		stream    cipher.Stream
+		src, want []byte
+	}{
+		{
+			NewXORCipher([]byte{1, 2}),
+			[]byte{1, 2, 3, 4, 5, 6},
+			[]byte{0, 0, 2, 6, 4, 4},
+		},
+		{
+			NewXORCipher([]byte{1, 2, 3}),
+			[]byte{1, 2, 3, 4, 5, 6},
+			[]byte{0, 0, 0, 5, 7, 5},
+		},
+		{
+			NewXORCipher([]byte{1, 2, 3, 4}),
+			[]byte{1, 2, 3, 4, 5, 6},
+			[]byte{0, 0, 0, 0, 4, 4},
+		},
+	}
+	for _, c := range cases {
+		dst := make([]byte, len(c.src))
+		c.stream.XORKeyStream(dst, c.src)
+		if !bytes.Equal(dst, c.want) {
+			t.Errorf("got %v, want %v", dst, c.want)
+		}
+	}
+}
+
 func TestScoreFunc(t *testing.T) {
 	cases := []struct {
 		sample string
@@ -237,36 +267,6 @@ func TestXORSingleByte(t *testing.T) {
 	dst := make([]byte, 6)
 	for _, c := range cases {
 		XORSingleByte(dst, c.src, c.b)
-		if !bytes.Equal(dst, c.want) {
-			t.Errorf("got %v, want %v", dst, c.want)
-		}
-	}
-}
-
-func TestXORCipher(t *testing.T) {
-	cases := []struct {
-		stream    cipher.Stream
-		src, want []byte
-	}{
-		{
-			NewXORCipher([]byte{1, 2}),
-			[]byte{1, 2, 3, 4, 5, 6},
-			[]byte{0, 0, 2, 6, 4, 4},
-		},
-		{
-			NewXORCipher([]byte{1, 2, 3}),
-			[]byte{1, 2, 3, 4, 5, 6},
-			[]byte{0, 0, 0, 5, 7, 5},
-		},
-		{
-			NewXORCipher([]byte{1, 2, 3, 4}),
-			[]byte{1, 2, 3, 4, 5, 6},
-			[]byte{0, 0, 0, 0, 4, 4},
-		},
-	}
-	for _, c := range cases {
-		dst := make([]byte, len(c.src))
-		c.stream.XORKeyStream(dst, c.src)
 		if !bytes.Equal(dst, c.want) {
 			t.Errorf("got %v, want %v", dst, c.want)
 		}

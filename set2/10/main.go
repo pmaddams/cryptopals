@@ -84,55 +84,6 @@ func decrypt(in io.Reader, mode cipher.BlockMode) error {
 	return nil
 }
 
-// PKCS7Pad returns a buffer with PKCS#7 padding added.
-func PKCS7Pad(buf []byte, blockSize int) []byte {
-	if blockSize < 0 || blockSize > 0xff {
-		panic("PKCS7Pad: invalid block size")
-	}
-	// Find the number (and value) of padding bytes.
-	n := blockSize - (len(buf) % blockSize)
-
-	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
-}
-
-// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
-func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
-	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
-	if len(buf) < blockSize {
-		return nil, errInvalidPadding
-	}
-	// Examine the value of the last byte.
-	b := buf[len(buf)-1]
-	n := len(buf) - int(b)
-	if int(b) == 0 || int(b) > blockSize ||
-		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
-		return nil, errInvalidPadding
-	}
-	return dup(buf[:n]), nil
-}
-
-// XORBytes produces the XOR combination of two buffers.
-func XORBytes(dst, b1, b2 []byte) int {
-	n := min(len(b1), len(b2))
-	for i := 0; i < n; i++ {
-		dst[i] = b1[i] ^ b2[i]
-	}
-	return n
-}
-
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
-}
-
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
-	}
-	return m
-}
-
 // cbc represents a generic CBC block mode.
 type cbc struct {
 	cipher.Block
@@ -188,4 +139,53 @@ func (x cbcDecrypter) CryptBlocks(dst, src []byte) {
 		copy(x.iv, tmp)
 		dst, src = dst[n:], src[n:]
 	}
+}
+
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
+func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
+	}
+	// Find the number (and value) of padding bytes.
+	n := blockSize - (len(buf) % blockSize)
+
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
+}
+
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
+	if len(buf) < blockSize {
+		return nil, errInvalidPadding
+	}
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	n := len(buf) - int(b)
+	if int(b) == 0 || int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
+		return nil, errInvalidPadding
+	}
+	return dup(buf[:n]), nil
+}
+
+// XORBytes produces the XOR combination of two buffers.
+func XORBytes(dst, b1, b2 []byte) int {
+	n := min(len(b1), len(b2))
+	for i := 0; i < n; i++ {
+		dst[i] = b1[i] ^ b2[i]
+	}
+	return n
+}
+
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
+// min returns the smaller of two integers.
+func min(n, m int) int {
+	if n < m {
+		return n
+	}
+	return m
 }

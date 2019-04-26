@@ -82,38 +82,6 @@ func decrypt(in io.Reader, c cipher.Block) error {
 	return nil
 }
 
-// PKCS7Pad returns a buffer with PKCS#7 padding added.
-func PKCS7Pad(buf []byte, blockSize int) []byte {
-	if blockSize < 0 || blockSize > 0xff {
-		panic("PKCS7Pad: invalid block size")
-	}
-	// Find the number (and value) of padding bytes.
-	n := blockSize - (len(buf) % blockSize)
-
-	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
-}
-
-// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
-func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
-	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
-	if len(buf) < blockSize {
-		return nil, errInvalidPadding
-	}
-	// Examine the value of the last byte.
-	b := buf[len(buf)-1]
-	n := len(buf) - int(b)
-	if int(b) == 0 || int(b) > blockSize ||
-		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
-		return nil, errInvalidPadding
-	}
-	return dup(buf[:n]), nil
-}
-
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
-}
-
 // ecb represents a generic ECB block mode.
 type ecb struct{ cipher.Block }
 
@@ -152,4 +120,36 @@ func NewECBDecrypter(c cipher.Block) cipher.BlockMode {
 // ecbDecrypter.CryptBlocks decrypts a buffer in ECB mode.
 func (x ecbDecrypter) CryptBlocks(dst, src []byte) {
 	x.cryptBlocks(dst, src, x.Decrypt)
+}
+
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
+func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
+	}
+	// Find the number (and value) of padding bytes.
+	n := blockSize - (len(buf) % blockSize)
+
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
+}
+
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
+	if len(buf) < blockSize {
+		return nil, errInvalidPadding
+	}
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	n := len(buf) - int(b)
+	if int(b) == 0 || int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
+		return nil, errInvalidPadding
+	}
+	return dup(buf[:n]), nil
+}
+
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
 }
