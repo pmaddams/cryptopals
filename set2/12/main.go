@@ -20,7 +20,11 @@ dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
 YnkK`
 
 func main() {
-	x := newECBBreaker(ecbEncryptionOracle())
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	if err != nil {
+		panic(err)
+	}
+	x := newECBBreaker(ecbEncryptionOracle(c))
 	if err := x.detectParams(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -35,6 +39,21 @@ func main() {
 		return
 	}
 	fmt.Print(string(buf))
+}
+
+// ecbEncryptionOracle takes a block cipher and returns an ECB encryption oracle.
+func ecbEncryptionOracle(c cipher.Block) func([]byte) []byte {
+	decoded, err := base64.StdEncoding.DecodeString(secret)
+	if err != nil {
+		panic(err)
+	}
+	mode := NewECBEncrypter(c)
+	return func(buf []byte) []byte {
+		res := append(dup(buf), decoded...)
+		res = PKCS7Pad(res, mode.BlockSize())
+		mode.CryptBlocks(res, res)
+		return res
+	}
 }
 
 // ecbBreaker contains state for attacking the ECB encryption oracle.
@@ -140,25 +159,6 @@ func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
 		}
 	}
 	return 0, errors.New("breakByte: invalid block")
-}
-
-// ecbEncryptionOracle returns an ECB encryption oracle.
-func ecbEncryptionOracle() func([]byte) []byte {
-	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
-	if err != nil {
-		panic(err)
-	}
-	mode := NewECBEncrypter(c)
-	decoded, err := base64.StdEncoding.DecodeString(secret)
-	if err != nil {
-		panic(err)
-	}
-	return func(buf []byte) []byte {
-		res := append(dup(buf), decoded...)
-		res = PKCS7Pad(res, mode.BlockSize())
-		mode.CryptBlocks(res, res)
-		return res
-	}
 }
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
