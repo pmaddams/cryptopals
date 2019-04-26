@@ -24,7 +24,11 @@ dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
 YnkK`
 
 func main() {
-	x := newECBBreaker(ecbEncryptionOracleWithPrefix())
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	if err != nil {
+		panic(err)
+	}
+	x := newECBBreaker(ecbPrefixedEncryptionOracle(c))
 	if err := x.detectBlockSize(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
@@ -47,6 +51,22 @@ func main() {
 		return
 	}
 	fmt.Print(string(buf))
+}
+
+// ecbPrefixedEncryptionOracle takes a block cipher and returns a prefixed ECB encryption oracle.
+func ecbPrefixedEncryptionOracle(c cipher.Block) func([]byte) []byte {
+	prefix := RandomBytes(RandomInRange(5, 10))
+	decoded, err := base64.StdEncoding.DecodeString(secret)
+	if err != nil {
+		panic(err)
+	}
+	mode := NewECBEncrypter(c)
+	return func(buf []byte) []byte {
+		res := append(prefix, append(dup(buf), decoded...)...)
+		res = PKCS7Pad(res, mode.BlockSize())
+		mode.CryptBlocks(res, res)
+		return res
+	}
 }
 
 // ecbBreaker contains state for attacking the ECB encryption oracle.
@@ -199,26 +219,6 @@ func (x *ecbBreaker) breakByte(probe, block []byte) (byte, error) {
 		}
 	}
 	return 0, errors.New("breakByte: invalid block")
-}
-
-// ecbEncryptionOracleWithPrefix returns an ECB encryption oracle with prefix.
-func ecbEncryptionOracleWithPrefix() func([]byte) []byte {
-	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
-	if err != nil {
-		panic(err)
-	}
-	mode := NewECBEncrypter(c)
-	prefix := RandomBytes(RandomInRange(5, 10))
-	decoded, err := base64.StdEncoding.DecodeString(secret)
-	if err != nil {
-		panic(err)
-	}
-	return func(buf []byte) []byte {
-		res := append(prefix, append(dup(buf), decoded...)...)
-		res = PKCS7Pad(res, mode.BlockSize())
-		mode.CryptBlocks(res, res)
-		return res
-	}
 }
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
