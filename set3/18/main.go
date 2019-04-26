@@ -16,22 +16,66 @@ import (
 
 const secret = "YELLOW SUBMARINE"
 
-// BytesToUint64s converts a buffer to a slice of unsigned 64-bit integers.
-func BytesToUint64s(buf []byte) []uint64 {
-	nums := make([]uint64, len(buf)/8)
-	for i := range nums {
-		nums[i] = binary.LittleEndian.Uint64(buf[8*i:])
+func main() {
+	c, err := aes.NewCipher([]byte(secret))
+	if err != nil {
+		panic(err)
 	}
-	return nums
+	iv := make([]byte, c.BlockSize())
+	stream := NewCTR(c, iv)
+	var (
+		e  bool
+		fn func(io.Reader, cipher.Stream) error
+	)
+	flag.BoolVar(&e, "e", false, "encrypt")
+	flag.Parse()
+	if e {
+		fn = encrypt
+	} else {
+		fn = decrypt
+	}
+	files := flag.Args()
+	if len(files) == 0 {
+		if err := fn(os.Stdin, stream); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+	}
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := fn(f, stream); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
 }
 
-// Uint64sToBytes converts a slice of unsigned 64-bit integers to a buffer.
-func Uint64sToBytes(nums []uint64) []byte {
-	buf := make([]byte, len(nums)*8)
-	for i := range nums {
-		binary.LittleEndian.PutUint64(buf[8*i:], nums[i])
+// encrypt reads plaintext and prints base64-encoded ciphertext.
+func encrypt(in io.Reader, stream cipher.Stream) error {
+	buf, err := ioutil.ReadAll(in)
+	if err != nil {
+		return err
 	}
-	return buf
+	stream.XORKeyStream(buf, buf)
+	fmt.Println(base64.StdEncoding.EncodeToString(buf))
+
+	return nil
+}
+
+// decrypt reads base64-encoded ciphertext and prints plaintext.
+func decrypt(in io.Reader, stream cipher.Stream) error {
+	in = base64.NewDecoder(base64.StdEncoding, in)
+	buf, err := ioutil.ReadAll(in)
+	if err != nil {
+		return err
+	}
+	stream.XORKeyStream(buf, buf)
+	fmt.Println(string(buf))
+
+	return nil
 }
 
 // ctr represents a CTR mode stream cipher.
@@ -47,16 +91,6 @@ func NewCTR(c cipher.Block, iv []byte) cipher.Stream {
 		panic("NewCTR: initialization vector length must equal block size")
 	}
 	return &ctr{c, BytesToUint64s(iv), 0}
-}
-
-// inc increments the counter.
-func (x *ctr) inc() {
-	for i := len(x.ctr) - 1; i >= 0; i-- {
-		x.ctr[i]++
-		if x.ctr[i] != 0 {
-			break
-		}
-	}
 }
 
 // XORKeyStream encrypts a buffer with the CTR keystream.
@@ -81,64 +115,30 @@ func (x *ctr) XORKeyStream(dst, src []byte) {
 	}
 }
 
-// encryptCTR reads plaintext and prints base64-encoded ciphertext.
-func encryptCTR(in io.Reader, stream cipher.Stream) error {
-	buf, err := ioutil.ReadAll(in)
-	if err != nil {
-		return err
+// inc increments the counter.
+func (x *ctr) inc() {
+	for i := len(x.ctr) - 1; i >= 0; i-- {
+		x.ctr[i]++
+		if x.ctr[i] != 0 {
+			break
+		}
 	}
-	stream.XORKeyStream(buf, buf)
-	fmt.Println(base64.StdEncoding.EncodeToString(buf))
-
-	return nil
 }
 
-// decryptCTR reads base64-encoded ciphertext and prints plaintext.
-func decryptCTR(in io.Reader, stream cipher.Stream) error {
-	in = base64.NewDecoder(base64.StdEncoding, in)
-	buf, err := ioutil.ReadAll(in)
-	if err != nil {
-		return err
+// BytesToUint64s converts a buffer to a slice of unsigned 64-bit integers.
+func BytesToUint64s(buf []byte) []uint64 {
+	nums := make([]uint64, len(buf)/8)
+	for i := range nums {
+		nums[i] = binary.LittleEndian.Uint64(buf[8*i:])
 	}
-	stream.XORKeyStream(buf, buf)
-	fmt.Println(string(buf))
-
-	return nil
+	return nums
 }
 
-func main() {
-	c, err := aes.NewCipher([]byte(secret))
-	if err != nil {
-		panic(err)
+// Uint64sToBytes converts a slice of unsigned 64-bit integers to a buffer.
+func Uint64sToBytes(nums []uint64) []byte {
+	buf := make([]byte, len(nums)*8)
+	for i := range nums {
+		binary.LittleEndian.PutUint64(buf[8*i:], nums[i])
 	}
-	iv := make([]byte, c.BlockSize())
-	stream := NewCTR(c, iv)
-	var (
-		e  bool
-		fn func(io.Reader, cipher.Stream) error
-	)
-	flag.BoolVar(&e, "e", false, "encrypt")
-	flag.Parse()
-	if e {
-		fn = encryptCTR
-	} else {
-		fn = decryptCTR
-	}
-	files := flag.Args()
-	if len(files) == 0 {
-		if err := fn(os.Stdin, stream); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-	}
-	for _, file := range files {
-		f, err := os.Open(file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		if err := fn(f, stream); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		f.Close()
-	}
+	return buf
 }
