@@ -6,6 +6,35 @@ import (
 	"testing"
 )
 
+func TestValidPadding(t *testing.T) {
+	cases := []struct {
+		buf       []byte
+		blockSize int
+		want      bool
+	}{
+		{
+			[]byte{0, 0, 0},
+			3,
+			false,
+		},
+		{
+			[]byte{4, 4, 4},
+			3,
+			false,
+		},
+		{
+			[]byte{5, 5, 5, 5, 5, 5},
+			6,
+			true,
+		},
+	}
+	for _, c := range cases {
+		if got := ValidPadding(c.buf, c.blockSize); got != c.want {
+			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
+
 func TestPKCS7Pad(t *testing.T) {
 	cases := []struct {
 		buf       []byte
@@ -66,30 +95,38 @@ func TestPKCS7Unpad(t *testing.T) {
 	}
 }
 
-func TestValidPadding(t *testing.T) {
+func TestSubdivide(t *testing.T) {
 	cases := []struct {
-		buf       []byte
-		blockSize int
-		want      bool
+		buf  []byte
+		n    int
+		want [][]byte
 	}{
 		{
-			[]byte{0, 0, 0},
+			[]byte{1, 2},
 			3,
-			false,
+			nil,
 		},
 		{
-			[]byte{4, 4, 4},
+			[]byte{1, 2, 3, 4, 5, 6},
 			3,
-			false,
+			[][]byte{
+				{1, 2, 3},
+				{4, 5, 6},
+			},
 		},
 		{
-			[]byte{5, 5, 5, 5, 5, 5},
-			6,
-			true,
+			[]byte{1, 2, 3, 4, 5, 6},
+			2,
+			[][]byte{
+				{1, 2},
+				{3, 4},
+				{5, 6},
+			},
 		},
 	}
 	for _, c := range cases {
-		if got := ValidPadding(c.buf, c.blockSize); got != c.want {
+		got := Subdivide(c.buf, c.n)
+		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
@@ -131,43 +168,6 @@ func TestXORBytes(t *testing.T) {
 		n := XORBytes(c.b1, c.b1, c.b2)
 		got := c.b1[:n]
 		if !bytes.Equal(got, c.want) {
-			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
-func TestSubdivide(t *testing.T) {
-	cases := []struct {
-		buf  []byte
-		n    int
-		want [][]byte
-	}{
-		{
-			[]byte{1, 2},
-			3,
-			nil,
-		},
-		{
-			[]byte{1, 2, 3, 4, 5, 6},
-			3,
-			[][]byte{
-				{1, 2, 3},
-				{4, 5, 6},
-			},
-		},
-		{
-			[]byte{1, 2, 3, 4, 5, 6},
-			2,
-			[][]byte{
-				{1, 2},
-				{3, 4},
-				{5, 6},
-			},
-		},
-	}
-	for _, c := range cases {
-		got := Subdivide(c.buf, c.n)
-		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
