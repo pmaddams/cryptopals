@@ -15,8 +15,12 @@ import (
 func init() { weak.Seed(time.Now().UnixNano()) }
 
 func main() {
-	var mode cipher.BlockMode
-	if detect(ecbModeOracle(&mode)) {
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	if err != nil {
+		panic(err)
+	}
+	oracle, mode := ecbModeOracle(c)
+	if detect(oracle) {
 		fmt.Print("detected ECB mode...")
 		if _, ok := mode.(ecbEncrypter); ok {
 			fmt.Println("correct.")
@@ -33,6 +37,24 @@ func main() {
 	}
 }
 
+// ecbModeOracle takes a block cipher and returns an ECB/CBC mode oracle.
+func ecbModeOracle(c cipher.Block) (func([]byte) []byte, cipher.BlockMode) {
+	var mode cipher.BlockMode
+	if weak.Intn(2) == 0 {
+		mode = NewECBEncrypter(c)
+	} else {
+		mode = cipher.NewCBCEncrypter(c, RandomBytes(c.BlockSize()))
+	}
+	prefix := RandomBytes(RandomInRange(5, 10))
+	suffix := RandomBytes(RandomInRange(5, 10))
+	return func(buf []byte) []byte {
+		buf = append(prefix, append(buf, suffix...)...)
+		buf = PKCS7Pad(buf, mode.BlockSize())
+		mode.CryptBlocks(buf, buf)
+		return buf
+	}, mode
+}
+
 // detect returns true if the mode oracle is using ECB mode.
 func detect(oracle func([]byte) []byte) bool {
 	return HasIdenticalBlocks(oracle(ecbProbe()), aes.BlockSize)
@@ -41,27 +63,6 @@ func detect(oracle func([]byte) []byte) bool {
 // ecbProbe returns a buffer that can be used to detect ECB mode.
 func ecbProbe() []byte {
 	return bytes.Repeat([]byte{'a'}, 3*aes.BlockSize)
-}
-
-// ecbModeOracle returns an ECB/CBC mode oracle.
-func ecbModeOracle(mode *cipher.BlockMode) func([]byte) []byte {
-	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
-	if err != nil {
-		panic(err)
-	}
-	if weak.Intn(2) == 0 {
-		*mode = NewECBEncrypter(c)
-	} else {
-		*mode = cipher.NewCBCEncrypter(c, RandomBytes(c.BlockSize()))
-	}
-	prefix := RandomBytes(RandomInRange(5, 10))
-	suffix := RandomBytes(RandomInRange(5, 10))
-	return func(buf []byte) []byte {
-		buf = append(prefix, append(buf, suffix...)...)
-		buf = PKCS7Pad(buf, (*mode).BlockSize())
-		(*mode).CryptBlocks(buf, buf)
-		return buf
-	}
 }
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
