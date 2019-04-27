@@ -728,24 +728,6 @@ func TestUint32n(t *testing.T) {
 	}
 }
 
-func TestMTRandomInRange(t *testing.T) {
-	cases := []struct {
-		lo, hi uint32
-	}{
-		{0, 0},
-		{5, 10},
-		{20, 30},
-	}
-	for _, c := range cases {
-		for i := 0; i < 100; i++ {
-			got := MTRandomInRange(c.lo, c.hi)
-			if got < c.lo || got > c.hi {
-				t.Errorf("got %v, want range [%v, %v]", got, c.lo, c.hi)
-			}
-		}
-	}
-}
-
 func TestMTCipher(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		seed := uint32(time.Now().Unix())
@@ -761,6 +743,24 @@ func TestMTCipher(t *testing.T) {
 		s2.XORKeyStream(dst, dst)
 		if !bytes.Equal(dst, src) {
 			t.Error("decryption failed")
+		}
+	}
+}
+
+func TestMTInRange(t *testing.T) {
+	cases := []struct {
+		lo, hi uint32
+	}{
+		{0, 0},
+		{5, 10},
+		{20, 30},
+	}
+	for _, c := range cases {
+		for i := 0; i < 100; i++ {
+			got := MTInRange(c.lo, c.hi)
+			if got < c.lo || got > c.hi {
+				t.Errorf("got %v, want range [%v, %v]", got, c.lo, c.hi)
+			}
 		}
 	}
 }

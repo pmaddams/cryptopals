@@ -20,6 +20,22 @@ const (
 	temperMask2 = 0xefc60000
 )
 
+func main() {
+	mt1 := NewMT(uint32(time.Now().Unix()))
+	mt2 := CloneMT(mt1)
+
+	input := bufio.NewScanner(os.Stdin)
+	printColumns("Original:", "Clone:")
+	for input.Scan() {
+		printColumns(mt1.Uint32(), mt2.Uint32())
+	}
+}
+
+// printColumns prints values in two columns.
+func printColumns(a, b interface{}) {
+	fmt.Printf("%-10v\t%v", a, b)
+}
+
 // MT represents an MT19937 PRNG.
 type MT struct {
 	state [arraySize]uint32
@@ -37,6 +53,17 @@ func NewMT(seed uint32) *MT {
 	}
 	mt.twist()
 	return &mt
+}
+
+// Uint32 returns a pseudo-random unsigned 32-bit integer.
+func (mt *MT) Uint32() uint32 {
+	n := temper(mt.state[mt.pos])
+	mt.pos++
+	if mt.pos == len(mt.state) {
+		mt.twist()
+		mt.pos = 0
+	}
+	return n
 }
 
 // twist scrambles the state array.
@@ -60,24 +87,14 @@ func temper(n uint32) uint32 {
 	return n
 }
 
-// Uint32 returns a pseudo-random unsigned 32-bit integer.
-func (mt *MT) Uint32() uint32 {
-	n := temper(mt.state[mt.pos])
-	mt.pos++
-	if mt.pos == len(mt.state) {
-		mt.twist()
-		mt.pos = 0
+// CloneMT clones an MT19937 PRNG from 624 consecutive outputs.
+func CloneMT(mt *MT) *MT {
+	var clone MT
+	for i := range clone.state {
+		clone.state[i] = Untemper(mt.Uint32())
 	}
-	return n
-}
-
-// BitMask returns an unsigned 32-bit integer with bits [i, j] set.
-func BitMask(i, j int) uint32 {
-	if i < 0 || i > j || j > 31 {
-		panic("BitMask: invalid range")
-	}
-	rs, ls := uint(i), uint(31-j)
-	return (^uint32(0) >> (rs + ls)) << ls
+	clone.twist()
+	return &clone
 }
 
 // Untemper reverses the MT19937 tempering transformation.
@@ -95,28 +112,11 @@ func Untemper(n uint32) uint32 {
 	return n
 }
 
-// Clone clones an MT19937 PRNG from 624 consecutive outputs.
-func Clone(mt *MT) *MT {
-	var clone MT
-	for i := range clone.state {
-		clone.state[i] = Untemper(mt.Uint32())
+// BitMask returns an unsigned 32-bit integer with bits [i, j] set.
+func BitMask(i, j int) uint32 {
+	if i < 0 || i > j || j > 31 {
+		panic("BitMask: invalid range")
 	}
-	clone.twist()
-	return &clone
-}
-
-// printCols prints values in two columns.
-func printCols(a, b interface{}) {
-	fmt.Printf("%-10v\t%v", a, b)
-}
-
-func main() {
-	mt1 := NewMT(uint32(time.Now().Unix()))
-	mt2 := Clone(mt1)
-
-	input := bufio.NewScanner(os.Stdin)
-	printCols("Original:", "Clone:")
-	for input.Scan() {
-		printCols(mt1.Uint32(), mt2.Uint32())
-	}
+	rs, ls := uint(i), uint(31-j)
+	return (^uint32(0) >> (rs + ls)) << ls
 }

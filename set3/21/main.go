@@ -20,6 +20,18 @@ const (
 	temperMask2 = 0xefc60000
 )
 
+func main() {
+	var seed uint
+	flag.UintVar(&seed, "s", 5489, "seed")
+	flag.Parse()
+
+	mt := NewMT(uint32(seed))
+	input := bufio.NewScanner(os.Stdin)
+	for input.Scan() {
+		fmt.Print(mt.Uint32())
+	}
+}
+
 // MT represents an MT19937 PRNG.
 type MT struct {
 	state [arraySize]uint32
@@ -37,6 +49,17 @@ func NewMT(seed uint32) *MT {
 	}
 	mt.twist()
 	return &mt
+}
+
+// Uint32 returns a pseudo-random unsigned 32-bit integer.
+func (mt *MT) Uint32() uint32 {
+	n := temper(mt.state[mt.pos])
+	mt.pos++
+	if mt.pos == len(mt.state) {
+		mt.twist()
+		mt.pos = 0
+	}
+	return n
 }
 
 // twist scrambles the state array.
@@ -58,27 +81,4 @@ func temper(n uint32) uint32 {
 	n ^= n >> 18
 
 	return n
-}
-
-// Uint32 returns a pseudo-random unsigned 32-bit integer.
-func (mt *MT) Uint32() uint32 {
-	n := temper(mt.state[mt.pos])
-	mt.pos++
-	if mt.pos == len(mt.state) {
-		mt.twist()
-		mt.pos = 0
-	}
-	return n
-}
-
-func main() {
-	var seed uint
-	flag.UintVar(&seed, "s", 5489, "seed")
-	flag.Parse()
-
-	mt := NewMT(uint32(seed))
-	input := bufio.NewScanner(os.Stdin)
-	for input.Scan() {
-		fmt.Print(mt.Uint32())
-	}
 }

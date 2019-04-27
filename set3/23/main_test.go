@@ -716,6 +716,27 @@ func TestUint32(t *testing.T) {
 	}
 }
 
+func TestClone(t *testing.T) {
+	mt1 := NewMT(uint32(time.Now().Unix()))
+	mt2 := Clone(mt1)
+	for i := 0; i < 700; i++ {
+		want := mt1.Uint32()
+		if got := mt2.Uint32(); got != want {
+			t.Fatalf("got %v (output #%v), want %v", got, i+1, want)
+		}
+	}
+}
+
+func TestUntemper(t *testing.T) {
+	mt := NewMT(uint32(time.Now().Unix()))
+	for i := 0; i < 100; i++ {
+		want := mt.Uint32()
+		if got := Untemper(temper(want)); got != want {
+			t.Errorf("got %v, want %v", got, want)
+		}
+	}
+}
+
 func TestBitMask(t *testing.T) {
 	cases := []struct {
 		i, j int
@@ -740,27 +761,6 @@ func TestBitMask(t *testing.T) {
 	for _, c := range cases {
 		if got := BitMask(c.i, c.j); got != c.want {
 			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
-func TestUntemper(t *testing.T) {
-	mt := NewMT(uint32(time.Now().Unix()))
-	for i := 0; i < 100; i++ {
-		want := mt.Uint32()
-		if got := Untemper(temper(want)); got != want {
-			t.Errorf("got %v, want %v", got, want)
-		}
-	}
-}
-
-func TestClone(t *testing.T) {
-	mt1 := NewMT(uint32(time.Now().Unix()))
-	mt2 := Clone(mt1)
-	for i := 0; i < 700; i++ {
-		want := mt1.Uint32()
-		if got := mt2.Uint32(); got != want {
-			t.Fatalf("got %v (output #%v), want %v", got, i+1, want)
 		}
 	}
 }

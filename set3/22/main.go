@@ -20,6 +20,30 @@ const (
 	temperMask2 = 0xefc60000
 )
 
+func main() {
+	seed := uint32(time.Now().Unix())
+	mt := NewMT(seed)
+
+	n, err := breakMT(mt.Uint32(), seed+MTInRange(40, 1000))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+	if n == seed {
+		fmt.Println("success")
+	}
+}
+
+// breakMT takes an MT19937 output and the current time, and returns the seed.
+func breakMT(n, unixTime uint32) (uint32, error) {
+	for seed := unixTime; seed > 0; seed-- {
+		if NewMT(seed).Uint32() == n {
+			return seed, nil
+		}
+	}
+	return 0, errors.New("breakMT: nothing found")
+}
+
 // MT represents an MT19937 PRNG.
 type MT struct {
 	state [arraySize]uint32
@@ -37,6 +61,26 @@ func NewMT(seed uint32) *MT {
 	}
 	mt.twist()
 	return &mt
+}
+
+// Uint32 returns a pseudo-random unsigned 32-bit integer.
+func (mt *MT) Uint32() uint32 {
+	n := temper(mt.state[mt.pos])
+	mt.pos++
+	if mt.pos == len(mt.state) {
+		mt.twist()
+		mt.pos = 0
+	}
+	return n
+}
+
+// Uint32n returns a pseudo-random unsigned 32-bit integer in [0, n).
+func (mt *MT) Uint32n(n uint32) uint32 {
+	if n == 0 {
+		panic("Uint32n: invalid range")
+	}
+	return uint32(float64(mt.Uint32()) *
+		float64(n-1) / float64(^uint32(0)))
 }
 
 // twist scrambles the state array.
@@ -60,55 +104,11 @@ func temper(n uint32) uint32 {
 	return n
 }
 
-// Uint32 returns a pseudo-random unsigned 32-bit integer.
-func (mt *MT) Uint32() uint32 {
-	n := temper(mt.state[mt.pos])
-	mt.pos++
-	if mt.pos == len(mt.state) {
-		mt.twist()
-		mt.pos = 0
-	}
-	return n
-}
-
-// Uint32n returns a pseudo-random unsigned 32-bit integer in [0, n).
-func (mt *MT) Uint32n(n uint32) uint32 {
-	if n == 0 {
-		panic("Uint32n: invalid range")
-	}
-	return uint32(float64(mt.Uint32()) *
-		float64(n-1) / float64(^uint32(0)))
-}
-
-// MTRandomInRange returns a pseudo-random unsigned 32-bit integer in [lo, hi].
-func MTRandomInRange(lo, hi uint32) uint32 {
+// MTInRange returns a pseudo-random unsigned 32-bit integer in [lo, hi].
+func MTInRange(lo, hi uint32) uint32 {
 	if lo > hi {
-		panic("MTRandomInRange: invalid range")
+		panic("MTInRange: invalid range")
 	}
 	mt := NewMT(uint32(time.Now().Unix()))
 	return lo + mt.Uint32n(hi-lo+1)
-}
-
-// breakMT takes an MT19937 output and the current time, and returns the seed.
-func breakMT(n, unixTime uint32) (uint32, error) {
-	for seed := unixTime; seed > 0; seed-- {
-		if NewMT(seed).Uint32() == n {
-			return seed, nil
-		}
-	}
-	return 0, errors.New("breakMT: nothing found")
-}
-
-func main() {
-	seed := uint32(time.Now().Unix())
-	mt := NewMT(seed)
-
-	n, err := breakMT(mt.Uint32(), seed+MTRandomInRange(40, 1000))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	if n == seed {
-		fmt.Println("success")
-	}
 }
