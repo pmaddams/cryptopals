@@ -747,6 +747,19 @@ func TestMTCipher(t *testing.T) {
 	}
 }
 
+func TestMTBytes(t *testing.T) {
+	bufs := append([][]byte{}, MTBytes(16))
+	for i := 1; i < 5; i++ {
+		time.Sleep(time.Second)
+		bufs = append(bufs, MTBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
+		}
+	}
+}
+
 func TestMTInRange(t *testing.T) {
 	cases := []struct {
 		lo, hi uint32
