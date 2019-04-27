@@ -24,16 +24,20 @@ func main() {
 	mt1 := NewMT(uint32(time.Now().Unix()))
 	mt2 := CloneMT(mt1)
 
+	const width = 11
+	printColumns(width, "Original:", "Clone:")
+
 	input := bufio.NewScanner(os.Stdin)
-	printColumns("Original:", "Clone:")
 	for input.Scan() {
-		printColumns(mt1.Uint32(), mt2.Uint32())
+		printColumns(width, mt1.Uint32(), mt2.Uint32())
 	}
 }
 
-// printColumns prints values in two columns.
-func printColumns(a, b interface{}) {
-	fmt.Printf("%-10v\t%v", a, b)
+// printColumns takes a column width and prints the remaining arguments.
+func printColumns(width int, args ...interface{}) {
+	for _, x := range args {
+		fmt.Printf("%-[1]*v", width, x)
+	}
 }
 
 // MT represents an MT19937 PRNG.
