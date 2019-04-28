@@ -11,34 +11,23 @@ import (
 
 func init() { weak.Seed(time.Now().UnixNano()) }
 
-func TestBitPadding(t *testing.T) {
+func TestMAC(t *testing.T) {
+	key := make([]byte, 1+weak.Intn(16))
+	weak.Read(key)
+
+	mac := NewMAC(sha1.New, key)
 	for i := 0; i < 10; i++ {
-		n := weak.Intn(1024)
-		blockSize := 8 * (1 + weak.Intn(16))
-		var endian binary.ByteOrder
-		if weak.Intn(2) == 0 {
-			endian = binary.LittleEndian
-		} else {
-			endian = binary.BigEndian
-		}
-		pad := BitPadding(n, blockSize, endian)
-		fail := func(s string) {
-			t.Fatalf("BitPadding(%v, %v, %v) == %v, %s",
-				n, blockSize, endian, pad, s)
-		}
-		if len(pad) < 8 {
-			fail("padding too short")
-		}
-		if (n+len(pad))%blockSize != 0 {
-			fail("padded length not a multiple of the block size")
-		}
-		if pad[0] != 0x80 {
-			fail("invalid first padding byte")
-		}
-		tmp := make([]byte, 8)
-		endian.PutUint64(tmp, uint64(n)<<3)
-		if !bytes.Equal(tmp, pad[len(pad)-8:]) {
-			fail("incorrect bit count")
+		buf := make([]byte, 1+weak.Intn(1024))
+		weak.Read(buf)
+
+		array := sha1.Sum(append(key, buf...))
+		want := array[:]
+
+		mac.Reset()
+		mac.Write(buf)
+		got := mac.Sum([]byte{})
+		if !bytes.Equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }
@@ -71,23 +60,46 @@ func TestPrefixedSHA1(t *testing.T) {
 	}
 }
 
-func TestMAC(t *testing.T) {
-	key := make([]byte, 1+weak.Intn(16))
-	weak.Read(key)
-
-	mac := NewMAC(sha1.New, key)
+func TestBitPadding(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		buf := make([]byte, 1+weak.Intn(1024))
-		weak.Read(buf)
+		n := weak.Intn(1024)
+		blockSize := 8 * (1 + weak.Intn(16))
+		var endian binary.ByteOrder
+		if weak.Intn(2) == 0 {
+			endian = binary.LittleEndian
+		} else {
+			endian = binary.BigEndian
+		}
+		pad := BitPadding(n, blockSize, endian)
+		fail := func(s string) {
+			t.Fatalf("BitPadding(%v, %v, %v) == %v, %s",
+				n, blockSize, endian, pad, s)
+		}
+		if len(pad) < 8 {
+			fail("padding too short")
+		}
+		if (n+len(pad))%blockSize != 0 {
+			fail("padded length not a multiple of the block size")
+		}
+		if pad[0] != 0x80 {
+			fail("invalid first padding byte")
+		}
+		tmp := make([]byte, 8)
+		endian.PutUint64(tmp, uint64(n)<<3)
+		if !bytes.Equal(tmp, pad[len(pad)-8:]) {
+			fail("incorrect bit count")
+		}
+	}
+}
 
-		array := sha1.Sum(append(key, buf...))
-		want := array[:]
-
-		mac.Reset()
-		mac.Write(buf)
-		got := mac.Sum([]byte{})
-		if !bytes.Equal(got, want) {
-			t.Errorf("got %v, want %v", got, want)
+func TestRandomBytes(t *testing.T) {
+	var bufs [][]byte
+	for i := 0; i < 5; i++ {
+		bufs = append(bufs, RandomBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
 		}
 	}
 }
@@ -105,18 +117,6 @@ func TestRandomInRange(t *testing.T) {
 			got := RandomInRange(c.lo, c.hi)
 			if got < c.lo || got > c.hi {
 				t.Errorf("got %v, want range [%v, %v]", got, c.lo, c.hi)
-			}
-		}
-	}
-}
-
-func TestRandomBytes(t *testing.T) {
-	var bufs [][]byte
-	for i := 0; i < 5; i++ {
-		bufs = append(bufs, RandomBytes(16))
-		for j := 0; j < i; j++ {
-			if bytes.Equal(bufs[i], bufs[j]) {
-				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
 			}
 		}
 	}
