@@ -11,6 +11,55 @@ import (
 	"strings"
 )
 
+func main() {
+	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
+	if err != nil {
+		panic(err)
+	}
+	iv := RandomBytes(c.BlockSize())
+
+	data := []byte("XXXXX;admin=true")
+	mask := xorMask(data)
+	XORBytes(data, data, mask)
+
+	buf := ctrUserData(string(data), c, iv)
+	target := buf[2*aes.BlockSize : 3*aes.BlockSize]
+	XORBytes(target, target, mask)
+
+	if ctrIsAdmin(buf, c, iv) {
+		fmt.Println("success")
+	}
+}
+
+// xorMask returns an XOR mask that prevents query escaping for the target buffer.
+func xorMask(buf []byte) []byte {
+	var res []byte
+	for _, b := range buf {
+		res = append(res, xorMaskByte(b))
+	}
+	return res
+}
+
+// xorMaskByte returns an XOR mask that prevents query escaping for the target byte.
+func xorMaskByte(b byte) byte {
+	var res byte
+	for i := 0; i <= 0xff; i++ {
+		s := string(b ^ byte(i))
+		if s == url.QueryEscape(s) {
+			res = byte(i)
+			break
+		}
+	}
+	return res
+}
+
+// ctrUserData returns an encrypted string with arbitrary data inserted in the middle.
+func ctrUserData(s string, c cipher.Block, iv []byte) []byte {
+	buf := []byte(UserData(s))
+	cipher.NewCTR(c, iv).XORKeyStream(buf, buf)
+	return buf
+}
+
 // UserData returns a string with arbitrary data inserted in the middle.
 func UserData(s string) string {
 	const (
@@ -18,6 +67,13 @@ func UserData(s string) string {
 		suffix = ";comment2=%20like%20a%20pound%20of%20bacon"
 	)
 	return prefix + url.QueryEscape(s) + suffix
+}
+
+// ctrIsAdmin returns true if a decrypted semicolon-separated string contains "admin=true".
+func ctrIsAdmin(buf []byte, c cipher.Block, iv []byte) bool {
+	tmp := make([]byte, len(buf))
+	cipher.NewCTR(c, iv).XORKeyStream(tmp, buf)
+	return IsAdmin(string(tmp))
 }
 
 // IsAdmin returns true if a semicolon-separated string contains "admin=true".
@@ -39,50 +95,6 @@ func RandomBytes(n int) []byte {
 	return buf
 }
 
-// ctrUserData returns an encrypted string with arbitrary data inserted in the middle.
-func ctrUserData(s string, c cipher.Block, iv []byte) []byte {
-	buf := []byte(UserData(s))
-	cipher.NewCTR(c, iv).XORKeyStream(buf, buf)
-	return buf
-}
-
-// ctrIsAdmin returns true if a decrypted semicolon-separated string contains "admin=true".
-func ctrIsAdmin(buf []byte, c cipher.Block, iv []byte) bool {
-	tmp := make([]byte, len(buf))
-	cipher.NewCTR(c, iv).XORKeyStream(tmp, buf)
-	return IsAdmin(string(tmp))
-}
-
-// xorMaskByte returns an XOR mask that prevents query escaping for the target byte.
-func xorMaskByte(b byte) byte {
-	var res byte
-	for i := 0; i <= 0xff; i++ {
-		s := string(b ^ byte(i))
-		if s == url.QueryEscape(s) {
-			res = byte(i)
-			break
-		}
-	}
-	return res
-}
-
-// xorMask returns an XOR mask that prevents query escaping for the target buffer.
-func xorMask(buf []byte) []byte {
-	var res []byte
-	for _, b := range buf {
-		res = append(res, xorMaskByte(b))
-	}
-	return res
-}
-
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
-	}
-	return m
-}
-
 // XORBytes produces the XOR combination of two buffers.
 func XORBytes(dst, b1, b2 []byte) int {
 	n := min(len(b1), len(b2))
@@ -92,22 +104,10 @@ func XORBytes(dst, b1, b2 []byte) int {
 	return n
 }
 
-func main() {
-	c, err := aes.NewCipher(RandomBytes(aes.BlockSize))
-	if err != nil {
-		panic(err)
+// min returns the smaller of two integers.
+func min(n, m int) int {
+	if n < m {
+		return n
 	}
-	iv := RandomBytes(c.BlockSize())
-
-	data := []byte("XXXXX;admin=true")
-	mask := xorMask(data)
-	XORBytes(data, data, mask)
-
-	buf := ctrUserData(string(data), c, iv)
-	target := buf[2*aes.BlockSize : 3*aes.BlockSize]
-	XORBytes(target, target, mask)
-
-	if ctrIsAdmin(buf, c, iv) {
-		fmt.Println("success")
-	}
+	return m
 }
