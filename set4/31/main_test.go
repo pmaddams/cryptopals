@@ -11,35 +11,6 @@ import (
 
 func init() { weak.Seed(time.Now().UnixNano()) }
 
-func TestXORBytes(t *testing.T) {
-	cases := []struct {
-		b1, b2, want []byte
-	}{
-		{
-			[]byte{0, 0, 0, 0},
-			[]byte{1, 1, 1, 1},
-			[]byte{1, 1, 1, 1},
-		},
-		{
-			[]byte{1, 0, 1, 0},
-			[]byte{1, 0, 1, 0, 1, 0},
-			[]byte{0, 0, 0, 0},
-		},
-		{
-			[]byte{1, 0, 1, 0, 1, 0},
-			[]byte{1, 1, 1, 1},
-			[]byte{0, 1, 0, 1},
-		},
-	}
-	for _, c := range cases {
-		n := XORBytes(c.b1, c.b1, c.b2)
-		got := c.b1[:n]
-		if !bytes.Equal(got, c.want) {
-			t.Errorf("got %v, want %v", got, c.want)
-		}
-	}
-}
-
 func TestHMAC(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		key := make([]byte, 1+weak.Intn(16))
@@ -65,6 +36,18 @@ func TestHMAC(t *testing.T) {
 	}
 }
 
+func TestRandomBytes(t *testing.T) {
+	var bufs [][]byte
+	for i := 0; i < 5; i++ {
+		bufs = append(bufs, RandomBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
+		}
+	}
+}
+
 func TestRandomInRange(t *testing.T) {
 	cases := []struct {
 		lo, hi int
@@ -83,14 +66,31 @@ func TestRandomInRange(t *testing.T) {
 	}
 }
 
-func TestRandomBytes(t *testing.T) {
-	var bufs [][]byte
-	for i := 0; i < 5; i++ {
-		bufs = append(bufs, RandomBytes(16))
-		for j := 0; j < i; j++ {
-			if bytes.Equal(bufs[i], bufs[j]) {
-				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
-			}
+func TestXORBytes(t *testing.T) {
+	cases := []struct {
+		b1, b2, want []byte
+	}{
+		{
+			[]byte{0, 0, 0, 0},
+			[]byte{1, 1, 1, 1},
+			[]byte{1, 1, 1, 1},
+		},
+		{
+			[]byte{1, 0, 1, 0},
+			[]byte{1, 0, 1, 0, 1, 0},
+			[]byte{0, 0, 0, 0},
+		},
+		{
+			[]byte{1, 0, 1, 0, 1, 0},
+			[]byte{1, 1, 1, 1},
+			[]byte{0, 1, 0, 1},
+		},
+	}
+	for _, c := range cases {
+		n := XORBytes(c.b1, c.b1, c.b2)
+		got := c.b1[:n]
+		if !bytes.Equal(got, c.want) {
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }
