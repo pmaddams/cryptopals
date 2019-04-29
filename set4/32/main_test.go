@@ -5,6 +5,18 @@ import (
 	"testing"
 )
 
+func TestRandomBytes(t *testing.T) {
+	var bufs [][]byte
+	for i := 0; i < 5; i++ {
+		bufs = append(bufs, RandomBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
+		}
+	}
+}
+
 func TestRandomInRange(t *testing.T) {
 	cases := []struct {
 		lo, hi int
@@ -18,18 +30,6 @@ func TestRandomInRange(t *testing.T) {
 			got := RandomInRange(c.lo, c.hi)
 			if got < c.lo || got > c.hi {
 				t.Errorf("got %v, want range [%v, %v]", got, c.lo, c.hi)
-			}
-		}
-	}
-}
-
-func TestRandomBytes(t *testing.T) {
-	var bufs [][]byte
-	for i := 0; i < 5; i++ {
-		bufs = append(bufs, RandomBytes(16))
-		for j := 0; j < i; j++ {
-			if bytes.Equal(bufs[i], bufs[j]) {
-				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
 			}
 		}
 	}
