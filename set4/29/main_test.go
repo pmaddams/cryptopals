@@ -11,27 +11,6 @@ import (
 
 func init() { weak.Seed(time.Now().UnixNano()) }
 
-func TestMAC(t *testing.T) {
-	key := make([]byte, 1+weak.Intn(16))
-	weak.Read(key)
-
-	mac := NewMAC(sha1.New, key)
-	for i := 0; i < 10; i++ {
-		buf := make([]byte, 1+weak.Intn(1024))
-		weak.Read(buf)
-
-		array := sha1.Sum(append(key, buf...))
-		want := array[:]
-
-		mac.Reset()
-		mac.Write(buf)
-		got := mac.Sum([]byte{})
-		if !bytes.Equal(got, want) {
-			t.Errorf("got %v, want %v", got, want)
-		}
-	}
-}
-
 func TestPrefixedSHA1(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		h := sha1.New()
@@ -88,6 +67,27 @@ func TestBitPadding(t *testing.T) {
 		endian.PutUint64(tmp, uint64(n)<<3)
 		if !bytes.Equal(tmp, pad[len(pad)-8:]) {
 			fail("incorrect bit count")
+		}
+	}
+}
+
+func TestMAC(t *testing.T) {
+	key := make([]byte, 1+weak.Intn(16))
+	weak.Read(key)
+
+	mac := NewMAC(sha1.New, key)
+	for i := 0; i < 10; i++ {
+		buf := make([]byte, 1+weak.Intn(1024))
+		weak.Read(buf)
+
+		array := sha1.Sum(append(key, buf...))
+		want := array[:]
+
+		mac.Reset()
+		mac.Write(buf)
+		got := mac.Sum([]byte{})
+		if !bytes.Equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }

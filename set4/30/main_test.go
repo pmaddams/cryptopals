@@ -12,29 +12,6 @@ import (
 
 func init() { weak.Seed(time.Now().UnixNano()) }
 
-func TestMAC(t *testing.T) {
-	key := make([]byte, 1+weak.Intn(16))
-	weak.Read(key)
-
-	h := md4.New()
-	mac := NewMAC(md4.New, key)
-	for i := 0; i < 10; i++ {
-		buf := make([]byte, 1+weak.Intn(1024))
-		weak.Read(buf)
-
-		h.Reset()
-		h.Write(append(key, buf...))
-		want := h.Sum([]byte{})
-
-		mac.Reset()
-		mac.Write(buf)
-		got := mac.Sum([]byte{})
-		if !bytes.Equal(got, want) {
-			t.Errorf("got %v, want %v", got, want)
-		}
-	}
-}
-
 func TestPrefixedMD4(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		h := md4.New()
@@ -91,6 +68,29 @@ func TestBitPadding(t *testing.T) {
 		endian.PutUint64(tmp, uint64(n)<<3)
 		if !bytes.Equal(tmp, pad[len(pad)-8:]) {
 			fail("incorrect bit count")
+		}
+	}
+}
+
+func TestMAC(t *testing.T) {
+	key := make([]byte, 1+weak.Intn(16))
+	weak.Read(key)
+
+	h := md4.New()
+	mac := NewMAC(md4.New, key)
+	for i := 0; i < 10; i++ {
+		buf := make([]byte, 1+weak.Intn(1024))
+		weak.Read(buf)
+
+		h.Reset()
+		h.Write(append(key, buf...))
+		want := h.Sum([]byte{})
+
+		mac.Reset()
+		mac.Write(buf)
+		got := mac.Sum([]byte{})
+		if !bytes.Equal(got, want) {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }

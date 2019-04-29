@@ -54,27 +54,6 @@ func main() {
 	}
 }
 
-// mac represents a hash for a secret-prefix message authentication code.
-type mac struct {
-	hash.Hash
-	key []byte
-}
-
-// NewMAC takes a hash and key, and returns a new MAC hash.
-func NewMAC(fn func() hash.Hash, key []byte) hash.Hash {
-	x := mac{fn(), key}
-	x.Reset()
-	return x
-}
-
-// Reset resets the hash.
-func (x mac) Reset() {
-	x.Hash.Reset()
-	if _, err := x.Hash.Write(x.key); err != nil {
-		panic(err)
-	}
-}
-
 // PrefixedSHA1 returns a new SHA-1 hash using an existing checksum and buffer length.
 func PrefixedSHA1(sum []byte, n int) (hash.Hash, error) {
 	if len(sum) != sha1.Size {
@@ -119,6 +98,27 @@ func BitPadding(n, blockSize int, endian binary.ByteOrder) []byte {
 	endian.PutUint64(buf[len(buf)-8:], uint64(n)<<3)
 
 	return buf
+}
+
+// mac represents a hash for a secret-prefix message authentication code.
+type mac struct {
+	hash.Hash
+	key []byte
+}
+
+// NewMAC takes a hash and key, and returns a new MAC hash.
+func NewMAC(fn func() hash.Hash, key []byte) hash.Hash {
+	x := mac{fn(), key}
+	x.Reset()
+	return x
+}
+
+// Reset resets the hash.
+func (x mac) Reset() {
+	x.Hash.Reset()
+	if _, err := x.Hash.Write(x.key); err != nil {
+		panic(err)
+	}
 }
 
 // RandomBytes returns a random buffer of the desired length.
