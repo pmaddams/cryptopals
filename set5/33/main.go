@@ -25,6 +25,27 @@ fffffffffffff`
 	dhGenerator = `2`
 )
 
+func main() {
+	p, err := ParseBigInt(dhPrime, 16)
+	if err != nil {
+		panic(err)
+	}
+	g, err := ParseBigInt(dhGenerator, 16)
+	if err != nil {
+		panic(err)
+	}
+	alice, bob := DHGenerateKey(p, g), DHGenerateKey(p, g)
+
+	s1 := alice.Secret(bob.Public())
+	s2 := bob.Secret(alice.Public())
+
+	if !bytes.Equal(s1, s2) {
+		fmt.Fprintln(os.Stderr, "key exchange failed")
+		return
+	}
+	fmt.Printf("%x\n%x\n", sha256.Sum256(s1), sha256.Sum256(s2))
+}
+
 // DHPublicKey represents the public part of a Diffie-Hellman key pair.
 type DHPublicKey struct {
 	p *big.Int
@@ -49,14 +70,14 @@ func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
 	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
 }
 
-// Public returns a public key.
-func (priv *DHPrivateKey) Public() *DHPublicKey {
-	return &priv.DHPublicKey
-}
-
 // Secret takes a public key and returns a shared secret.
 func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
 	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
+}
+
+// Public returns a public key.
+func (priv *DHPrivateKey) Public() *DHPublicKey {
+	return &priv.DHPublicKey
 }
 
 // ParseBigInt converts a string to an arbitrary-precision integer.
@@ -70,25 +91,4 @@ func ParseBigInt(s string, base int) (*big.Int, error) {
 		return nil, errors.New("ParseBigInt: invalid string")
 	}
 	return z, nil
-}
-
-func main() {
-	p, err := ParseBigInt(dhPrime, 16)
-	if err != nil {
-		panic(err)
-	}
-	g, err := ParseBigInt(dhGenerator, 16)
-	if err != nil {
-		panic(err)
-	}
-	alice, bob := DHGenerateKey(p, g), DHGenerateKey(p, g)
-
-	s1 := alice.Secret(bob.Public())
-	s2 := bob.Secret(alice.Public())
-
-	if !bytes.Equal(s1, s2) {
-		fmt.Fprintln(os.Stderr, "key exchange failed")
-		return
-	}
-	fmt.Printf("%x\n%x\n", sha256.Sum256(s1), sha256.Sum256(s2))
 }
