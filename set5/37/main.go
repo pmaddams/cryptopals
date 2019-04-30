@@ -19,6 +19,7 @@ import (
 )
 
 const (
+	addr    = "localhost:4000"
 	dhPrime = `ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024
 e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd
 3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec
@@ -30,111 +31,73 @@ fffffffffffff`
 	dhGenerator = `2`
 )
 
-const addr = "localhost:4000"
-
-// DHPublicKey represents the public part of a Diffie-Hellman key pair.
-type DHPublicKey struct {
-	p *big.Int
-	g *big.Int
-	y *big.Int
-}
-
-// DHPrivateKey represents a Diffie-Hellman key pair.
-type DHPrivateKey struct {
-	DHPublicKey
-	x *big.Int
-}
-
-// DHGenerateKey generates a private key.
-func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	x, err := rand.Int(rand.Reader, p)
+func main() {
+	p, err := ParseBigInt(dhPrime, 16)
 	if err != nil {
 		panic(err)
 	}
-	y := new(big.Int).Exp(g, x, p)
-
-	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
-}
-
-// Public returns a public key.
-func (priv *DHPrivateKey) Public() *DHPublicKey {
-	return &priv.DHPublicKey
-}
-
-// Secret takes a public key and returns a shared secret.
-func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
-	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
-}
-
-// srpListener represents a socket ready to accept SRP connections.
-type srpListener struct {
-	net.Listener
-	srv *SRPServer
-}
-
-// Accept accepts an SRP connection on a listening socket.
-func (x *srpListener) Accept() (net.Conn, error) {
-	c, err := x.Listener.Accept()
+	g, err := ParseBigInt(dhGenerator, 16)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return &srpConn{c, x.srv, false, new(sync.Mutex)}, nil
+	if err := breakSRP("tcp", addr, p, g); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 }
 
-// srpConn represents the state of an SRP connection.
-type srpConn struct {
-	net.Conn
-	config interface{}
-	auth   bool
-	*sync.Mutex
-}
-
-// handshake checks if the current SRP connection is authenticated.
-// If not, it attempts to execute the authentication protocol.
-// If the handshake fails, it closes the connection.
-func (x *srpConn) handshake() error {
-	x.Lock()
-	defer x.Unlock()
-	if x.auth {
+// breakSRP breaks the Secure Remote Password protocol interactively.
+// Note that the implementation fails to check the client's public key.
+func breakSRP(network, addr string, p, g *big.Int) error {
+	var dbEmail, dbPassword string
+	fmt.Print("database email: ")
+	if _, err := fmt.Scanln(&dbEmail); err != nil {
+		return err
+	}
+	fmt.Print("database password: ")
+	if _, err := fmt.Scanln(&dbPassword); err != nil {
+		return err
+	}
+	srv := NewSRPServer(p, g)
+	srv.CreateUser(dbEmail, dbPassword)
+	l, err := srv.Listen(network, addr)
+	if err != nil {
+		return err
+	}
+	done := make(chan struct{})
+	go func() {
+		c, err := l.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
+		input := bufio.NewScanner(c)
+		for input.Scan() {
+			fmt.Println(input.Text())
+		}
+		close(done)
+	}()
+	var userEmail string
+	fmt.Print("user email: ")
+	if _, err := fmt.Scanln(&userEmail); err != nil {
+		return err
+	}
+	clt := NewSRPBreaker(userEmail)
+	fmt.Print("connecting...")
+	c, err := clt.Dial(network, addr)
+	if err != nil {
+		return err
+	}
+	if _, err := c.Read([]byte{}); err != nil {
+		fmt.Println("failure")
 		return nil
-	} else if srv, ok := x.config.(*SRPServer); ok {
-		if err := srpServerHandshake(x.Conn, srv); err != nil {
-			x.Close()
-			return err
-		}
-	} else if clt, ok := x.config.(*SRPBreaker); ok {
-		if err := srpBreakerHandshake(x.Conn, clt); err != nil {
-			x.Close()
-			return err
-		}
-	} else {
-		x.Close()
-		return errors.New("handshake: invalid configuration")
 	}
-	x.auth = true
+	fmt.Println("success")
+	for input := bufio.NewScanner(os.Stdin); input.Scan(); {
+		fmt.Fprintln(c, input.Text())
+	}
+	c.Close()
+	<-done
+
 	return nil
-}
-
-// Read reads data from an SRP connection.
-func (x *srpConn) Read(buf []byte) (int, error) {
-	if err := x.handshake(); err != nil {
-		return 0, err
-	}
-	return x.Conn.Read(buf)
-}
-
-// Write writes data to an SRP connection.
-func (x *srpConn) Write(buf []byte) (int, error) {
-	if err := x.handshake(); err != nil {
-		return 0, err
-	}
-	return x.Conn.Write(buf)
-}
-
-// record represents a database record of a user's login information.
-type record struct {
-	v    *big.Int
-	salt []byte
 }
 
 // SRPServer represents a server implementing SRP (Secure Remote Password).
@@ -146,15 +109,6 @@ type SRPServer struct {
 // NewSRPServer returns a new SRP server.
 func NewSRPServer(p, g *big.Int) *SRPServer {
 	return &SRPServer{DHGenerateKey(p, g), make(map[string]record)}
-}
-
-// RandomBytes returns a random buffer of the desired length.
-func RandomBytes(n int) []byte {
-	buf := make([]byte, n)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
-	return buf
 }
 
 // CreateUser creates a new user in the SRP server database.
@@ -253,6 +207,27 @@ func (x *srpServerState) receiveHMACSendOK(c net.Conn, srv *SRPServer) error {
 	return nil
 }
 
+// srpListener represents a socket ready to accept SRP connections.
+type srpListener struct {
+	net.Listener
+	srv *SRPServer
+}
+
+// Accept accepts an SRP connection on a listening socket.
+func (x *srpListener) Accept() (net.Conn, error) {
+	c, err := x.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return &srpConn{c, x.srv, false, new(sync.Mutex)}, nil
+}
+
+// record represents a database record of a user's login information.
+type record struct {
+	v    *big.Int
+	salt []byte
+}
+
 // SRPBreaker represents a malicious client attacking SRP (Secure Remote Password).
 type SRPBreaker struct {
 	email string
@@ -322,59 +297,88 @@ func (x *srpBreakerState) sendHMACReceiveOK(c net.Conn, clt *SRPBreaker) error {
 	return nil
 }
 
-// breakSRP breaks the Secure Remote Password protocol interactively.
-// Note that the implementation fails to check the client's public key.
-func breakSRP(network, addr string, p, g *big.Int) error {
-	var dbEmail, dbPassword string
-	fmt.Print("database email: ")
-	if _, err := fmt.Scanln(&dbEmail); err != nil {
-		return err
-	}
-	fmt.Print("database password: ")
-	if _, err := fmt.Scanln(&dbPassword); err != nil {
-		return err
-	}
-	srv := NewSRPServer(p, g)
-	srv.CreateUser(dbEmail, dbPassword)
-	l, err := srv.Listen(network, addr)
-	if err != nil {
-		return err
-	}
-	done := make(chan struct{})
-	go func() {
-		c, err := l.Accept()
-		if err != nil {
-			log.Fatal(err)
-		}
-		input := bufio.NewScanner(c)
-		for input.Scan() {
-			fmt.Println(input.Text())
-		}
-		close(done)
-	}()
-	var userEmail string
-	fmt.Print("user email: ")
-	if _, err := fmt.Scanln(&userEmail); err != nil {
-		return err
-	}
-	clt := NewSRPBreaker(userEmail)
-	fmt.Print("connecting...")
-	c, err := clt.Dial(network, addr)
-	if err != nil {
-		return err
-	}
-	if _, err := c.Read([]byte{}); err != nil {
-		fmt.Println("failure")
-		return nil
-	}
-	fmt.Println("success")
-	for input := bufio.NewScanner(os.Stdin); input.Scan(); {
-		fmt.Fprintln(c, input.Text())
-	}
-	c.Close()
-	<-done
+// srpConn represents the state of an SRP connection.
+type srpConn struct {
+	net.Conn
+	config interface{}
+	auth   bool
+	*sync.Mutex
+}
 
+// Read reads data from an SRP connection.
+func (x *srpConn) Read(buf []byte) (int, error) {
+	if err := x.handshake(); err != nil {
+		return 0, err
+	}
+	return x.Conn.Read(buf)
+}
+
+// Write writes data to an SRP connection.
+func (x *srpConn) Write(buf []byte) (int, error) {
+	if err := x.handshake(); err != nil {
+		return 0, err
+	}
+	return x.Conn.Write(buf)
+}
+
+// handshake checks if the current SRP connection is authenticated.
+// If not, it attempts to execute the authentication protocol.
+// If the handshake fails, it closes the connection.
+func (x *srpConn) handshake() error {
+	x.Lock()
+	defer x.Unlock()
+	if x.auth {
+		return nil
+	} else if srv, ok := x.config.(*SRPServer); ok {
+		if err := srpServerHandshake(x.Conn, srv); err != nil {
+			x.Close()
+			return err
+		}
+	} else if clt, ok := x.config.(*SRPBreaker); ok {
+		if err := srpBreakerHandshake(x.Conn, clt); err != nil {
+			x.Close()
+			return err
+		}
+	} else {
+		x.Close()
+		return errors.New("handshake: invalid configuration")
+	}
+	x.auth = true
 	return nil
+}
+
+// DHPublicKey represents the public part of a Diffie-Hellman key pair.
+type DHPublicKey struct {
+	p *big.Int
+	g *big.Int
+	y *big.Int
+}
+
+// DHPrivateKey represents a Diffie-Hellman key pair.
+type DHPrivateKey struct {
+	DHPublicKey
+	x *big.Int
+}
+
+// DHGenerateKey generates a private key.
+func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
+	x, err := rand.Int(rand.Reader, p)
+	if err != nil {
+		panic(err)
+	}
+	y := new(big.Int).Exp(g, x, p)
+
+	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
+}
+
+// Secret takes a public key and returns a shared secret.
+func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
+	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
+}
+
+// Public returns a public key.
+func (priv *DHPrivateKey) Public() *DHPublicKey {
+	return &priv.DHPublicKey
 }
 
 // ParseBigInt converts a string to an arbitrary-precision integer.
@@ -390,16 +394,11 @@ func ParseBigInt(s string, base int) (*big.Int, error) {
 	return z, nil
 }
 
-func main() {
-	p, err := ParseBigInt(dhPrime, 16)
-	if err != nil {
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	g, err := ParseBigInt(dhGenerator, 16)
-	if err != nil {
-		panic(err)
-	}
-	if err := breakSRP("tcp", addr, p, g); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
+	return buf
 }
