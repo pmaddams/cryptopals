@@ -31,79 +31,50 @@ var (
 	one  = big.NewInt(1)
 )
 
-// DHPublicKey represents the public part of a Diffie-Hellman key pair.
-type DHPublicKey struct {
-	p *big.Int
-	g *big.Int
-	y *big.Int
-}
-
-// DHPrivateKey represents a Diffie-Hellman key pair.
-type DHPrivateKey struct {
-	DHPublicKey
-	x *big.Int
-}
-
-// DHGenerateKey generates a private key.
-func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	x, err := rand.Int(rand.Reader, p)
+func main() {
+	p, err := ParseBigInt(dhPrime, 16)
 	if err != nil {
 		panic(err)
 	}
-	y := new(big.Int).Exp(g, x, p)
-
-	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
+	mitm(p, one)
+	mitm(p, p)
+	mitm(p, new(big.Int).Sub(p, one))
 }
 
-// Public returns a public key.
-func (priv *DHPrivateKey) Public() *DHPublicKey {
-	return &priv.DHPublicKey
-}
+// mitm simulates a man-in-the-middle attack.
+func mitm(p, g *big.Int) {
+	alice, bob, mallory := newBot(), newBot(), newBot()
+	alice.DHPrivateKey = DHGenerateKey(p, g)
 
-// Secret takes a public key and returns a shared secret.
-func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
-	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
-}
+	alice.connect(mallory, alice.Public())
+	mallory.connect(bob, alice.Public())
 
-// RandomBytes returns a random buffer of the desired length.
-func RandomBytes(n int) []byte {
-	buf := make([]byte, n)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
+	bob.accept(mallory, bob.Public())
+	mallory.accept(alice, bob.Public())
+
+	var secret *big.Int
+	if equal(g, one) {
+		secret = one
+	} else if equal(g, p) {
+		secret = zero
+	} else if pMinusOne := new(big.Int).Sub(p, one); equal(g, pMinusOne) {
+		if equal(alice.y, one) || equal(bob.y, one) {
+			secret = one
+		} else {
+			secret = pMinusOne
+		}
 	}
-	return buf
-}
+	array := sha1.Sum(secret.Bytes())
+	copy(mallory.key, array[:])
 
-// dup returns a copy of a buffer.
-func dup(buf []byte) []byte {
-	return append([]byte{}, buf...)
-}
+	alice.send(mallory, alice.iv, []byte("hello world"))
+	mallory.send(bob, alice.iv, mallory.buf.Bytes())
+	fmt.Println(mallory.buf.String())
+	mallory.buf.Reset()
 
-// PKCS7Pad returns a buffer with PKCS#7 padding added.
-func PKCS7Pad(buf []byte, blockSize int) []byte {
-	if blockSize < 0 || blockSize > 0xff {
-		panic("PKCS7Pad: invalid block size")
-	}
-	// Find the number (and value) of padding bytes.
-	n := blockSize - (len(buf) % blockSize)
-
-	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
-}
-
-// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
-func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
-	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
-	if len(buf) < blockSize {
-		return nil, errInvalidPadding
-	}
-	// Examine the value of the last byte.
-	b := buf[len(buf)-1]
-	n := len(buf) - int(b)
-	if int(b) == 0 || int(b) > blockSize ||
-		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
-		return nil, errInvalidPadding
-	}
-	return dup(buf[:n]), nil
+	bob.send(mallory, bob.iv, bob.buf.Bytes())
+	mallory.send(alice, bob.iv, mallory.buf.Bytes())
+	fmt.Println(mallory.buf.String())
 }
 
 // bot is a simulated agent that participates in Diffie-Hellman key exchange.
@@ -160,45 +131,65 @@ func (sender *bot) send(receiver *bot, iv, buf []byte) {
 	receiver.buf.Write(buf)
 }
 
-// equal returns true if two arbitrary-precision integers are equal.
-func equal(z1, z2 *big.Int) bool {
-	return z1.Cmp(z2) == 0
+// DHPublicKey represents the public part of a Diffie-Hellman key pair.
+type DHPublicKey struct {
+	p *big.Int
+	g *big.Int
+	y *big.Int
 }
 
-// mitm simulates a man-in-the-middle attack.
-func mitm(p, g *big.Int) {
-	alice, bob, mallory := newBot(), newBot(), newBot()
-	alice.DHPrivateKey = DHGenerateKey(p, g)
+// DHPrivateKey represents a Diffie-Hellman key pair.
+type DHPrivateKey struct {
+	DHPublicKey
+	x *big.Int
+}
 
-	alice.connect(mallory, alice.Public())
-	mallory.connect(bob, alice.Public())
-
-	bob.accept(mallory, bob.Public())
-	mallory.accept(alice, bob.Public())
-
-	var secret *big.Int
-	if equal(g, one) {
-		secret = one
-	} else if equal(g, p) {
-		secret = zero
-	} else if pMinusOne := new(big.Int).Sub(p, one); equal(g, pMinusOne) {
-		if equal(alice.y, one) || equal(bob.y, one) {
-			secret = one
-		} else {
-			secret = pMinusOne
-		}
+// DHGenerateKey generates a private key.
+func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
+	x, err := rand.Int(rand.Reader, p)
+	if err != nil {
+		panic(err)
 	}
-	array := sha1.Sum(secret.Bytes())
-	copy(mallory.key, array[:])
+	y := new(big.Int).Exp(g, x, p)
 
-	alice.send(mallory, alice.iv, []byte("hello world"))
-	mallory.send(bob, alice.iv, mallory.buf.Bytes())
-	fmt.Println(mallory.buf.String())
-	mallory.buf.Reset()
+	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
+}
 
-	bob.send(mallory, bob.iv, bob.buf.Bytes())
-	mallory.send(alice, bob.iv, mallory.buf.Bytes())
-	fmt.Println(mallory.buf.String())
+// Secret takes a public key and returns a shared secret.
+func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
+	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
+}
+
+// Public returns a public key.
+func (priv *DHPrivateKey) Public() *DHPublicKey {
+	return &priv.DHPublicKey
+}
+
+// PKCS7Pad returns a buffer with PKCS#7 padding added.
+func PKCS7Pad(buf []byte, blockSize int) []byte {
+	if blockSize < 0 || blockSize > 0xff {
+		panic("PKCS7Pad: invalid block size")
+	}
+	// Find the number (and value) of padding bytes.
+	n := blockSize - (len(buf) % blockSize)
+
+	return append(dup(buf), bytes.Repeat([]byte{byte(n)}, n)...)
+}
+
+// PKCS7Unpad returns a buffer with PKCS#7 padding removed.
+func PKCS7Unpad(buf []byte, blockSize int) ([]byte, error) {
+	errInvalidPadding := errors.New("PKCS7Unpad: invalid padding")
+	if len(buf) < blockSize {
+		return nil, errInvalidPadding
+	}
+	// Examine the value of the last byte.
+	b := buf[len(buf)-1]
+	n := len(buf) - int(b)
+	if int(b) == 0 || int(b) > blockSize ||
+		!bytes.Equal(bytes.Repeat([]byte{b}, int(b)), buf[n:]) {
+		return nil, errInvalidPadding
+	}
+	return dup(buf[:n]), nil
 }
 
 // ParseBigInt converts a string to an arbitrary-precision integer.
@@ -214,12 +205,21 @@ func ParseBigInt(s string, base int) (*big.Int, error) {
 	return z, nil
 }
 
-func main() {
-	p, err := ParseBigInt(dhPrime, 16)
-	if err != nil {
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
 		panic(err)
 	}
-	mitm(p, one)
-	mitm(p, p)
-	mitm(p, new(big.Int).Sub(p, one))
+	return buf
+}
+
+// dup returns a copy of a buffer.
+func dup(buf []byte) []byte {
+	return append([]byte{}, buf...)
+}
+
+// equal returns true if two arbitrary-precision integers are equal.
+func equal(z1, z2 *big.Int) bool {
+	return z1.Cmp(z2) == 0
 }
