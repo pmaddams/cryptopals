@@ -41,33 +41,6 @@ B = %x
 	}
 }
 
-func TestRandomBytes(t *testing.T) {
-	var bufs [][]byte
-	for i := 0; i < 5; i++ {
-		bufs = append(bufs, RandomBytes(16))
-		for j := 0; j < i; j++ {
-			if bytes.Equal(bufs[i], bufs[j]) {
-				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
-			}
-		}
-	}
-}
-
-func insertNewlines(s string) string {
-	var runes []rune
-	for _, r := range s {
-		runes = append(runes, r)
-		if weak.Intn(5) == 0 {
-			runes = append(runes, '\n')
-		}
-	}
-	return string(runes)
-}
-
-func equal(z1, z2 *big.Int) bool {
-	return z1.Cmp(z2) == 0
-}
-
 func TestParseBigInt(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	max := big.NewInt(math.MaxInt64)
@@ -96,4 +69,31 @@ func TestParseBigInt(t *testing.T) {
 			}
 		}
 	}
+}
+
+func insertNewlines(s string) string {
+	var runes []rune
+	for _, r := range s {
+		runes = append(runes, r)
+		if weak.Intn(5) == 0 {
+			runes = append(runes, '\n')
+		}
+	}
+	return string(runes)
+}
+
+func TestRandomBytes(t *testing.T) {
+	var bufs [][]byte
+	for i := 0; i < 5; i++ {
+		bufs = append(bufs, RandomBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
+		}
+	}
+}
+
+func equal(z1, z2 *big.Int) bool {
+	return z1.Cmp(z2) == 0
 }
