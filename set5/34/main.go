@@ -57,40 +57,6 @@ func main() {
 	fmt.Println(mallory.buf.String())
 }
 
-// DHPublicKey represents the public part of a Diffie-Hellman key pair.
-type DHPublicKey struct {
-	p *big.Int
-	g *big.Int
-	y *big.Int
-}
-
-// DHPrivateKey represents a Diffie-Hellman key pair.
-type DHPrivateKey struct {
-	DHPublicKey
-	x *big.Int
-}
-
-// DHGenerateKey generates a private key.
-func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	x, err := rand.Int(rand.Reader, p)
-	if err != nil {
-		panic(err)
-	}
-	y := new(big.Int).Exp(g, x, p)
-
-	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
-}
-
-// Secret takes a public key and returns a shared secret.
-func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
-	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
-}
-
-// Public returns a public key.
-func (priv *DHPrivateKey) Public() *DHPublicKey {
-	return &priv.DHPublicKey
-}
-
 // bot is a simulated agent that participates in Diffie-Hellman key exchange.
 type bot struct {
 	*DHPrivateKey
@@ -143,6 +109,40 @@ func (sender *bot) send(receiver *bot, iv, buf []byte) {
 		panic(err)
 	}
 	receiver.buf.Write(buf)
+}
+
+// DHPublicKey represents the public part of a Diffie-Hellman key pair.
+type DHPublicKey struct {
+	p *big.Int
+	g *big.Int
+	y *big.Int
+}
+
+// DHPrivateKey represents a Diffie-Hellman key pair.
+type DHPrivateKey struct {
+	DHPublicKey
+	x *big.Int
+}
+
+// DHGenerateKey generates a private key.
+func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
+	x, err := rand.Int(rand.Reader, p)
+	if err != nil {
+		panic(err)
+	}
+	y := new(big.Int).Exp(g, x, p)
+
+	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
+}
+
+// Secret takes a public key and returns a shared secret.
+func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
+	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
+}
+
+// Public returns a public key.
+func (priv *DHPrivateKey) Public() *DHPublicKey {
+	return &priv.DHPublicKey
 }
 
 // PKCS7Pad returns a buffer with PKCS#7 padding added.
