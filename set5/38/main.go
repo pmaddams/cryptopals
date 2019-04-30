@@ -20,6 +20,8 @@ import (
 )
 
 const (
+	file    = "passwords.txt"
+	addr    = "localhost:4000"
 	dhPrime = `ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024
 e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd
 3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec
@@ -31,108 +33,67 @@ fffffffffffff`
 	dhGenerator = `2`
 )
 
-const (
-	addr = "localhost:4000"
-	file = "passwords.txt"
-)
-
-// DHPublicKey represents the public part of a Diffie-Hellman key pair.
-type DHPublicKey struct {
-	p *big.Int
-	g *big.Int
-	y *big.Int
-}
-
-// DHPrivateKey represents a Diffie-Hellman key pair.
-type DHPrivateKey struct {
-	DHPublicKey
-	x *big.Int
-}
-
-// DHGenerateKey generates a private key.
-func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
-	x, err := rand.Int(rand.Reader, p)
+func main() {
+	p, err := ParseBigInt(dhPrime, 16)
 	if err != nil {
 		panic(err)
 	}
-	y := new(big.Int).Exp(g, x, p)
-
-	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
-}
-
-// Public returns a public key.
-func (priv *DHPrivateKey) Public() *DHPublicKey {
-	return &priv.DHPublicKey
-}
-
-// Secret takes a public key and returns a shared secret.
-func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
-	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
-}
-
-// pwListener represents a socket ready to accept remote password connections.
-type pwListener struct {
-	net.Listener
-	srv *PWBreaker
-}
-
-// Accept accepts a remote password connection on a listening socket.
-func (x pwListener) Accept() (net.Conn, error) {
-	c, err := x.Listener.Accept()
+	g, err := ParseBigInt(dhGenerator, 16)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return &pwConn{c, x.srv, false, new(sync.Mutex)}, nil
+	if err := breakPassword("tcp", addr, p, g, file); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
 }
 
-// pwConn represents the state of a remote password connection.
-type pwConn struct {
-	net.Conn
-	config interface{}
-	auth   bool
-	*sync.Mutex
-}
-
-// handshake checks if the current remote password connection is authenticated.
-// If not, it attempts to execute the authentication protocol.
-// If the handshake fails, it closes the connection.
-func (x *pwConn) handshake() error {
-	x.Lock()
-	defer x.Unlock()
-	if x.auth {
-		return nil
-	} else if srv, ok := x.config.(*PWBreaker); ok {
-		if err := pwBreakerHandshake(x.Conn, srv); err != nil {
-			x.Close()
-			return err
-		}
-	} else if clt, ok := x.config.(*PWClient); ok {
-		if err := pwClientHandshake(x.Conn, clt); err != nil {
-			x.Close()
-			return err
-		}
-	} else {
-		x.Close()
-		return errors.New("handshake: invalid configuration")
+// breakPassword runs the remote password protocol and attempts to crack the user's password.
+func breakPassword(network, addr string, p, g *big.Int, file string) error {
+	srv := NewPWBreaker(p, g)
+	l, err := srv.Listen(network, addr)
+	if err != nil {
+		return err
 	}
-	x.auth = true
+	done := make(chan struct{})
+	go func() {
+		c, err := l.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if _, err := c.Read([]byte{}); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print("cracking password...")
+		password, err := srv.Password(file)
+		if err != nil {
+			fmt.Println("failure")
+		} else {
+			fmt.Printf("success\nyour email: %s\nyour password: %s\n",
+				srv.clientEmail, password)
+		}
+		close(done)
+	}()
+	var userEmail, userPassword string
+	fmt.Print("user email: ")
+	if _, err := fmt.Scanln(&userEmail); err != nil {
+		return err
+	}
+	fmt.Print("user password: ")
+	if _, err := fmt.Scanln(&userPassword); err != nil {
+		return err
+	}
+	clt := NewPWClient(p, g, userEmail, userPassword)
+	c, err := clt.Dial(network, addr)
+	if err != nil {
+		return err
+	}
+	if _, err := c.Read([]byte{}); err != nil {
+		return err
+	}
+	c.Close()
+	<-done
+
 	return nil
-}
-
-// Read reads data from an SRP connection.
-func (x *pwConn) Read(buf []byte) (int, error) {
-	if err := x.handshake(); err != nil {
-		return 0, err
-	}
-	return x.Conn.Read(buf)
-}
-
-// Write writes data to an SRP connection.
-func (x *pwConn) Write(buf []byte) (int, error) {
-	if err := x.handshake(); err != nil {
-		return 0, err
-	}
-	return x.Conn.Write(buf)
 }
 
 // PWBreaker represents a man-in-the-middle attacking a remote password protocol.
@@ -254,6 +215,21 @@ func (x *pwBreakerState) receiveHMACSendOK(c net.Conn, srv *PWBreaker) error {
 	return nil
 }
 
+// pwListener represents a socket ready to accept remote password connections.
+type pwListener struct {
+	net.Listener
+	srv *PWBreaker
+}
+
+// Accept accepts a remote password connection on a listening socket.
+func (x pwListener) Accept() (net.Conn, error) {
+	c, err := x.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return &pwConn{c, x.srv, false, new(sync.Mutex)}, nil
+}
+
 // PWClient represents a client implementing a remote password protocol.
 type PWClient struct {
 	*DHPrivateKey
@@ -341,53 +317,88 @@ func (x *pwClientState) sendHMACReceiveOK(c net.Conn, clt *PWClient) error {
 	return nil
 }
 
-// breakPassword runs the remote password protocol and attempts to crack the user's password.
-func breakPassword(network, addr string, p, g *big.Int, file string) error {
-	srv := NewPWBreaker(p, g)
-	l, err := srv.Listen(network, addr)
-	if err != nil {
-		return err
-	}
-	done := make(chan struct{})
-	go func() {
-		c, err := l.Accept()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if _, err := c.Read([]byte{}); err != nil {
-			log.Fatal(err)
-		}
-		fmt.Print("cracking password...")
-		password, err := srv.Password(file)
-		if err != nil {
-			fmt.Println("failure")
-		} else {
-			fmt.Printf("success\nyour email: %s\nyour password: %s\n",
-				srv.clientEmail, password)
-		}
-		close(done)
-	}()
-	var userEmail, userPassword string
-	fmt.Print("user email: ")
-	if _, err := fmt.Scanln(&userEmail); err != nil {
-		return err
-	}
-	fmt.Print("user password: ")
-	if _, err := fmt.Scanln(&userPassword); err != nil {
-		return err
-	}
-	clt := NewPWClient(p, g, userEmail, userPassword)
-	c, err := clt.Dial(network, addr)
-	if err != nil {
-		return err
-	}
-	if _, err := c.Read([]byte{}); err != nil {
-		return err
-	}
-	c.Close()
-	<-done
+// pwConn represents the state of a remote password connection.
+type pwConn struct {
+	net.Conn
+	config interface{}
+	auth   bool
+	*sync.Mutex
+}
 
+// Read reads data from an SRP connection.
+func (x *pwConn) Read(buf []byte) (int, error) {
+	if err := x.handshake(); err != nil {
+		return 0, err
+	}
+	return x.Conn.Read(buf)
+}
+
+// Write writes data to an SRP connection.
+func (x *pwConn) Write(buf []byte) (int, error) {
+	if err := x.handshake(); err != nil {
+		return 0, err
+	}
+	return x.Conn.Write(buf)
+}
+
+// handshake checks if the current remote password connection is authenticated.
+// If not, it attempts to execute the authentication protocol.
+// If the handshake fails, it closes the connection.
+func (x *pwConn) handshake() error {
+	x.Lock()
+	defer x.Unlock()
+	if x.auth {
+		return nil
+	} else if srv, ok := x.config.(*PWBreaker); ok {
+		if err := pwBreakerHandshake(x.Conn, srv); err != nil {
+			x.Close()
+			return err
+		}
+	} else if clt, ok := x.config.(*PWClient); ok {
+		if err := pwClientHandshake(x.Conn, clt); err != nil {
+			x.Close()
+			return err
+		}
+	} else {
+		x.Close()
+		return errors.New("handshake: invalid configuration")
+	}
+	x.auth = true
 	return nil
+}
+
+// DHPublicKey represents the public part of a Diffie-Hellman key pair.
+type DHPublicKey struct {
+	p *big.Int
+	g *big.Int
+	y *big.Int
+}
+
+// DHPrivateKey represents a Diffie-Hellman key pair.
+type DHPrivateKey struct {
+	DHPublicKey
+	x *big.Int
+}
+
+// DHGenerateKey generates a private key.
+func DHGenerateKey(p, g *big.Int) *DHPrivateKey {
+	x, err := rand.Int(rand.Reader, p)
+	if err != nil {
+		panic(err)
+	}
+	y := new(big.Int).Exp(g, x, p)
+
+	return &DHPrivateKey{DHPublicKey{p, g, y}, x}
+}
+
+// Secret takes a public key and returns a shared secret.
+func (priv *DHPrivateKey) Secret(pub *DHPublicKey) []byte {
+	return new(big.Int).Exp(pub.y, priv.x, priv.p).Bytes()
+}
+
+// Public returns a public key.
+func (priv *DHPrivateKey) Public() *DHPublicKey {
+	return &priv.DHPublicKey
 }
 
 // ParseBigInt converts a string to an arbitrary-precision integer.
@@ -401,18 +412,4 @@ func ParseBigInt(s string, base int) (*big.Int, error) {
 		return nil, errors.New("ParseBigInt: invalid string")
 	}
 	return z, nil
-}
-
-func main() {
-	p, err := ParseBigInt(dhPrime, 16)
-	if err != nil {
-		panic(err)
-	}
-	g, err := ParseBigInt(dhGenerator, 16)
-	if err != nil {
-		panic(err)
-	}
-	if err := breakPassword("tcp", addr, p, g, file); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
 }
