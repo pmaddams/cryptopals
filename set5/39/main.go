@@ -16,6 +16,53 @@ const rsaExponent = 65537
 
 var one = big.NewInt(1)
 
+func main() {
+	fmt.Print("generating RSA key...")
+	priv, err := RSAGenerateKey(rsaExponent, 1024)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("done.")
+	files := os.Args[1:]
+	if len(files) == 0 {
+		if err := printRSA(os.Stdin, priv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		return
+	}
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := printRSA(f, priv); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
+}
+
+// printRSA reads lines of text and prints the results of RSA encryption and decryption.
+func printRSA(in io.Reader, priv *RSAPrivateKey) error {
+	input := bufio.NewScanner(in)
+	for input.Scan() {
+		ciphertext, err := RSAEncrypt(priv.Public(), input.Bytes())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		plaintext, err := RSADecrypt(priv, ciphertext)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		fmt.Printf("ciphertext: %x\nplaintext: %s\n",
+			ciphertext, plaintext)
+	}
+	return input.Err()
+}
+
 // RSAPublicKey represents the public part of an RSA key pair.
 type RSAPublicKey struct {
 	n *big.Int
@@ -26,11 +73,6 @@ type RSAPublicKey struct {
 type RSAPrivateKey struct {
 	RSAPublicKey
 	d *big.Int
-}
-
-// equal returns true if two arbitrary-precision integers are equal.
-func equal(z1, z2 *big.Int) bool {
-	return z1.Cmp(z2) == 0
 }
 
 // RSAGenerateKey generates a private key.
@@ -75,16 +117,6 @@ func (priv *RSAPrivateKey) Public() *RSAPublicKey {
 	return &priv.RSAPublicKey
 }
 
-// size returns the size of an arbitrary-precision integer in bytes.
-func size(z *big.Int) int {
-	return (z.BitLen() + 7) / 8
-}
-
-// copyR copies a source buffer to the right of a destination buffer.
-func copyR(dst, src []byte) int {
-	return copy(dst[len(dst)-len(src):], src)
-}
-
 // RSAEncrypt takes a public key and plaintext, and returns ciphertext.
 func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	z := new(big.Int).SetBytes(buf)
@@ -113,49 +145,17 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	return res, nil
 }
 
-// printRSA reads lines of text and prints the results of RSA encryption and decryption.
-func printRSA(in io.Reader, priv *RSAPrivateKey) error {
-	input := bufio.NewScanner(in)
-	for input.Scan() {
-		ciphertext, err := RSAEncrypt(priv.Public(), input.Bytes())
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		plaintext, err := RSADecrypt(priv, ciphertext)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		fmt.Printf("ciphertext: %x\nplaintext: %s\n",
-			ciphertext, plaintext)
-	}
-	return input.Err()
+// copyR copies a source buffer to the right of a destination buffer.
+func copyR(dst, src []byte) int {
+	return copy(dst[len(dst)-len(src):], src)
 }
 
-func main() {
-	fmt.Print("generating RSA key...")
-	priv, err := RSAGenerateKey(rsaExponent, 1024)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("done.")
-	files := os.Args[1:]
-	if len(files) == 0 {
-		if err := printRSA(os.Stdin, priv); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		return
-	}
-	for _, file := range files {
-		f, err := os.Open(file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		if err := printRSA(f, priv); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		f.Close()
-	}
+// size returns the size of an arbitrary-precision integer in bytes.
+func size(z *big.Int) int {
+	return (z.BitLen() + 7) / 8
+}
+
+// equal returns true if two arbitrary-precision integers are equal.
+func equal(z1, z2 *big.Int) bool {
+	return z1.Cmp(z2) == 0
 }
