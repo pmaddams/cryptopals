@@ -59,17 +59,6 @@ func TestDSA(t *testing.T) {
 	}
 }
 
-func insertNewlines(s string) string {
-	var runes []rune
-	for _, r := range s {
-		runes = append(runes, r)
-		if weak.Intn(5) == 0 {
-			runes = append(runes, '\n')
-		}
-	}
-	return string(runes)
-}
-
 func TestParseBigInt(t *testing.T) {
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	max := big.NewInt(math.MaxInt64)
@@ -98,4 +87,15 @@ func TestParseBigInt(t *testing.T) {
 			}
 		}
 	}
+}
+
+func insertNewlines(s string) string {
+	var runes []rune
+	for _, r := range s {
+		runes = append(runes, r)
+		if weak.Intn(5) == 0 {
+			runes = append(runes, '\n')
+		}
+	}
+	return string(runes)
 }

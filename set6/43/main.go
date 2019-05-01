@@ -32,6 +32,69 @@ var (
 	one  = big.NewInt(1)
 )
 
+func main() {
+	p, err := ParseBigInt(dsaPrime, 16)
+	if err != nil {
+		panic(err)
+	}
+	q, err := ParseBigInt(dsaSubprime, 16)
+	if err != nil {
+		panic(err)
+	}
+	g, err := ParseBigInt(dsaGenerator, 16)
+	if err != nil {
+		panic(err)
+	}
+	y, err := ParseBigInt(`84ad4719d044495496a3201c8ff484feb45b962e7302e56a392aee4
+abab3e4bdebf2955b4736012f21a08084056b19bcd7fee56048e004
+e44984e2f411788efdc837a0d2e5abb7b555039fd243ac01f0fb2ed
+1dec568280ce678e931868d23eb095fde9d3779191b8c0299d6e07b
+bb283e6633451e535c45513b2d33c99ea17`, 16)
+	if err != nil {
+		panic(err)
+	}
+	pub := &DSAPublicKey{p, q, g, y}
+
+	r, err := ParseBigInt("548099063082341131477253921760299949438196259240", 10)
+	if err != nil {
+		panic(err)
+	}
+	s, err := ParseBigInt("857042759984254168557880549501802188789837994940", 10)
+	if err != nil {
+		panic(err)
+	}
+	h := sha1.New()
+	h.Write([]byte("For those that envy a MC it can be hazardous to your health\n"))
+	h.Write([]byte("So be friendly, a matter of life and death, just like a etch-a-sketch\n"))
+	sum := h.Sum([]byte{})
+
+	k := new(big.Int)
+	for i := 0; i <= 0xffff; i++ {
+		k.SetInt64(int64(i))
+		if breakDSA(pub, sum, r, s, k) != nil {
+			fmt.Println("success")
+			return
+		}
+	}
+}
+
+// breakDSA returns the private key used to sign a checksum.
+func breakDSA(pub *DSAPublicKey, sum []byte, r, s, k *big.Int) *DSAPrivateKey {
+	z1 := new(big.Int).Mul(s, k)
+	z2 := new(big.Int).SetBytes(sum)
+	z1.Sub(z1, z2)
+	z2.ModInverse(r, pub.q)
+
+	x := z1.Mul(z1, z2)
+	x.Mod(x, pub.q)
+
+	y := z2.Exp(pub.g, x, pub.p)
+	if !equal(y, pub.y) {
+		return nil
+	}
+	return &DSAPrivateKey{*pub, x}
+}
+
 // DSAPublicKey represents the public part of a DSA key pair.
 type DSAPublicKey struct {
 	p *big.Int
@@ -44,11 +107,6 @@ type DSAPublicKey struct {
 type DSAPrivateKey struct {
 	DSAPublicKey
 	x *big.Int
-}
-
-// equal returns true if two arbitrary-precision integers are equal.
-func equal(z1, z2 *big.Int) bool {
-	return z1.Cmp(z2) == 0
 }
 
 // DSAGenerateKey generates a private key.
@@ -121,23 +179,6 @@ func DSAVerify(pub *DSAPublicKey, sum []byte, r, s *big.Int) bool {
 	return equal(v, r)
 }
 
-// breakDSA returns the private key used to sign a checksum.
-func breakDSA(pub *DSAPublicKey, sum []byte, r, s, k *big.Int) *DSAPrivateKey {
-	z1 := new(big.Int).Mul(s, k)
-	z2 := new(big.Int).SetBytes(sum)
-	z1.Sub(z1, z2)
-	z2.ModInverse(r, pub.q)
-
-	x := z1.Mul(z1, z2)
-	x.Mod(x, pub.q)
-
-	y := z2.Exp(pub.g, x, pub.p)
-	if !equal(y, pub.y) {
-		return nil
-	}
-	return &DSAPrivateKey{*pub, x}
-}
-
 // ParseBigInt converts a string to an arbitrary-precision integer.
 func ParseBigInt(s string, base int) (*big.Int, error) {
 	if base < 0 || base > 16 {
@@ -151,48 +192,7 @@ func ParseBigInt(s string, base int) (*big.Int, error) {
 	return z, nil
 }
 
-func main() {
-	p, err := ParseBigInt(dsaPrime, 16)
-	if err != nil {
-		panic(err)
-	}
-	q, err := ParseBigInt(dsaSubprime, 16)
-	if err != nil {
-		panic(err)
-	}
-	g, err := ParseBigInt(dsaGenerator, 16)
-	if err != nil {
-		panic(err)
-	}
-	y, err := ParseBigInt(`84ad4719d044495496a3201c8ff484feb45b962e7302e56a392aee4
-abab3e4bdebf2955b4736012f21a08084056b19bcd7fee56048e004
-e44984e2f411788efdc837a0d2e5abb7b555039fd243ac01f0fb2ed
-1dec568280ce678e931868d23eb095fde9d3779191b8c0299d6e07b
-bb283e6633451e535c45513b2d33c99ea17`, 16)
-	if err != nil {
-		panic(err)
-	}
-	pub := &DSAPublicKey{p, q, g, y}
-
-	r, err := ParseBigInt("548099063082341131477253921760299949438196259240", 10)
-	if err != nil {
-		panic(err)
-	}
-	s, err := ParseBigInt("857042759984254168557880549501802188789837994940", 10)
-	if err != nil {
-		panic(err)
-	}
-	h := sha1.New()
-	h.Write([]byte("For those that envy a MC it can be hazardous to your health\n"))
-	h.Write([]byte("So be friendly, a matter of life and death, just like a etch-a-sketch\n"))
-	sum := h.Sum([]byte{})
-
-	k := new(big.Int)
-	for i := 0; i <= 0xffff; i++ {
-		k.SetInt64(int64(i))
-		if breakDSA(pub, sum, r, s, k) != nil {
-			fmt.Println("success")
-			return
-		}
-	}
+// equal returns true if two arbitrary-precision integers are equal.
+func equal(z1, z2 *big.Int) bool {
+	return z1.Cmp(z2) == 0
 }
