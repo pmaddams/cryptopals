@@ -147,6 +147,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 
 // copyR copies a source buffer to the right of a destination buffer.
 func copyR(dst, src []byte) int {
+	// Panic if dst is smaller than src.
 	return copy(dst[len(dst)-len(src):], src)
 }
 
