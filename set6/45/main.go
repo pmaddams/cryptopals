@@ -75,9 +75,9 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 	}
 }
 
-// verify reads lines of input and verifies them with a fake signature.
+// verify reads lines of input and verifies them with a bad signature.
 func verify(in io.Reader, pub *dsa.PublicKey) error {
-	r, s, err := magicSignature(pub)
+	r, s, err := badSignature(pub)
 	if err != nil {
 		return err
 	}
@@ -95,10 +95,10 @@ func verify(in io.Reader, pub *dsa.PublicKey) error {
 	return input.Err()
 }
 
-// magicSignature returns a DSA signature that verifies anything.
-func magicSignature(pub *dsa.PublicKey) (*big.Int, *big.Int, error) {
+// badSignature returns a DSA signature that verifies anything.
+func badSignature(pub *dsa.PublicKey) (*big.Int, *big.Int, error) {
 	if !equal(pub.G, new(big.Int).Add(pub.P, one)) {
-		return nil, nil, errors.New("magicSignature: invalid generator")
+		return nil, nil, errors.New("badSignature: invalid generator")
 	}
 	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
 	z, err := rand.Int(weak, pub.Q)
