@@ -18,101 +18,36 @@ var (
 	three = big.NewInt(3)
 )
 
-// RSAPublicKey represents the public part of an RSA key pair.
-type RSAPublicKey struct {
-	n *big.Int
-	e *big.Int
+func main() {
+	files := os.Args[1:]
+	if len(files) == 0 {
+		if err := decrypt(os.Stdin); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		return
+	}
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := decrypt(f); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
 }
 
-// RSAPrivateKey represents an RSA key pair.
-type RSAPrivateKey struct {
-	RSAPublicKey
-	d *big.Int
-}
-
-// equal returns true if two arbitrary-precision integers are equal.
-func equal(z1, z2 *big.Int) bool {
-	return z1.Cmp(z2) == 0
-}
-
-// RSAGenerateKey generates a private key.
-func RSAGenerateKey(exponent, bits int) (*RSAPrivateKey, error) {
-	e := big.NewInt(int64(exponent))
-	if exponent < 3 || !e.ProbablyPrime(0) {
-		return nil, errors.New("RSAGenerateKey: invalid exponent")
+// decrypt reads lines of text, encrypts them, and prints the decrypted plaintext.
+func decrypt(in io.Reader) error {
+	input := bufio.NewScanner(in)
+	for input.Scan() {
+		broadcast := rsaBroadcaster(input.Text())
+		buf := breakBroadcast(broadcast)
+		fmt.Println(string(buf))
 	}
-Retry:
-	p, err := rand.Prime(rand.Reader, bits/2)
-	if err != nil {
-		return nil, err
-	}
-	q, err := rand.Prime(rand.Reader, bits/2)
-	if err != nil {
-		return nil, err
-	}
-	if equal(p, q) {
-		goto Retry
-	}
-	pMinusOne := new(big.Int).Sub(p, one)
-	qMinusOne := new(big.Int).Sub(q, one)
-	totient := pMinusOne.Mul(pMinusOne, qMinusOne)
-	d := new(big.Int)
-	if gcd := new(big.Int).GCD(d, nil, e, totient); !equal(gcd, one) {
-		goto Retry
-	}
-	if d.Sign() < 0 {
-		d.Add(d, totient)
-	}
-	return &RSAPrivateKey{
-		RSAPublicKey{
-			n: p.Mul(p, q),
-			e: e,
-		},
-		d,
-	}, nil
-}
-
-// Public returns a public key.
-func (priv *RSAPrivateKey) Public() *RSAPublicKey {
-	return &priv.RSAPublicKey
-}
-
-// size returns the size of an arbitrary-precision integer in bytes.
-func size(z *big.Int) int {
-	return (z.BitLen() + 7) / 8
-}
-
-// copyR copies a source buffer to the right of a destination buffer.
-func copyR(dst, src []byte) int {
-	return copy(dst[len(dst)-len(src):], src)
-}
-
-// RSAEncrypt takes a public key and plaintext, and returns ciphertext.
-func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
-	z := new(big.Int).SetBytes(buf)
-	if z.Cmp(pub.n) > 0 {
-		return nil, errors.New("RSAEncrypt: buffer too large")
-	}
-	z.Exp(z, pub.e, pub.n)
-
-	res := make([]byte, size(pub.n))
-	copyR(res, z.Bytes())
-
-	return res, nil
-}
-
-// RSADecrypt takes a private key and ciphertext, and returns plaintext.
-func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
-	z := new(big.Int).SetBytes(buf)
-	if z.Cmp(priv.n) > 0 {
-		return nil, errors.New("RSADecrypt: buffer too large")
-	}
-	z.Exp(z, priv.d, priv.n)
-
-	res := make([]byte, size(priv.n))
-	copyR(res, z.Bytes())
-
-	return res, nil
+	return input.Err()
 }
 
 // rsaBroadcaster returns an RSA broadcast function.
@@ -129,25 +64,6 @@ func rsaBroadcaster(s string) func() (*RSAPublicKey, []byte) {
 		}
 		return pub, buf
 	}
-}
-
-// Cbrt returns the cube root of the given integer using successive approximations.
-func Cbrt(z *big.Int) *big.Int {
-	prev := new(big.Int)
-	guess := new(big.Int).Set(z)
-	for !equal(prev, guess) {
-		prev.Set(guess)
-		guess.Mul(guess, guess)
-		guess.Div(z, guess)
-		guess.Add(guess, prev)
-		guess.Add(guess, prev)
-		guess.Div(guess, three)
-
-		// Average the new and previous guesses to prevent oscillation.
-		guess.Add(guess, prev)
-		guess.Div(guess, two)
-	}
-	return guess
 }
 
 // breakBroadcast takes an RSA broadcast function and returns the decrypted plaintext.
@@ -195,34 +111,118 @@ func breakBroadcast(broadcast func() (*RSAPublicKey, []byte)) []byte {
 	return Cbrt(cube).Bytes()
 }
 
-// decryptBroadcast reads lines of text, encrypts them, and prints the decrypted plaintext.
-func decryptBroadcast(in io.Reader) error {
-	input := bufio.NewScanner(in)
-	for input.Scan() {
-		broadcast := rsaBroadcaster(input.Text())
-		buf := breakBroadcast(broadcast)
-		fmt.Println(string(buf))
-	}
-	return input.Err()
+// RSAPublicKey represents the public part of an RSA key pair.
+type RSAPublicKey struct {
+	n *big.Int
+	e *big.Int
 }
 
-func main() {
-	files := os.Args[1:]
-	if len(files) == 0 {
-		if err := decryptBroadcast(os.Stdin); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		return
+// RSAPrivateKey represents an RSA key pair.
+type RSAPrivateKey struct {
+	RSAPublicKey
+	d *big.Int
+}
+
+// RSAGenerateKey generates a private key.
+func RSAGenerateKey(exponent, bits int) (*RSAPrivateKey, error) {
+	e := big.NewInt(int64(exponent))
+	if exponent < 3 || !e.ProbablyPrime(0) {
+		return nil, errors.New("RSAGenerateKey: invalid exponent")
 	}
-	for _, file := range files {
-		f, err := os.Open(file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		if err := decryptBroadcast(f); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		f.Close()
+Retry:
+	p, err := rand.Prime(rand.Reader, bits/2)
+	if err != nil {
+		return nil, err
 	}
+	q, err := rand.Prime(rand.Reader, bits/2)
+	if err != nil {
+		return nil, err
+	}
+	if equal(p, q) {
+		goto Retry
+	}
+	pMinusOne := new(big.Int).Sub(p, one)
+	qMinusOne := new(big.Int).Sub(q, one)
+	totient := pMinusOne.Mul(pMinusOne, qMinusOne)
+	d := new(big.Int)
+	if gcd := new(big.Int).GCD(d, nil, e, totient); !equal(gcd, one) {
+		goto Retry
+	}
+	if d.Sign() < 0 {
+		d.Add(d, totient)
+	}
+	return &RSAPrivateKey{
+		RSAPublicKey{
+			n: p.Mul(p, q),
+			e: e,
+		},
+		d,
+	}, nil
+}
+
+// Public returns a public key.
+func (priv *RSAPrivateKey) Public() *RSAPublicKey {
+	return &priv.RSAPublicKey
+}
+
+// RSAEncrypt takes a public key and plaintext, and returns ciphertext.
+func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
+	z := new(big.Int).SetBytes(buf)
+	if z.Cmp(pub.n) > 0 {
+		return nil, errors.New("RSAEncrypt: buffer too large")
+	}
+	z.Exp(z, pub.e, pub.n)
+
+	res := make([]byte, size(pub.n))
+	copyR(res, z.Bytes())
+
+	return res, nil
+}
+
+// RSADecrypt takes a private key and ciphertext, and returns plaintext.
+func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
+	z := new(big.Int).SetBytes(buf)
+	if z.Cmp(priv.n) > 0 {
+		return nil, errors.New("RSADecrypt: buffer too large")
+	}
+	z.Exp(z, priv.d, priv.n)
+
+	res := make([]byte, size(priv.n))
+	copyR(res, z.Bytes())
+
+	return res, nil
+}
+
+// Cbrt returns the cube root of the given integer using successive approximations.
+func Cbrt(z *big.Int) *big.Int {
+	prev := new(big.Int)
+	guess := new(big.Int).Set(z)
+	for !equal(prev, guess) {
+		prev.Set(guess)
+		guess.Mul(guess, guess)
+		guess.Div(z, guess)
+		guess.Add(guess, prev)
+		guess.Add(guess, prev)
+		guess.Div(guess, three)
+
+		// Average the new and previous guesses to prevent oscillation.
+		guess.Add(guess, prev)
+		guess.Div(guess, two)
+	}
+	return guess
+}
+
+// copyR copies a source buffer to the right of a destination buffer.
+func copyR(dst, src []byte) int {
+	return copy(dst[len(dst)-len(src):], src)
+}
+
+// size returns the size of an arbitrary-precision integer in bytes.
+func size(z *big.Int) int {
+	return (z.BitLen() + 7) / 8
+}
+
+// equal returns true if two arbitrary-precision integers are equal.
+func equal(z1, z2 *big.Int) bool {
+	return z1.Cmp(z2) == 0
 }
