@@ -29,64 +29,6 @@ b4deb50aa18ee9e132bfa85ac4374d7f9091abc3d015efc87
 
 var one = big.NewInt(1)
 
-// equal returns true if two arbitrary-precision integers are equal.
-func equal(z1, z2 *big.Int) bool {
-	return z1.Cmp(z2) == 0
-}
-
-// magicSignature returns a DSA signature that verifies anything.
-func magicSignature(pub *dsa.PublicKey) (*big.Int, *big.Int, error) {
-	if !equal(pub.G, new(big.Int).Add(pub.P, one)) {
-		return nil, nil, errors.New("magicSignature: invalid generator")
-	}
-	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
-	z, err := rand.Int(weak, pub.Q)
-	if err != nil {
-		panic(err)
-	}
-	r := new(big.Int).Exp(pub.Y, z, pub.P)
-	r.Mod(r, pub.Q)
-
-	s := new(big.Int).ModInverse(z, pub.Q)
-	s.Mul(s, r)
-	s.Mod(s, pub.Q)
-
-	return r, s, nil
-}
-
-// verifyAll reads lines of input and verifies them with a fake signature.
-func verifyAll(in io.Reader, pub *dsa.PublicKey) error {
-	r, s, err := magicSignature(pub)
-	if err != nil {
-		return err
-	}
-	input := bufio.NewScanner(in)
-	h := sha256.New()
-	for input.Scan() {
-		h.Reset()
-		h.Write(input.Bytes())
-		sum := h.Sum([]byte{})
-		if !dsa.Verify(pub, sum, r, s) {
-			return errors.New("verifyAll: verification failed")
-		}
-		fmt.Printf("verified %q\n", input.Text())
-	}
-	return input.Err()
-}
-
-// ParseBigInt converts a string to an arbitrary-precision integer.
-func ParseBigInt(s string, base int) (*big.Int, error) {
-	if base < 0 || base > 16 {
-		return nil, errors.New("ParseBigInt: invalid base")
-	}
-	s = strings.Replace(s, "\n", "", -1)
-	z, ok := new(big.Int).SetString(s, base)
-	if !ok {
-		return nil, errors.New("ParseBigInt: invalid string")
-	}
-	return z, nil
-}
-
 func main() {
 	p, err := ParseBigInt(dsaPrime, 16)
 	if err != nil {
@@ -115,7 +57,7 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 	}
 	files := os.Args[1:]
 	if len(files) == 0 {
-		if err := verifyAll(os.Stdin, pub); err != nil {
+		if err := verify(os.Stdin, pub); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return
@@ -126,9 +68,67 @@ f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		if err := verifyAll(f, pub); err != nil {
+		if err := verify(f, pub); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		f.Close()
 	}
+}
+
+// verify reads lines of input and verifies them with a fake signature.
+func verify(in io.Reader, pub *dsa.PublicKey) error {
+	r, s, err := magicSignature(pub)
+	if err != nil {
+		return err
+	}
+	input := bufio.NewScanner(in)
+	h := sha256.New()
+	for input.Scan() {
+		h.Reset()
+		h.Write(input.Bytes())
+		sum := h.Sum([]byte{})
+		if !dsa.Verify(pub, sum, r, s) {
+			return errors.New("verify: failed")
+		}
+		fmt.Printf("verified %q\n", input.Text())
+	}
+	return input.Err()
+}
+
+// magicSignature returns a DSA signature that verifies anything.
+func magicSignature(pub *dsa.PublicKey) (*big.Int, *big.Int, error) {
+	if !equal(pub.G, new(big.Int).Add(pub.P, one)) {
+		return nil, nil, errors.New("magicSignature: invalid generator")
+	}
+	weak := weak.New(weak.NewSource(time.Now().UnixNano()))
+	z, err := rand.Int(weak, pub.Q)
+	if err != nil {
+		panic(err)
+	}
+	r := new(big.Int).Exp(pub.Y, z, pub.P)
+	r.Mod(r, pub.Q)
+
+	s := new(big.Int).ModInverse(z, pub.Q)
+	s.Mul(s, r)
+	s.Mod(s, pub.Q)
+
+	return r, s, nil
+}
+
+// ParseBigInt converts a string to an arbitrary-precision integer.
+func ParseBigInt(s string, base int) (*big.Int, error) {
+	if base < 0 || base > 16 {
+		return nil, errors.New("ParseBigInt: invalid base")
+	}
+	s = strings.Replace(s, "\n", "", -1)
+	z, ok := new(big.Int).SetString(s, base)
+	if !ok {
+		return nil, errors.New("ParseBigInt: invalid string")
+	}
+	return z, nil
+}
+
+// equal returns true if two arbitrary-precision integers are equal.
+func equal(z1, z2 *big.Int) bool {
+	return z1.Cmp(z2) == 0
 }
