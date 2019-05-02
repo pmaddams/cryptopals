@@ -109,6 +109,12 @@ type SRPServer struct {
 	db map[string]record
 }
 
+// record represents a database record of a user's login information.
+type record struct {
+	v    *big.Int
+	salt []byte
+}
+
 // NewSRPServer returns a new SRP server.
 func NewSRPServer(p, g *big.Int) *SRPServer {
 	return &SRPServer{DHGenerateKey(p, g), make(map[string]record)}
@@ -223,12 +229,6 @@ func (x *srpListener) Accept() (net.Conn, error) {
 		return nil, err
 	}
 	return &srpConn{c, x.srv, false, new(sync.Mutex)}, nil
-}
-
-// record represents a database record of a user's login information.
-type record struct {
-	v    *big.Int
-	salt []byte
 }
 
 // SRPClient represents a client implementing SRP (Secure Remote Password).
