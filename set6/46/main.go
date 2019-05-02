@@ -22,12 +22,10 @@ var (
 )
 
 func main() {
-	fmt.Print("generating RSA key...")
 	priv, err := RSAGenerateKey(rsaExponent, 1024)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("done.")
 	oracle := parityOracle(priv)
 	x := newParityBreaker(priv.Public(), oracle)
 

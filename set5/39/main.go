@@ -17,12 +17,10 @@ const rsaExponent = 65537
 var one = big.NewInt(1)
 
 func main() {
-	fmt.Print("generating RSA key...")
 	priv, err := RSAGenerateKey(rsaExponent, 1024)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("done.")
 	files := os.Args[1:]
 	if len(files) == 0 {
 		if err := printRSA(os.Stdin, priv); err != nil {
