@@ -28,3 +28,15 @@ func TestPKCS1v15CryptPadUnpad(t *testing.T) {
 		}
 	}
 }
+
+func TestRandomBytes(t *testing.T) {
+	var bufs [][]byte
+	for i := 0; i < 5; i++ {
+		bufs = append(bufs, RandomBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
+		}
+	}
+}

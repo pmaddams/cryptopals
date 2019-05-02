@@ -20,6 +20,55 @@ var (
 	three = big.NewInt(3)
 )
 
+func main() {
+	priv, err := rsa.GenerateKey(rand.Reader, 768)
+	if err != nil {
+		panic(err)
+	}
+	pub := &priv.PublicKey
+	oracle := rsaPaddingOracle(priv)
+
+	files := os.Args[1:]
+	if len(files) == 0 {
+		if err := decrypt(os.Stdin, pub, oracle); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		return
+	}
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			continue
+		}
+		if err := decrypt(f, pub, oracle); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		f.Close()
+	}
+}
+
+// decrypt reads lines of text, encrypts them, and prints the decrypted plaintext.
+func decrypt(in io.Reader, pub *rsa.PublicKey, oracle func([]byte) bool) error {
+	input := bufio.NewScanner(in)
+	for input.Scan() {
+		ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, pub, input.Bytes())
+		if err != nil {
+			return err
+		}
+		x, err := newRSABreaker(pub, oracle, ciphertext)
+		if err != nil {
+			return err
+		}
+		plaintext, err := x.breakOracle()
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(plaintext))
+	}
+	return input.Err()
+}
+
 // rsaPaddingOracle returns an RSA padding oracle.
 func rsaPaddingOracle(priv *rsa.PrivateKey) func([]byte) bool {
 	return func(ciphertext []byte) bool {
@@ -29,12 +78,6 @@ func rsaPaddingOracle(priv *rsa.PrivateKey) func([]byte) bool {
 		}
 		return true
 	}
-}
-
-// interval represents a range of possible plaintexts.
-type interval struct {
-	lo *big.Int
-	hi *big.Int
 }
 
 // rsaBreaker contains state for attacking the PKCS #1 v1.5 padding oracle.
@@ -49,14 +92,10 @@ type rsaBreaker struct {
 	ivals  []interval
 }
 
-// size returns the size of an arbitrary-precision integer in bytes.
-func size(z *big.Int) int {
-	return (z.BitLen() + 7) / 8
-}
-
-// equal returns true if two arbitrary-precision integers are equal.
-func equal(z1, z2 *big.Int) bool {
-	return z1.Cmp(z2) == 0
+// interval represents a range of possible plaintexts.
+type interval struct {
+	lo *big.Int
+	hi *big.Int
 }
 
 // newRSABreaker takes a public key, oracle, and ciphertext, and returns a breaker.
@@ -88,75 +127,43 @@ func newRSABreaker(pub *rsa.PublicKey, oracle func([]byte) bool, ciphertext []by
 	return x, nil
 }
 
-// findS finds the smallest multiple of the ciphertext that generates valid padding.
-func (x *rsaBreaker) findS(sMin, sMax *big.Int) (*big.Int, error) {
-	if sMin.Cmp(sMax) > 0 {
-		return nil, errors.New("findS: invalid range")
-	}
-	s := new(big.Int).Set(sMin)
-	cPrime := new(big.Int)
+// breakOracle breaks the padding oracle and returns the plaintext.
+func (x *rsaBreaker) breakOracle() ([]byte, error) {
 	for {
-		if s.Cmp(sMax) > 0 {
-			return nil, nil
-		}
-		cPrime.Exp(s, x.e, x.n)
-		cPrime.Mul(cPrime, x.c)
-		cPrime.Mod(cPrime, x.n)
-		if x.oracle(cPrime.Bytes()) {
-			return s, nil
-		}
-		s.Add(s, one)
-	}
-}
+		x.generateIntervals()
+		switch len(x.ivals) {
+		case 0:
+			return nil, errors.New("breakOracle: no intervals")
+		case 1:
+			m := x.ivals[0]
+			if equal(m.lo, m.hi) {
+				buf := make([]byte, size(x.n))
+				copyR(buf, m.lo.Bytes())
 
-// ceilingDiv performs ceiling division of z1 by z2.
-func ceilingDiv(res, z1, z2 *big.Int) *big.Int {
-	tmp := new(big.Int)
-	res.DivMod(z1, z2, tmp)
-	if !equal(tmp, zero) {
-		res.Add(res, one)
-	}
-	return res
-}
-
-// intervalRValues returns the bounds for generating the next set of intervals.
-func (x *rsaBreaker) intervalRValues(m interval) (*big.Int, *big.Int) {
-	r := new(big.Int).Mul(m.lo, x.s)
-	r.Sub(r, x.threeB)
-	r.Add(r, one)
-	ceilingDiv(r, r, x.n)
-
-	rMax := new(big.Int).Mul(m.hi, x.s)
-	rMax.Sub(rMax, x.twoB)
-	rMax.Div(rMax, x.n)
-
-	return r, rMax
-}
-
-// generateIntervals generates the next set of intervals.
-func (x *rsaBreaker) generateIntervals() {
-	var ivals []interval
-	for _, m := range x.ivals {
-		for r, rMax := x.intervalRValues(m); r.Cmp(rMax) <= 0; r.Add(r, one) {
-			lo, hi := new(big.Int), new(big.Int)
-
-			lo.Mul(r, x.n)
-			lo.Add(lo, x.twoB)
-			ceilingDiv(lo, lo, x.s)
-			if lo.Cmp(m.lo) < 0 {
-				lo.Set(m.lo)
+				plaintext, err := PKCS1v15CryptUnpad(buf)
+				if err != nil {
+					return nil, err
+				}
+				return plaintext, nil
 			}
-			hi.Mul(r, x.n)
-			hi.Add(hi, x.threeB)
-			hi.Sub(hi, one)
-			hi.Div(hi, x.s)
-			if hi.Cmp(m.hi) > 0 {
-				hi.Set(m.hi)
-			}
-			ivals = append(ivals, interval{lo, hi})
+			x.searchOne(m)
+		default:
+			x.searchMany()
 		}
 	}
-	x.ivals = ivals
+}
+
+// searchMany searches for the next "s" value for multiple intervals.
+func (x *rsaBreaker) searchMany() error {
+	sMin := new(big.Int).Add(x.s, one)
+	s, err := x.findS(sMin, x.n)
+	if err != nil {
+		return err
+	} else if s == nil {
+		return errors.New("searchMany: nothing found")
+	}
+	x.s = s
+	return nil
 }
 
 // searchOne searches for the next "s" value for a single interval.
@@ -187,37 +194,65 @@ func (x *rsaBreaker) searchOne(m interval) error {
 	}
 }
 
-// searchMany searches for the next "s" value for multiple intervals.
-func (x *rsaBreaker) searchMany() error {
-	sMin := new(big.Int).Add(x.s, one)
-	s, err := x.findS(sMin, x.n)
-	if err != nil {
-		return err
-	} else if s == nil {
-		return errors.New("searchMany: nothing found")
-	}
-	x.s = s
-	return nil
-}
+// generateIntervals generates the next set of intervals.
+func (x *rsaBreaker) generateIntervals() {
+	var ivals []interval
+	for _, m := range x.ivals {
+		for r, rMax := x.intervalRValues(m); r.Cmp(rMax) <= 0; r.Add(r, one) {
+			lo, hi := new(big.Int), new(big.Int)
 
-// RandomBytes returns a random buffer of the desired length.
-func RandomBytes(n int) []byte {
-	buf := make([]byte, n)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
-	}
-	return buf
-}
-
-// randomNonzeroBytes returns a random buffer of the desired length containing no zero bytes.
-func randomNonzeroBytes(n int) []byte {
-	buf := RandomBytes(n)
-	for i := range buf {
-		for buf[i] == 0 {
-			buf[i] = RandomBytes(1)[0]
+			lo.Mul(r, x.n)
+			lo.Add(lo, x.twoB)
+			ceilingDiv(lo, lo, x.s)
+			if lo.Cmp(m.lo) < 0 {
+				lo.Set(m.lo)
+			}
+			hi.Mul(r, x.n)
+			hi.Add(hi, x.threeB)
+			hi.Sub(hi, one)
+			hi.Div(hi, x.s)
+			if hi.Cmp(m.hi) > 0 {
+				hi.Set(m.hi)
+			}
+			ivals = append(ivals, interval{lo, hi})
 		}
 	}
-	return buf
+	x.ivals = ivals
+}
+
+// intervalRValues returns the bounds for generating the next set of intervals.
+func (x *rsaBreaker) intervalRValues(m interval) (*big.Int, *big.Int) {
+	r := new(big.Int).Mul(m.lo, x.s)
+	r.Sub(r, x.threeB)
+	r.Add(r, one)
+	ceilingDiv(r, r, x.n)
+
+	rMax := new(big.Int).Mul(m.hi, x.s)
+	rMax.Sub(rMax, x.twoB)
+	rMax.Div(rMax, x.n)
+
+	return r, rMax
+}
+
+// findS finds the smallest multiple of the ciphertext that generates valid padding.
+func (x *rsaBreaker) findS(sMin, sMax *big.Int) (*big.Int, error) {
+	if sMin.Cmp(sMax) > 0 {
+		return nil, errors.New("findS: invalid range")
+	}
+	s := new(big.Int).Set(sMin)
+	cPrime := new(big.Int)
+	for {
+		if s.Cmp(sMax) > 0 {
+			return nil, nil
+		}
+		cPrime.Exp(s, x.e, x.n)
+		cPrime.Mul(cPrime, x.c)
+		cPrime.Mod(cPrime, x.n)
+		if x.oracle(cPrime.Bytes()) {
+			return s, nil
+		}
+		s.Add(s, one)
+	}
 }
 
 // PKCS1v15CryptPad returns a checksum with PKCS #1 v1.5 encryption padding added.
@@ -255,83 +290,48 @@ func PKCS1v15CryptUnpad(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
+// randomNonzeroBytes returns a random buffer of the desired length containing no zero bytes.
+func randomNonzeroBytes(n int) []byte {
+	buf := RandomBytes(n)
+	for i := range buf {
+		for buf[i] == 0 {
+			buf[i] = RandomBytes(1)[0]
+		}
+	}
+	return buf
+}
+
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		panic(err)
+	}
+	return buf
+}
+
+// ceilingDiv performs ceiling division of z1 by z2.
+func ceilingDiv(res, z1, z2 *big.Int) *big.Int {
+	tmp := new(big.Int)
+	res.DivMod(z1, z2, tmp)
+	if !equal(tmp, zero) {
+		res.Add(res, one)
+	}
+	return res
+}
+
 // copyR copies a source buffer to the right of a destination buffer.
 func copyR(dst, src []byte) int {
 	// Panic if dst is smaller than src.
 	return copy(dst[len(dst)-len(src):], src)
 }
 
-// breakOracle breaks the padding oracle and returns the plaintext.
-func (x *rsaBreaker) breakOracle() ([]byte, error) {
-	for {
-		x.generateIntervals()
-		switch len(x.ivals) {
-		case 0:
-			return nil, errors.New("breakOracle: no intervals")
-		case 1:
-			m := x.ivals[0]
-			if equal(m.lo, m.hi) {
-				buf := make([]byte, size(x.n))
-				copyR(buf, m.lo.Bytes())
-
-				plaintext, err := PKCS1v15CryptUnpad(buf)
-				if err != nil {
-					return nil, err
-				}
-				return plaintext, nil
-			}
-			x.searchOne(m)
-		default:
-			x.searchMany()
-		}
-	}
+// size returns the size of an arbitrary-precision integer in bytes.
+func size(z *big.Int) int {
+	return (z.BitLen() + 7) / 8
 }
 
-// decryptRSA reads lines of text, encrypts them, and prints the decrypted plaintext.
-func decryptRSA(in io.Reader, pub *rsa.PublicKey, oracle func([]byte) bool) error {
-	input := bufio.NewScanner(in)
-	for input.Scan() {
-		ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, pub, input.Bytes())
-		if err != nil {
-			return err
-		}
-		x, err := newRSABreaker(pub, oracle, ciphertext)
-		if err != nil {
-			return err
-		}
-		plaintext, err := x.breakOracle()
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(plaintext))
-	}
-	return input.Err()
-}
-
-func main() {
-	priv, err := rsa.GenerateKey(rand.Reader, 768)
-	if err != nil {
-		panic(err)
-	}
-	pub := &priv.PublicKey
-	oracle := rsaPaddingOracle(priv)
-
-	files := os.Args[1:]
-	if len(files) == 0 {
-		if err := decryptRSA(os.Stdin, pub, oracle); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		return
-	}
-	for _, file := range files {
-		f, err := os.Open(file)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			continue
-		}
-		if err := decryptRSA(f, pub, oracle); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		f.Close()
-	}
+// equal returns true if two arbitrary-precision integers are equal.
+func equal(z1, z2 *big.Int) bool {
+	return z1.Cmp(z2) == 0
 }
