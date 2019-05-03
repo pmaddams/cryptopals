@@ -67,7 +67,7 @@ func decrypt(in io.Reader, score func([]byte) int) error {
 
 // breakRepeatingXOR returns the key used to encrypt a buffer with repeating XOR.
 func breakRepeatingXOR(buf []byte, score func([]byte) int) ([]byte, error) {
-	size, err := keySize(buf)
+	size, err := breakKeySize(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +91,8 @@ func breakRepeatingXOR(buf []byte, score func([]byte) int) ([]byte, error) {
 	return key, nil
 }
 
-// keySize returns the probable key size of a buffer encrypted with repeating XOR.
-func keySize(buf []byte) (int, error) {
+// breakKeySize returns the key size used to encrypt a buffer with repeating XOR.
+func breakKeySize(buf []byte) (int, error) {
 	// Guess lower and upper bounds.
 	const (
 		lower = 2
@@ -104,7 +104,7 @@ func keySize(buf []byte) (int, error) {
 		// If the block size is too large, stop.
 		if distance, err := AverageDistance(buf, size); err != nil {
 			if n < lower {
-				return 0, errors.New("keySize: nothing found")
+				return 0, errors.New("breakKeySize: nothing found")
 			}
 			break
 		} else if distance < best {
