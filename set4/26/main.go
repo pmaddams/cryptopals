@@ -33,21 +33,13 @@ func main() {
 
 // xorMask returns an XOR mask that prevents query escaping for the target buffer.
 func xorMask(buf []byte) []byte {
-	var res []byte
-	for _, b := range buf {
-		res = append(res, xorMaskByte(b))
-	}
-	return res
-}
-
-// xorMaskByte returns an XOR mask that prevents query escaping for the target byte.
-func xorMaskByte(b byte) byte {
-	var res byte
-	for i := 0; i <= 0xff; i++ {
-		s := string(b ^ byte(i))
-		if s == url.QueryEscape(s) {
-			res = byte(i)
-			break
+	res := make([]byte, len(buf))
+	for i, b := range buf {
+		for j := 0; j <= 0xff; j++ {
+			if s := string(b ^ byte(j)); s == url.QueryEscape(s) {
+				res[i] = byte(j)
+				break
+			}
 		}
 	}
 	return res
