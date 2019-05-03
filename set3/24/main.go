@@ -37,7 +37,7 @@ func main() {
 	if n == seed {
 		fmt.Println("success: recovered 16-bit seed")
 	}
-	if checkToken(passwordToken()) {
+	if isRecent(passwordToken()) {
 		fmt.Println("token generated from recent timestamp")
 	}
 }
@@ -69,8 +69,8 @@ func breakMTCipher(ciphertext, plaintext []byte) (uint16, error) {
 	return 0, errors.New("breakMTCipher: nothing found")
 }
 
-// checkToken returns true if the password token was generated from a recent timestamp.
-func checkToken(buf []byte) bool {
+// isRecent returns true if the password token was generated from a recent timestamp.
+func isRecent(buf []byte) bool {
 	n := uint32(time.Now().Unix())
 	tmp := make([]byte, len(buf))
 
