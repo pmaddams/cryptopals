@@ -31,7 +31,7 @@ func main() {
 	copy(blocks[2], blocks[0])
 	clear(blocks[1])
 
-	err = validateCBC(ciphertext, dec)
+	err = validate(ciphertext, dec)
 	if err == nil {
 		fmt.Fprintln(os.Stderr, "no error")
 		return
@@ -62,8 +62,8 @@ func UserData(s string) string {
 	return prefix + url.QueryEscape(s) + suffix
 }
 
-// validateCBC returns an error containing the plaintext, if it is invalid.
-func validateCBC(buf []byte, dec cipher.BlockMode) error {
+// validate returns an error containing the plaintext if it is invalid.
+func validate(buf []byte, dec cipher.BlockMode) error {
 	out := make([]byte, len(buf))
 	dec.CryptBlocks(out, buf)
 	_, err := PKCS7Unpad(out, dec.BlockSize())
