@@ -68,8 +68,7 @@ func breakPassword(network, addr string, p, g *big.Int, file string) error {
 		if err != nil {
 			fmt.Println("failure")
 		} else {
-			fmt.Printf("success\nyour email: %s\nyour password: %s\n",
-				srv.clientEmail, password)
+			fmt.Println(password)
 		}
 		close(done)
 	}()
