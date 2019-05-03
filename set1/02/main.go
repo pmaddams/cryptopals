@@ -31,11 +31,11 @@ func main() {
 
 // xor2 reads two hex-encoded lines and prints their XOR combination.
 func xor2(in io.Reader) error {
-	b1, err := readHex(in)
+	b1, err := readHexLine(in)
 	if err != nil {
 		return err
 	}
-	b2, err := readHex(in)
+	b2, err := readHexLine(in)
 	if err != nil {
 		return err
 	}
@@ -45,8 +45,8 @@ func xor2(in io.Reader) error {
 	return nil
 }
 
-// readHex reads a hex-encoded line and returns a buffer.
-func readHex(in io.Reader) ([]byte, error) {
+// readHexLine reads a hex-encoded line and returns a buffer.
+func readHexLine(in io.Reader) ([]byte, error) {
 	var buf []byte
 	if _, err := fmt.Fscanf(in, "%x\n", &buf); err != nil {
 		return nil, err
