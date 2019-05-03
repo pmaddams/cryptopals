@@ -136,6 +136,7 @@ func dup(buf []byte) []byte {
 
 // clear overwrites a buffer with zeroes.
 func clear(buf []byte) {
+	// The compiler should optimize this loop.
 	for i := range buf {
 		buf[i] = 0
 	}

@@ -188,6 +188,7 @@ func MTInRange(lo, hi uint32) uint32 {
 
 // clear overwrites a buffer with zeroes.
 func clear(buf []byte) {
+	// The compiler should optimize this loop.
 	for i := range buf {
 		buf[i] = 0
 	}
