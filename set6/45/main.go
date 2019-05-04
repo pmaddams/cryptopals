@@ -84,13 +84,13 @@ func verify(in io.Reader, pub *dsa.PublicKey) error {
 	input := bufio.NewScanner(in)
 	h := sha256.New()
 	for input.Scan() {
-		h.Reset()
 		h.Write(input.Bytes())
 		sum := h.Sum([]byte{})
 		if !dsa.Verify(pub, sum, r, s) {
 			return errors.New("verify: failed")
 		}
 		fmt.Printf("verified %q\n", input.Text())
+		h.Reset()
 	}
 	return input.Err()
 }
