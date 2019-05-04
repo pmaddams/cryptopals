@@ -63,7 +63,6 @@ func encrypt(in io.Reader, stream cipher.Stream) error {
 // decrypt reads hex-encoded ciphertext and prints plaintext.
 func decrypt(in io.Reader, stream cipher.Stream) error {
 	var buf []byte
-
 	input := bufio.NewScanner(in)
 	for input.Scan() {
 		line, err := hex.DecodeString(input.Text())

@@ -91,8 +91,8 @@ type message struct {
 
 // readMessages reads all messages from the input.
 func readMessages(in io.Reader) ([]*message, error) {
-	input := bufio.NewScanner(in)
 	var msgs []*message
+	input := bufio.NewScanner(in)
 	for {
 		if msg, err := scanMessage(input); err == io.EOF {
 			break

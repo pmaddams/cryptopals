@@ -69,8 +69,8 @@ func main() {
 
 // encrypt reads lines of base64-encoded text and encrypts them with an identical CTR keystream.
 func encrypt(in io.Reader, c cipher.Block, iv []byte) ([][]byte, error) {
-	input := bufio.NewScanner(in)
 	var res [][]byte
+	input := bufio.NewScanner(in)
 	for input.Scan() {
 		line, err := base64.StdEncoding.DecodeString(input.Text())
 		if err != nil {
