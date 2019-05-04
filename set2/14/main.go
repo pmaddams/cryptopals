@@ -130,7 +130,7 @@ func (x *ecbBreaker) removeOraclePrefix() error {
 		probe = append(probe, x.a)
 		newBuf := x.oracle(probe)
 
-		// If the last block of the initial buffer no longer changes,
+		// If the last block of the previous buffer no longer changes,
 		// we have gone past the end and need to step back one byte.
 		if bytes.Equal(prevBuf[initLen-x.blockSize:initLen],
 			newBuf[initLen-x.blockSize:initLen]) {
