@@ -128,9 +128,8 @@ func (x *ecbBreaker) breakOracle() ([]byte, error) {
 
 // scanBlocks generates a sequence of blocks for decrypting the secret.
 func (x *ecbBreaker) scanBlocks() [][]byte {
-	// Each block enables decryption of a single byte.
-	blocks := make([][]byte, x.secretLen)
 	initLen := len(x.oracle([]byte{}))
+	blocks := make([][]byte, x.secretLen)
 
 	var wg sync.WaitGroup
 	wg.Add(x.secretLen)
