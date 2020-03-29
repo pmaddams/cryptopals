@@ -49,8 +49,8 @@ func main() {
 
 // breakPassword runs the remote password protocol and attempts to crack the user's password.
 func breakPassword(network, addr string, p, g *big.Int, file string) error {
-	srv := NewPWBreaker(p, g)
-	l, err := srv.Listen(network, addr)
+	server := NewPWBreaker(p, g)
+	l, err := server.Listen(network, addr)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func breakPassword(network, addr string, p, g *big.Int, file string) error {
 			log.Fatal(err)
 		}
 		fmt.Print("cracking password...")
-		password, err := srv.Password(file)
+		password, err := server.Password(file)
 		if err != nil {
 			fmt.Println("failure")
 		} else {
@@ -81,8 +81,8 @@ func breakPassword(network, addr string, p, g *big.Int, file string) error {
 	if _, err := fmt.Scanln(&userPassword); err != nil {
 		return err
 	}
-	clt := NewPWClient(p, g, userEmail, userPassword)
-	c, err := clt.Dial(network, addr)
+	client := NewPWClient(p, g, userEmail, userPassword)
+	c, err := client.Dial(network, addr)
 	if err != nil {
 		return err
 	}
@@ -119,8 +119,8 @@ func NewPWBreaker(p, g *big.Int) *PWBreaker {
 
 // Password takes a file containing passwords and returns
 // the line, if any, that matches the client's password.
-func (srv *PWBreaker) Password(file string) (string, error) {
-	if srv.clientEmail == "" || srv.clientPub == nil || srv.clientHMAC == nil {
+func (server *PWBreaker) Password(file string) (string, error) {
+	if server.clientEmail == "" || server.clientPub == nil || server.clientHMAC == nil {
 		return "", errors.New("Password: not enough information")
 	}
 	f, err := os.Open(file)
@@ -138,15 +138,15 @@ func (srv *PWBreaker) Password(file string) (string, error) {
 		h1.Write([]byte(password))
 
 		secret := new(big.Int).SetBytes(h1.Sum([]byte{}))
-		secret.Exp(srv.g, secret, srv.p)
-		secret.Mul(srv.clientPub, secret)
-		secret.Mod(secret, srv.p)
+		secret.Exp(server.g, secret, server.p)
+		secret.Mul(server.clientPub, secret)
+		secret.Mod(secret, server.p)
 
 		h1.Reset()
 		h1.Write(secret.Bytes())
 		h2.Reset()
 		h2.Write(h1.Sum([]byte{}))
-		if bytes.Equal(h2.Sum([]byte{}), srv.clientHMAC) {
+		if bytes.Equal(h2.Sum([]byte{}), server.clientHMAC) {
 			return password, nil
 		}
 	}
@@ -154,12 +154,12 @@ func (srv *PWBreaker) Password(file string) (string, error) {
 }
 
 // Listen prepares the breaker to accept remote password connections.
-func (srv *PWBreaker) Listen(network, addr string) (net.Listener, error) {
+func (server *PWBreaker) Listen(network, addr string) (net.Listener, error) {
 	l, err := net.Listen(network, addr)
 	if err != nil {
 		return nil, err
 	}
-	return pwListener{l, srv}, nil
+	return pwListener{l, server}, nil
 }
 
 // pwBreakerState contains state stored by the breaker
@@ -167,46 +167,46 @@ func (srv *PWBreaker) Listen(network, addr string) (net.Listener, error) {
 type pwBreakerState struct{}
 
 // pwBreakerHandshake executes the authentication protocol for the breaker.
-func pwBreakerHandshake(c net.Conn, srv *PWBreaker) error {
+func pwBreakerHandshake(c net.Conn, server *PWBreaker) error {
 	x := new(pwBreakerState)
-	if err := x.receiveLoginSendResponse(c, srv); err != nil {
+	if err := x.receiveLoginSendResponse(c, server); err != nil {
 		return err
-	} else if err = x.receiveHMACSendOK(c, srv); err != nil {
+	} else if err = x.receiveHMACSendOK(c, server); err != nil {
 		return err
 	}
 	return nil
 }
 
 // receiveLoginSendResponse receives login information and sends a salt and the server's public key.
-func (x *pwBreakerState) receiveLoginSendResponse(c net.Conn, srv *PWBreaker) error {
+func (x *pwBreakerState) receiveLoginSendResponse(c net.Conn, server *PWBreaker) error {
 	var clientEmail, clientPub string
 	if _, err := fmt.Fscanf(c, "email: %s\npublic key: %s\n", &clientEmail, &clientPub); err != nil {
 		return err
 	}
 	// Record the client's email address.
-	srv.clientEmail = clientEmail
+	server.clientEmail = clientEmail
 
 	// Record the client's public key.
 	var ok bool
-	if srv.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
+	if server.clientPub, ok = new(big.Int).SetString(clientPub, 16); !ok {
 		return errors.New("receiveLoginSendResponse: invalid public key")
 	}
 	if _, err := fmt.Fprintf(c, "salt: 00\npublic key: %s\n",
-		hex.EncodeToString(srv.y.Bytes())); err != nil {
+		hex.EncodeToString(server.y.Bytes())); err != nil {
 		return err
 	}
 	return nil
 }
 
 // receiveHMACSendOK receives an HMAC and sends an OK message.
-func (x *pwBreakerState) receiveHMACSendOK(c net.Conn, srv *PWBreaker) error {
+func (x *pwBreakerState) receiveHMACSendOK(c net.Conn, server *PWBreaker) error {
 	var s string
 	var err error
 	if _, err = fmt.Fscanf(c, "hmac: %s\n", &s); err != nil {
 		return err
 	}
 	// Record the client's HMAC.
-	if srv.clientHMAC, err = hex.DecodeString(s); err != nil {
+	if server.clientHMAC, err = hex.DecodeString(s); err != nil {
 		return err
 	}
 	fmt.Fprintln(c, "ok")
@@ -217,7 +217,7 @@ func (x *pwBreakerState) receiveHMACSendOK(c net.Conn, srv *PWBreaker) error {
 // pwListener represents a socket ready to accept remote password connections.
 type pwListener struct {
 	net.Listener
-	srv *PWBreaker
+	server *PWBreaker
 }
 
 // Accept accepts a remote password connection on a listening socket.
@@ -226,7 +226,7 @@ func (x pwListener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &pwConn{c, x.srv, false, new(sync.Mutex)}, nil
+	return &pwConn{c, x.server, false, new(sync.Mutex)}, nil
 }
 
 // PWClient represents a client implementing a remote password protocol.
@@ -242,12 +242,12 @@ func NewPWClient(p, g *big.Int, email, password string) *PWClient {
 }
 
 // Dial connects the remote password client to a breaker.
-func (clt *PWClient) Dial(network, addr string) (net.Conn, error) {
+func (client *PWClient) Dial(network, addr string) (net.Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
 		return nil, err
 	}
-	return &pwConn{c, clt, false, new(sync.Mutex)}, nil
+	return &pwConn{c, client, false, new(sync.Mutex)}, nil
 }
 
 // pwClientState contains state stored by the client
@@ -258,21 +258,21 @@ type pwClientState struct {
 }
 
 // pwClientHandshake executes the authentication protocol for the client.
-func pwClientHandshake(c net.Conn, clt *PWClient) error {
+func pwClientHandshake(c net.Conn, client *PWClient) error {
 	x := new(pwClientState)
-	if err := x.sendLoginReceiveResponse(c, clt); err != nil {
+	if err := x.sendLoginReceiveResponse(c, client); err != nil {
 		return err
-	} else if err = x.sendHMACReceiveOK(c, clt); err != nil {
+	} else if err = x.sendHMACReceiveOK(c, client); err != nil {
 		return err
 	}
 	return nil
 }
 
 // sendLoginReceiveResponse sends login information and receives a salt and the server's public key.
-func (x *pwClientState) sendLoginReceiveResponse(c net.Conn, clt *PWClient) error {
+func (x *pwClientState) sendLoginReceiveResponse(c net.Conn, client *PWClient) error {
 	var err error
 	if _, err = fmt.Fprintf(c, "email: %s\npublic key: %s\n",
-		clt.email, hex.EncodeToString(clt.y.Bytes())); err != nil {
+		client.email, hex.EncodeToString(client.y.Bytes())); err != nil {
 		return err
 	}
 	var salt, serverPub string
@@ -290,14 +290,14 @@ func (x *pwClientState) sendLoginReceiveResponse(c net.Conn, clt *PWClient) erro
 }
 
 // sendHMACReceiveOK sends an HMAC and receives an OK message.
-func (x *pwClientState) sendHMACReceiveOK(c net.Conn, clt *PWClient) error {
+func (x *pwClientState) sendHMACReceiveOK(c net.Conn, client *PWClient) error {
 	h := sha256.New()
 	h.Write(x.salt)
-	h.Write([]byte(clt.password))
+	h.Write([]byte(client.password))
 	sum := new(big.Int).SetBytes(h.Sum([]byte{}))
 
-	secret := new(big.Int).Add(clt.x, sum)
-	secret.Exp(x.serverPub, secret, clt.p)
+	secret := new(big.Int).Add(client.x, sum)
+	secret.Exp(x.serverPub, secret, client.p)
 
 	h.Reset()
 	h.Write(secret.Bytes())
@@ -348,13 +348,13 @@ func (x *pwConn) handshake() error {
 	defer x.Unlock()
 	if x.auth {
 		return nil
-	} else if srv, ok := x.config.(*PWBreaker); ok {
-		if err := pwBreakerHandshake(x.Conn, srv); err != nil {
+	} else if server, ok := x.config.(*PWBreaker); ok {
+		if err := pwBreakerHandshake(x.Conn, server); err != nil {
 			x.Close()
 			return err
 		}
-	} else if clt, ok := x.config.(*PWClient); ok {
-		if err := pwClientHandshake(x.Conn, clt); err != nil {
+	} else if client, ok := x.config.(*PWClient); ok {
+		if err := pwClientHandshake(x.Conn, client); err != nil {
 			x.Close()
 			return err
 		}
