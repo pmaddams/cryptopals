@@ -24,7 +24,7 @@ const (
 ac04f48c3c84afb796d61e5a4f9a8fda812ab59494232c7d2
 b4deb50aa18ee9e132bfa85ac4374d7f9091abc3d015efc87
 1a584471bb1`
-	dsaSubprime = `f4f47f05794b256174bba6e9b396a7707e563c5b`
+	dsaSubprime = "f4f47f05794b256174bba6e9b396a7707e563c5b"
 )
 
 var one = big.NewInt(1)

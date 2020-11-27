@@ -30,7 +30,7 @@ e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd
 c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552
 bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff
 fffffffffffff`
-	dhGenerator = `2`
+	dhGenerator = "2"
 )
 
 func main() {
