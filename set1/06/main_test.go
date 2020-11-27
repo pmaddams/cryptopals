@@ -45,9 +45,9 @@ func TestScoreFunc(t *testing.T) {
 		want   int
 	}{
 		{
-			"hola",
 			"hello world",
-			6,
+			"hola mundo",
+			10,
 		},
 		{
 			"世界再见",
