@@ -125,9 +125,19 @@ func RandomBytes(n int) []byte {
 
 // XORBytes produces the XOR combination of two buffers.
 func XORBytes(dst, b1, b2 []byte) int {
-	n := min(len(b1), len(b2))
+	n := Minimum(len(b1), len(b2))
 	for i := 0; i < n; i++ {
 		dst[i] = b1[i] ^ b2[i]
+	}
+	return n
+}
+
+// Minimum returns the smallest of a list of integers.
+func Minimum(n int, nums ...int) int {
+	for _, m := range nums {
+		if m < n {
+			n = m
+		}
 	}
 	return n
 }
@@ -135,12 +145,4 @@ func XORBytes(dst, b1, b2 []byte) int {
 // dup returns a copy of a buffer.
 func dup(buf []byte) []byte {
 	return append([]byte{}, buf...)
-}
-
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
-	}
-	return m
 }

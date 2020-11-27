@@ -225,6 +225,18 @@ func TestLengths(t *testing.T) {
 	}
 }
 
+func TestRandomBytes(t *testing.T) {
+	var bufs [][]byte
+	for i := 0; i < 5; i++ {
+		bufs = append(bufs, RandomBytes(16))
+		for j := 0; j < i; j++ {
+			if bytes.Equal(bufs[i], bufs[j]) {
+				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
+			}
+		}
+	}
+}
+
 func TestXORBytes(t *testing.T) {
 	cases := []struct {
 		b1, b2, want []byte
@@ -285,14 +297,28 @@ func TestXORSingleByte(t *testing.T) {
 	}
 }
 
-func TestRandomBytes(t *testing.T) {
-	var bufs [][]byte
-	for i := 0; i < 5; i++ {
-		bufs = append(bufs, RandomBytes(16))
-		for j := 0; j < i; j++ {
-			if bytes.Equal(bufs[i], bufs[j]) {
-				t.Errorf("identical buffers %v and %v", bufs[i], bufs[j])
-			}
+func TestMinimum(t *testing.T) {
+	cases := []struct {
+		nums []int
+		want int
+	}{
+		{
+			[]int{0},
+			0,
+		},
+		{
+			[]int{2, 1},
+			1,
+		},
+		{
+			[]int{-1, 2, 3},
+			-1,
+		},
+	}
+	for _, c := range cases {
+		got := Minimum(c.nums[0], c.nums[1:]...)
+		if got != c.want {
+			t.Errorf("got %v, want %v", got, c.want)
 		}
 	}
 }

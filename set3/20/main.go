@@ -211,9 +211,18 @@ func Lengths(bufs [][]byte) []int {
 	return nums
 }
 
+// RandomBytes returns a random buffer of the desired length.
+func RandomBytes(n int) []byte {
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		panic(err)
+	}
+	return buf
+}
+
 // XORBytes produces the XOR combination of two buffers.
 func XORBytes(dst, b1, b2 []byte) int {
-	n := min(len(b1), len(b2))
+	n := Minimum(len(b1), len(b2))
 	for i := 0; i < n; i++ {
 		dst[i] = b1[i] ^ b2[i]
 	}
@@ -228,19 +237,12 @@ func XORSingleByte(dst, src []byte, b byte) {
 	}
 }
 
-// RandomBytes returns a random buffer of the desired length.
-func RandomBytes(n int) []byte {
-	buf := make([]byte, n)
-	if _, err := rand.Read(buf); err != nil {
-		panic(err)
+// Minimum returns the smallest of a list of integers.
+func Minimum(n int, nums ...int) int {
+	for _, m := range nums {
+		if m < n {
+			n = m
+		}
 	}
-	return buf
-}
-
-// min returns the smaller of two integers.
-func min(n, m int) int {
-	if n < m {
-		return n
-	}
-	return m
+	return n
 }

@@ -172,3 +172,29 @@ func TestXORBytes(t *testing.T) {
 		}
 	}
 }
+
+func TestMinimum(t *testing.T) {
+	cases := []struct {
+		nums []int
+		want int
+	}{
+		{
+			[]int{0},
+			0,
+		},
+		{
+			[]int{2, 1},
+			1,
+		},
+		{
+			[]int{-1, 2, 3},
+			-1,
+		},
+	}
+	for _, c := range cases {
+		got := Minimum(c.nums[0], c.nums[1:]...)
+		if got != c.want {
+			t.Errorf("got %v, want %v", got, c.want)
+		}
+	}
+}
