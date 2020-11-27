@@ -137,7 +137,7 @@ func (x *rsaBreaker) breakOracle() ([]byte, error) {
 			m := x.ivals[0]
 			if equal(m.lo, m.hi) {
 				buf := make([]byte, size(x.n))
-				copyR(buf, m.lo.Bytes())
+				RightCopy(buf, m.lo.Bytes())
 
 				plaintext, err := PKCS1v15CryptUnpad(buf)
 				if err != nil {
@@ -335,7 +335,7 @@ func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	z.Exp(z, pub.e, pub.n)
 
 	res := make([]byte, size(pub.n))
-	copyR(res, z.Bytes())
+	RightCopy(res, z.Bytes())
 
 	return res, nil
 }
@@ -349,7 +349,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	z.Exp(z, priv.d, priv.n)
 
 	res := make([]byte, size(priv.n))
-	copyR(res, z.Bytes())
+	RightCopy(res, z.Bytes())
 
 	return res, nil
 }
@@ -409,6 +409,12 @@ func RandomBytes(n int) []byte {
 	return buf
 }
 
+// RightCopy copies a source buffer to the right of a destination buffer.
+func RightCopy(dst, src []byte) int {
+	// Panic if dst is smaller than src.
+	return copy(dst[len(dst)-len(src):], src)
+}
+
 // ceilingDiv performs ceiling division of z1 by z2.
 func ceilingDiv(res, z1, z2 *big.Int) *big.Int {
 	tmp := new(big.Int)
@@ -417,12 +423,6 @@ func ceilingDiv(res, z1, z2 *big.Int) *big.Int {
 		res.Add(res, one)
 	}
 	return res
-}
-
-// copyR copies a source buffer to the right of a destination buffer.
-func copyR(dst, src []byte) int {
-	// Panic if dst is smaller than src.
-	return copy(dst[len(dst)-len(src):], src)
 }
 
 // size returns the size of an arbitrary-precision integer in bytes.
