@@ -73,10 +73,8 @@ func decrypt(in io.Reader, pub *rsa.PublicKey, oracle func([]byte) bool) error {
 func rsaPaddingOracle(priv *rsa.PrivateKey) func([]byte) bool {
 	return func(ciphertext []byte) bool {
 		_, err := rsa.DecryptPKCS1v15(nil, priv, ciphertext)
-		if err != nil {
-			return false
-		}
-		return true
+
+		return err == nil
 	}
 }
 
