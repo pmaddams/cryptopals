@@ -47,28 +47,24 @@ func TestRSA(t *testing.T) {
 
 func TestPKCS1v15SignaturePadUnpad(t *testing.T) {
 	buf := make([]byte, 16)
-	var id crypto.Hash
-	for i := 0; i < 5; i++ {
-		weak.Read(buf)
-		if weak.Intn(2) == 0 {
-			id = crypto.SHA224
-		} else {
-			id = crypto.SHA256
-		}
-		h := id.New()
-		h.Write(buf)
-		want := h.Sum([]byte{})
-		size := 512 + weak.Intn(512)
-		tmp, err := PKCS1v15SignaturePad(id, want, size)
-		if err != nil {
-			t.Error(err)
-		}
-		got, err := PKCS1v15SignatureUnpad(id, tmp)
-		if err != nil {
-			t.Error(err)
-		}
-		if !bytes.Equal(got, want) {
-			t.Errorf("got %x, want %x", got, want)
+	for _, id := range []crypto.Hash{crypto.SHA224, crypto.SHA256} {
+		for i := 0; i < 5; i++ {
+			weak.Read(buf)
+			h := id.New()
+			h.Write(buf)
+			want := h.Sum([]byte{})
+			size := 512 + weak.Intn(512)
+			tmp, err := PKCS1v15SignaturePad(id, want, size)
+			if err != nil {
+				t.Error(err)
+			}
+			got, err := PKCS1v15SignatureUnpad(id, tmp)
+			if err != nil {
+				t.Error(err)
+			}
+			if !bytes.Equal(got, want) {
+				t.Errorf("got %x, want %x", got, want)
+			}
 		}
 	}
 }
