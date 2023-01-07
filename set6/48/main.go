@@ -256,7 +256,7 @@ func (x *rsaBreaker) findS(sMin, sMax *big.Int) (*big.Int, error) {
 // PKCS1v15CryptPad returns a checksum with PKCS #1 v1.5 encryption padding added.
 func PKCS1v15CryptPad(buf []byte, size int) ([]byte, error) {
 	if len(buf)+11 > size {
-		return nil, errors.New("PKCS1v15CryptPad: buffer too large")
+		return nil, errors.New("PKCS1v15CryptPad: too much data")
 	}
 	n := size - len(buf) - 3
 
