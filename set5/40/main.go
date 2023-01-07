@@ -174,7 +174,7 @@ func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	z.Exp(z, pub.e, pub.n)
 
 	res := make([]byte, size(pub.n))
-	RightCopy(res, z.Bytes())
+	CopyRight(res, z.Bytes())
 
 	return res, nil
 }
@@ -188,7 +188,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	z.Exp(z, priv.d, priv.n)
 
 	res := make([]byte, size(priv.n))
-	RightCopy(res, z.Bytes())
+	CopyRight(res, z.Bytes())
 
 	return res, nil
 }
@@ -212,8 +212,8 @@ func Cbrt(z *big.Int) *big.Int {
 	return guess
 }
 
-// RightCopy copies a source buffer to the right of a destination buffer.
-func RightCopy(dst, src []byte) int {
+// CopyRight copies a source buffer to the right of a destination buffer.
+func CopyRight(dst, src []byte) int {
 	// Panic if dst is smaller than src.
 	return copy(dst[len(dst)-len(src):], src)
 }

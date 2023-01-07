@@ -137,7 +137,7 @@ func (x *rsaBreaker) breakOracle() ([]byte, error) {
 			m := x.ivals[0]
 			if equal(m.lo, m.hi) {
 				buf := make([]byte, size(x.n))
-				RightCopy(buf, m.lo.Bytes())
+				CopyRight(buf, m.lo.Bytes())
 
 				plaintext, err := PKCS1v15CryptUnpad(buf)
 				if err != nil {
@@ -335,7 +335,7 @@ func RSAEncrypt(pub *RSAPublicKey, buf []byte) ([]byte, error) {
 	z.Exp(z, pub.e, pub.n)
 
 	res := make([]byte, size(pub.n))
-	RightCopy(res, z.Bytes())
+	CopyRight(res, z.Bytes())
 
 	return res, nil
 }
@@ -349,7 +349,7 @@ func RSADecrypt(priv *RSAPrivateKey, buf []byte) ([]byte, error) {
 	z.Exp(z, priv.d, priv.n)
 
 	res := make([]byte, size(priv.n))
-	RightCopy(res, z.Bytes())
+	CopyRight(res, z.Bytes())
 
 	return res, nil
 }
@@ -409,8 +409,8 @@ func RandomBytes(n int) []byte {
 	return buf
 }
 
-// RightCopy copies a source buffer to the right of a destination buffer.
-func RightCopy(dst, src []byte) int {
+// CopyRight copies a source buffer to the right of a destination buffer.
+func CopyRight(dst, src []byte) int {
 	// Panic if dst is smaller than src.
 	return copy(dst[len(dst)-len(src):], src)
 }

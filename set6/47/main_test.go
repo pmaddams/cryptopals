@@ -107,7 +107,7 @@ func TestRandomBytes(t *testing.T) {
 	}
 }
 
-func TestRightCopy(t *testing.T) {
+func TestCopyRight(t *testing.T) {
 	cases := []struct {
 		dst, src, want []byte
 	}{
@@ -128,7 +128,7 @@ func TestRightCopy(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		RightCopy(c.dst, c.src)
+		CopyRight(c.dst, c.src)
 		if !bytes.Equal(c.dst, c.want) {
 			t.Errorf("got %v, want %v", c.dst, c.want)
 		}
